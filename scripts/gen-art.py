@@ -9,10 +9,11 @@ same size and with the food in the same place:
     closed.png  eyes closed           (optional, falls back to open)
     wow.png     surprised face        (optional, falls back to open)
 
-A folder may also hold art.json with settings for that food:
-    {"outline": 22}   thicken the dark outline by this many pixels of the drawing, outwards.
-                      Small foods need it: drawn with the same line as the big ones, theirs
-                      almost vanishes once the food is shrunk to its size in the jar.
+Every food ends up with a dark outline of the same thickness in the jar (OUTLINE, in game
+units). A small food drawn with the same line as a big one would otherwise almost lose it once
+it is shrunk to its size. The script measures the outline of each drawing and adds what is
+missing around it, outwards; it never thins one. A folder may hold art.json with
+{"outline": false} to leave that food's outline as drawn.
 
 and writes:
     web/img/foods/<level>.webp   the different faces side by side, cut square
@@ -21,7 +22,9 @@ and writes:
 Needs Pillow and numpy. Run it, then run: node scripts/gen-foods.js
 """
 import json
+import math
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -33,6 +36,7 @@ OUT = os.path.join(ROOT, 'web', 'img', 'foods')
 FACES = ['open', 'half', 'closed', 'wow']
 FALLBACK = {'half': ['closed', 'open'], 'closed': ['open'], 'wow': ['open']}
 OUTLINE_POINTS = 16
+OUTLINE = 1.05         # thickness of the dark outline in the jar, in game units (0 = leave as drawn)
 
 
 def hull(points):
@@ -97,8 +101,6 @@ def thicken(im, t):
 def load(folder):
     """Returns the drawings that exist and, for each of the four faces, which drawing it uses."""
     names, imgs, use = [], [], []
-    cfg_path = os.path.join(folder, 'art.json')
-    cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
     for face in FACES:
         for name in [face] + FALLBACK.get(face, []):
             path = os.path.join(folder, name + '.png')
@@ -110,37 +112,82 @@ def load(folder):
                 # solid, plus the few soft pixels that smooth its edge.
                 near = Image.fromarray(((im[..., 3] > 127) * 255).astype('uint8')).filter(ImageFilter.MaxFilter(5))
                 im[..., 3][np.array(near) == 0] = 0
-                if cfg.get('outline'): im = thicken(im, float(cfg['outline']))
-                names.append(name); imgs.append(Image.fromarray(im, 'RGBA'))
+                names.append(name); imgs.append(im)
             use.append(names.index(name))
             break
         else:
             sys.exit(folder + ': open.png is missing')
-    if len({im.size for im in imgs}) != 1: sys.exit(folder + ': the drawings are not all the same size')
+    if len({im.shape for im in imgs}) != 1: sys.exit(folder + ': the drawings are not all the same size')
     return names, imgs, use
 
 
-def build(level, folder):
-    names, imgs, use = load(folder)
-    alpha = np.max([np.array(im)[..., 3] for im in imgs], axis=0)
+def shape(alpha):
+    """Outline of the solid part: its full hull, its area and centre, and the hull cut down to a few points."""
     solid = alpha > 127
-    if not solid.any(): sys.exit(folder + ': the drawing is empty')
-    if solid[0].any() or solid[-1].any() or solid[:, 0].any() or solid[:, -1].any():
-        print('  note: the drawing touches the edge of the picture; it may be cut off there')
-
-    # Outline: the hull of the solid part, taken at the pixel corners.
     edge = solid & ~(np.roll(solid, 1, 0) & np.roll(solid, -1, 0) & np.roll(solid, 1, 1) & np.roll(solid, -1, 1))
     ys, xs = np.nonzero(edge)
-    corners = np.concatenate([np.stack([xs + dx, ys + dy], 1) for dx in (0, 1) for dy in (0, 1)])
+    corners = np.concatenate([np.stack([xs + dx, ys + dy], 1) for dx in (0, 1) for dy in (0, 1)])   # pixel corners
     full = hull(corners)
     area_full, centre = area_centroid(full)
     out = simplify(full, OUTLINE_POINTS)
     area, _ = area_centroid(out)
     if area < 0: out = out[::-1]; area = -area
-    cover = area / abs(area_full)
-    # Cutting corners made it a little smaller: grow it back to the area of the full outline.
-    out = centre + (out - centre) * (abs(area_full) / area) ** 0.5
-    unit = abs(area_full) ** 0.5                 # one unit = side of a square with the outline's area
+    return abs(area_full), centre, out, area / abs(area_full)
+
+
+def line_width(im, out, centre):
+    """Thickness in pixels of the dark line around the drawing: walk in from outside at many points
+    of the outline, straight across it, and count how long the pixels stay dark. Takes the middle
+    value, so a dark part of the drawing that reaches the edge (the onigiri's seaweed) does not count."""
+    h, w = im.shape[:2]
+    dark = (im[..., :3].max(axis=2) <= 80) & (im[..., 3] > 127)
+    solid = im[..., 3] > 127
+    found = []
+    for i in range(len(out)):
+        a, b = out[i], out[(i + 1) % len(out)]
+        n = np.array([b[1] - a[1], a[0] - b[0]], dtype=float); n /= np.hypot(*n) or 1
+        if np.dot(centre - (a + b) / 2, n) < 0: n = -n            # pointing inwards
+        for f in np.linspace(0.1, 0.9, 9):
+            p = a + (b - a) * f - n * 8
+            first = None
+            for step in range(0, 400):
+                x, y = int(p[0] + n[0] * step * 0.5), int(p[1] + n[1] * step * 0.5)
+                if not (0 <= x < w and 0 <= y < h): continue
+                if first is None:
+                    if solid[y, x]: first = step
+                elif not dark[y, x]:
+                    found.append((step - first) * 0.5); break
+    return float(np.median(found)) if found else 0.0
+
+
+def build(level, folder, radius):
+    """radius: the radius, in game units, of a circle with the area this food has in the game."""
+    names, imgs, use = load(folder)
+    cfg_path = os.path.join(folder, 'art.json')
+    cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
+    alpha = np.max([im[..., 3] for im in imgs], axis=0)
+    if not (alpha > 127).any(): sys.exit(folder + ': the drawing is empty')
+    area_full, centre, out, cover = shape(alpha)
+
+    # Outline thickness. In the jar the drawing is scaled so that its area matches the food's, so
+    # one game unit is r_px / radius pixels. Adding e pixels all around also makes it e bigger:
+    # (line + e) / (r_px + e) = OUTLINE / radius.
+    r_px = math.sqrt(area_full / math.pi)
+    line = line_width(imgs[0], out, centre)
+    extra = (OUTLINE * r_px - line * radius) / (radius - OUTLINE) if OUTLINE and cfg.get('outline', True) else 0
+    print('  outline as drawn: %.1f px = %.2f game units%s' % (line, line * radius / r_px, ', adding %.1f px' % extra if extra >= 1 else ''))
+    if extra >= 1:
+        imgs = [thicken(im, extra) for im in imgs]
+        alpha = np.max([im[..., 3] for im in imgs], axis=0)
+        area_full, centre, out, cover = shape(alpha)
+    solid = alpha > 127
+    if solid[0].any() or solid[-1].any() or solid[:, 0].any() or solid[:, -1].any():
+        print('  note: the drawing touches the edge of the picture; it may be cut off there')
+    imgs = [Image.fromarray(im, 'RGBA') for im in imgs]
+
+    # Cutting corners made the outline a little smaller: grow it back to the area of the full one.
+    out = centre + (out - centre) * (1 / cover) ** 0.5
+    unit = area_full ** 0.5                      # one unit = side of a square with the outline's area
     start = int(np.argmin(out[:, 1] * 3 + out[:, 0]))   # start near the top, like the built-in shapes
     out = np.roll(out, -start, axis=0)
 
@@ -170,12 +217,14 @@ def build(level, folder):
 
 
 def main():
+    # How big each food is in the game, from the food table.
+    radii = json.loads(subprocess.check_output(['node', os.path.join(ROOT, 'scripts', 'gen-foods.js'), '--sizes']))
     art = {}
     for name in sorted(os.listdir(SRC), key=lambda s: (len(s), s)):
         folder = os.path.join(SRC, name)
         if not (os.path.isdir(folder) and name.isdigit()): continue
         print('level', name)
-        art[name] = build(int(name), folder)
+        art[name] = build(int(name), folder, radii[int(name)])
     with open(os.path.join(ROOT, 'scripts', 'art.json'), 'w') as fh:
         json.dump(art, fh, indent=1)
         fh.write('\n')

@@ -92,7 +92,7 @@ Cómo tienen que ser los dibujos:
 - Las comidas alargadas, acostadas: el dibujo se guarda como va a caer en el frasco (la lata está guardada de costado).
 - Las plantillas de `docs/plantillas/` sirven de guía para la forma general (redonda, triángulo, óvalo o cuadrada).
 
-Si el contorno de un dibujo queda muy fino al achicarlo (pasa con las comidas más chicas), se puede engrosar sin tocar el dibujo: un archivo `art.json` en la carpeta de esa comida con `{"outline": 22}` le suma esa cantidad de píxeles de borde negro. Hoy lo usa el caramelo.
+**Contorno parejo.** Todas las comidas quedan con el contorno negro del mismo grosor en el frasco, sin importar su tamaño ni con qué línea se dibujaron. El armado mide el contorno de cada dibujo y le suma por fuera lo que falte (nunca lo afina); el dibujo original no se toca. El grosor se cambia con `OUTLINE` en `scripts/gen-art.py`. Para dejar una comida tal como se dibujó, poner un archivo `art.json` con `{"outline": false}` en su carpeta.
 
 Para poner o cambiar un dibujo:
 
