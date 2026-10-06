@@ -9,6 +9,11 @@ same size and with the food in the same place:
     closed.png  eyes closed           (optional, falls back to open)
     wow.png     surprised face        (optional, falls back to open)
 
+A folder may also hold art.json with settings for that food:
+    {"outline": 22}   thicken the dark outline by this many pixels of the drawing, outwards.
+                      Small foods need it: drawn with the same line as the big ones, theirs
+                      almost vanishes once the food is shrunk to its size in the jar.
+
 and writes:
     web/img/foods/<level>.webp   the different faces side by side, cut square
     scripts/art.json             the outline of each drawing, for gen-foods.js
@@ -65,9 +70,35 @@ def simplify(p, n):
     return np.array(p)
 
 
+def blur(a, sigma):
+    """Gaussian blur of a float array, one axis at a time."""
+    n = int(sigma * 3) + 1
+    k = np.exp(-0.5 * (np.arange(-n, n + 1) / sigma) ** 2); k /= k.sum()
+    a = np.pad(a, n)
+    a = np.array([np.convolve(row, k, 'same') for row in a])
+    a = np.array([np.convolve(col, k, 'same') for col in a.T]).T
+    return a[n:-n, n:-n]
+
+
+def thicken(im, t):
+    """Grows the drawing outwards by t pixels of black, following its shape."""
+    pad = int(t) + 3                                  # room for the new outline if the drawing is near the border
+    im = np.pad(im, ((pad, pad), (pad, pad), (0, 0)))
+    alpha = im[..., 3] / 255.0
+    # Blurring a filled shape with sigma = t leaves about 0.159 exactly t pixels outside its edge.
+    soft = blur((alpha > 0.5).astype(float), t)
+    ring = np.clip((soft - 0.1587) * (t / 0.242) + 0.5, 0, 1)
+    out = im.astype(float)
+    out[..., :3] *= alpha[..., None]                 # the drawing, over black
+    out[..., 3] = np.maximum(alpha, ring) * 255
+    return out.round().astype('uint8')
+
+
 def load(folder):
     """Returns the drawings that exist and, for each of the four faces, which drawing it uses."""
     names, imgs, use = [], [], []
+    cfg_path = os.path.join(folder, 'art.json')
+    cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
     for face in FACES:
         for name in [face] + FALLBACK.get(face, []):
             path = os.path.join(folder, name + '.png')
@@ -79,6 +110,7 @@ def load(folder):
                 # solid, plus the few soft pixels that smooth its edge.
                 near = Image.fromarray(((im[..., 3] > 127) * 255).astype('uint8')).filter(ImageFilter.MaxFilter(5))
                 im[..., 3][np.array(near) == 0] = 0
+                if cfg.get('outline'): im = thicken(im, float(cfg['outline']))
                 names.append(name); imgs.append(Image.fromarray(im, 'RGBA'))
             use.append(names.index(name))
             break

@@ -92,6 +92,8 @@ Cómo tienen que ser los dibujos:
 - Las comidas alargadas, acostadas: el dibujo se guarda como va a caer en el frasco (la lata está guardada de costado).
 - Las plantillas de `docs/plantillas/` sirven de guía para la forma general (redonda, triángulo, óvalo o cuadrada).
 
+Si el contorno de un dibujo queda muy fino al achicarlo (pasa con las comidas más chicas), se puede engrosar sin tocar el dibujo: un archivo `art.json` en la carpeta de esa comida con `{"outline": 22}` le suma esa cantidad de píxeles de borde negro. Hoy lo usa el caramelo.
+
 Para poner o cambiar un dibujo:
 
 1. Guardar las caras en `art/foods/<nivel>/` (`0` es la comida más chica y `10` la más grande).
