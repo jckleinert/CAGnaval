@@ -71,6 +71,19 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 - Ventajas Shake, Swap y Sweep, un uso de cada una por partida (en práctica son gratis).
 - Ranking semanal por calorías sumadas.
 
+## Dibujos de las comidas
+
+Mientras no haya dibujos propios, cada comida se muestra como un sticker provisorio con un emoji.
+
+Para poner un dibujo propio:
+
+1. Usar como guía la plantilla de su forma, en `docs/plantillas/` (redonda, triángulo, óvalo o cuadrada). El borde de la plantilla es el borde exacto con el que la comida choca en el juego.
+2. Guardar el dibujo como PNG cuadrado con fondo transparente, de 512 x 512 o más, ocupando la plantilla hasta el borde.
+3. Guardarlo en `web/img/foods/` con el número de nivel como nombre: `0.png` es la más chica y `10.png` la más grande.
+4. Agregar ese número a la lista `ART_LEVELS` al principio de `web/game.js`.
+
+Cambiar el dibujo no cambia el juego. Cambiar la forma o el tamaño de una comida sí, y obliga a volver a probar la dificultad.
+
 ## Qué controla el árbitro
 
 - **Las fichas las decide el árbitro.** La página solo conoce la ficha actual y la siguiente.

@@ -12,7 +12,17 @@
   var R = Sim.RULES, FOODS = Sim.FOODS, TOP = Sim.TOP;
   var W = R.W, H = R.H, TAU = Math.PI * 2;
   var EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
-  var GOLD = '#ffd23f';
+  var GOLD = '#FFC93C';
+  /* Levels that have their own sticker picture in web/img/foods/<level>.png. The rest are drawn as placeholders. */
+  var ART_LEVELS = [];
+  var ART = {};
+  ART_LEVELS.forEach(function (lv) {
+    var img = new Image();
+    ART[lv] = { img: img, ok: false };
+    img.onload = function () { ART[lv].ok = true; lastNext = '?'; };
+    img.src = '/web/img/foods/' + lv + '.png';
+  });
+  FOODS.forEach(function (f, i) { f.i = i; });
   var apiMeta = document.querySelector('meta[name="cag-api"]');
   var API = apiMeta ? apiMeta.content.replace(/\/$/, '') : '';
 
@@ -23,8 +33,9 @@
   var btn = { shake: $('pwShake'), swap: $('pwSwap'), sweep: $('pwSweep') };
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var css = getComputedStyle(document.documentElement);
-  var INK = css.getPropertyValue('--ink').trim() || '#131838';
-  var LANTERN = css.getPropertyValue('--lantern').trim() || '#ff5a4a';
+  var INK = css.getPropertyValue('--ink').trim() || '#1B2233';
+  var LANTERN = css.getPropertyValue('--pink').trim() || '#EF4360';
+  var cagEl = $('cag');
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function fmt(n) { return Number(n).toLocaleString('en-US'); }
@@ -71,7 +82,7 @@
 
   /* ---------- run state ---------- */
   var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
-  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '';
+  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999;
 
   function toast(msg) {
     toastEl.textContent = msg; toastEl.hidden = false;
@@ -257,6 +268,11 @@
     else if (sim && run.live && ((p && p.gold) || (sim.current() && sim.current().gold))) { text = 'Golden food is coming up'; cls = 'hot'; }
     else if (sim && run.live) text = 'Merge two of the same food';
     if (text + cls !== lastStatus) { lastStatus = text + cls; statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); }
+
+    // CAG rides along the top of the jar, above where the food will fall.
+    var jw = jar.clientWidth, ax = clamp(Math.round(clamp(aim, 0, W)), 20, W - 20);
+    var cagX = Math.round(ax / W * jw - 18);
+    if (cagX !== lastCag) { lastCag = cagX; cagEl.style.transform = 'translateX(' + cagX + 'px)'; }
   }
 
   /* ---------- drawing ---------- */
@@ -283,18 +299,29 @@
         if (i) c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else c.moveTo(rr, 0);
       }
       c.closePath();
-      c.fillStyle = '#ff9d00'; c.fill();
-      c.lineWidth = 2; c.strokeStyle = '#fff6c9'; c.stroke();
+      c.fillStyle = GOLD; c.fill();
+      c.lineWidth = 2.5; c.strokeStyle = INK; c.stroke();
       c.restore();
     }
     c.rotate(angle);
+    var art = ART[f.i];
+    if (art && art.ok) {
+      // The picture is a square that reaches the farthest point of the shape on every side.
+      c.drawImage(art.img, -f.ext, -f.ext, f.ext * 2, f.ext * 2);
+      c.restore();
+      return;
+    }
+    // Placeholder sticker: white border with a dark edge, coloured centre with a dark outline.
+    trace(c, f);
+    c.fillStyle = '#ffffff'; c.fill();
+    c.lineWidth = 2; c.strokeStyle = INK; c.stroke();
+    c.save();
+    c.scale(0.8, 0.8);
     trace(c, f);
     c.fillStyle = gold ? GOLD : f.c; c.fill();
-    if (gold) {
-      c.lineWidth = 4.5; c.strokeStyle = '#fff6c9'; c.stroke();
-      c.lineWidth = 1.5; c.strokeStyle = '#a46f00'; c.stroke();
-    } else { c.lineWidth = 1.5; c.strokeStyle = 'rgba(19,24,56,0.28)'; c.stroke(); }
-    c.font = Math.round(f.r * f.es * (gold ? 0.72 : 1)) + 'px ' + EMOJI;
+    c.lineWidth = 2.5; c.strokeStyle = INK; c.stroke();
+    c.restore();
+    c.font = Math.round(f.r * f.es * (gold ? 0.66 : 0.82)) + 'px ' + EMOJI;
     c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = INK;
     c.fillText(f.e, 0, f.r * f.ey);
     c.restore();
@@ -307,7 +334,7 @@
 
     ctx.save();
     ctx.globalAlpha = sim && sim.warn ? (reduced ? 1 : 0.6 + 0.4 * Math.sin(step / 5.4)) : 0.45;
-    ctx.setLineDash([8, 7]); ctx.lineWidth = 2; ctx.strokeStyle = LANTERN;
+    ctx.setLineDash([10, 8]); ctx.lineWidth = 3; ctx.strokeStyle = LANTERN;
     ctx.beginPath(); ctx.moveTo(0, R.LINE_Y); ctx.lineTo(W, R.LINE_Y); ctx.stroke();
     ctx.restore();
     if (!sim) return;
@@ -317,7 +344,7 @@
       var f = FOODS[cur.lv], x = clamp(Math.round(clamp(aim, 0, W)), f.hw + R.PAD + 2, W - f.hw - R.PAD - 2);
       x = clamp(x, f.ext + R.PAD + 1, W - f.ext - R.PAD - 1);
       ctx.save();
-      ctx.setLineDash([4, 8]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(19,24,56,0.2)';
+      ctx.setLineDash([4, 8]); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(27,34,51,0.22)';
       ctx.beginPath(); ctx.moveTo(x, R.DROP_Y + f.r + 4); ctx.lineTo(x, H); ctx.stroke();
       ctx.restore();
       drawFood(ctx, x, R.DROP_Y, f, 0, cur.gold, spin);
@@ -333,11 +360,11 @@
       ctx.save();
       ctx.globalAlpha = 1 - k;
       if (!reduced) {
-        ctx.lineWidth = p.gold ? 6 : 3; ctx.strokeStyle = p.gold ? GOLD : '#ffffff';
+        ctx.lineWidth = p.gold ? 6 : 3; ctx.strokeStyle = p.gold ? GOLD : INK;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + (p.gold ? 0.9 : 0.4) * k), 0, TAU); ctx.stroke();
       }
       if (p.txt) {
-        ctx.font = '16px "Dela Gothic One","Arial Black",sans-serif';
+        ctx.font = '700 18px Fredoka,"Trebuchet MS",sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.fillStyle = INK;
         var ty = clamp(p.y - p.r - 10 - (reduced ? 0 : 16 * k), 14, H - 10);
@@ -348,8 +375,8 @@
 
     /* Foods left (top left) and seconds to drop (top right) */
     ctx.save();
-    ctx.font = '700 12px "Zen Maru Gothic","Trebuchet MS",sans-serif';
-    ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = '700 11px "Space Mono","Courier New",monospace';
+    ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.9)';
     var leftTxt = sim.left() + ' left';
     ctx.textAlign = 'left'; ctx.fillStyle = INK; ctx.strokeText(leftTxt, 10, 14); ctx.fillText(leftTxt, 10, 14);
     if (run.live && sim.ready && sim.dropped < R.MAX_FOODS) {
@@ -361,7 +388,7 @@
   }
 
   function fit() {
-    var bw = stage.clientWidth - 8, bh = stage.clientHeight - 4;
+    var bw = stage.clientWidth - 6, bh = stage.clientHeight - 52;   // room for the outline, the shadow and CAG above the jar
     var s = clamp(Math.min(bw / W, bh / H), 0.4, 440 / W);
     var cw = Math.floor(W * s), ch = Math.floor(H * s);
     jar.style.width = cw + 'px'; jar.style.height = ch + 'px';
