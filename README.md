@@ -64,7 +64,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Reglas del juego que ya están implementadas
 
-- 11 comidas, de Candy a Big Order. El onigiri es triangular, la lata de CAG Energy (nivel 4) alargada y el Big Order cuadrado.
+- 11 comidas, de Candy a Big Order. El onigiri es triangular, la lata de CAG Energy (nivel 4) alargada y el Big Order cuadrado. La lata se suelta inclinada (alternando el lado en cada tirada) para que caiga de punta, dé un saltito y se acueste, en vez de caer seca.
 - Hasta 200 fichas por partida y 15 segundos para soltar cada una. Si se acaba el tiempo, cae sola.
 - La partida termina cuando el frasco se llena o se acaban las fichas.
 - Comida dorada en 1 de cada 8 partidas. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).

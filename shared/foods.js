@@ -4,7 +4,7 @@
   else { root.CAG = root.CAG || {}; root.CAG.FOODS = factory(); }
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  /* e emoji, n name, r radius, c colour, rest bounce, fric grip, dens weight,
+  /* e emoji, n name, r radius, c colour, rest bounce, fric grip, dens weight, tilt lean when dropped (radians),
      poly outline (non-round foods), ext farthest point, hw half width, es/ey emoji size and offset,
      art half side of the food's own picture (web/img/foods/<level>.webp) and, for each face
      (open, half closed, closed, surprised), which picture of the row it uses */
@@ -97,10 +97,11 @@
   "n": "CAG Energy",
   "r": 38,
   "c": "#3bc7f5",
-  "rest": 0.18,
+  "rest": 0,
   "fric": 0.3,
   "dens": 0.001,
   "shape": "pill",
+  "tilt": 0.25,
   "ext": 52.253,
   "hw": 51.527,
   "es": 1.1,

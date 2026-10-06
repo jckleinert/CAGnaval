@@ -17,7 +17,7 @@
   var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body, Composite = Matter.Composite, Events = Matter.Events;
 
   var RULES = Object.freeze({
-    VERSION: 3,            // bump whenever anything that changes the outcome of a run changes
+    VERSION: 4,            // bump whenever anything that changes the outcome of a run changes
     W: 360, H: 520,        // jar size in game units
     PAD: 3,                // inner margin of the jar walls
     DROP_Y: 46,            // height the food is dropped from
@@ -104,13 +104,14 @@
 
   Sim.prototype._emit = function (ev) { if (this._collect) this.events.push(ev); };
 
-  Sim.prototype._add = function (x, y, lv, gold) {
+  Sim.prototype._add = function (x, y, lv, gold, angle) {
     var f = FOODS[lv], PAD = RULES.PAD, b;
     var px = clamp(x, f.ext + PAD + 1, RULES.W - f.ext - PAD - 1), py = Math.min(y, RULES.H - f.ext - PAD - 1);
     var o = { restitution: f.rest, friction: f.fric, frictionAir: 0.004, density: f.dens };
     if (f.poly) {
       o.position = { x: px, y: py };
       o.vertices = f.poly.map(function (p) { return { x: p.x, y: p.y }; });
+      if (angle) o.angle = angle;
       b = Body.create(o);
     } else b = Bodies.circle(px, py, f.r, o);
     b.food = { lv: lv, gold: !!gold, born: this.step, above: 0, gone: false };
@@ -198,11 +199,20 @@
   };
 
   /* Drop the current food at x (a whole number of game units, 0..W). */
+  /* Some foods (f.tilt) are dropped leaning to one side, so they land on a corner and tumble
+     instead of falling flat. The side alternates from one drop to the next. */
+  function tiltOf(lv, k) { var t = FOODS[lv].tilt || 0; return t ? ((k & 1) ? t : -t) : 0; }
+  /* The angle the food in hand will be dropped at. */
+  Sim.prototype.dropAngle = function () {
+    var p = this.current();
+    return p ? tiltOf(p.lv, this.dropped + 1) : 0;
+  };
+
   Sim.prototype.drop = function (x) {
     if (!this.canDrop()) return false;
     if (x !== (x | 0) || x < 0 || x > RULES.W) return false;
     var p = this.pieces[this.dropped + 1], f = FOODS[p.lv];
-    this._add(clamp(x, f.hw + RULES.PAD + 2, RULES.W - f.hw - RULES.PAD - 2), RULES.DROP_Y, p.lv, p.gold);
+    this._add(clamp(x, f.hw + RULES.PAD + 2, RULES.W - f.hw - RULES.PAD - 2), RULES.DROP_Y, p.lv, p.gold, tiltOf(p.lv, this.dropped + 1));
     if (p.gold) this.gold = 'jar';
     this.dropped++;
     this.ready = false;

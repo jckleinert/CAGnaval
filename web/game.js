@@ -459,7 +459,7 @@
       ctx.beginPath(); ctx.moveTo(x, R.DROP_Y + f.r + 4); ctx.lineTo(x, H); ctx.stroke();
       ctx.restore();
       // The food in hand blinks too, and gets nervous in the last three seconds.
-      drawFood(ctx, x, R.DROP_Y, f, 0, cur.gold, spin, reduced ? FACE_OPEN : sim.deadline() - step < 180 ? FACE_WOW : blink(977));
+      drawFood(ctx, x, R.DROP_Y, f, sim.dropAngle(), cur.gold, spin, reduced ? FACE_OPEN : sim.deadline() - step < 180 ? FACE_WOW : blink(977));
     }
 
     // From the bottom of the jar up, so that each food's shadow falls on the ones under it.
