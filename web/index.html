@@ -12,55 +12,20 @@
 <main class="app">
   <div class="awning"><span class="plaque"><img class="logo" src="/web/img/logo.png" alt="CAGnaval" width="840" height="178"></span></div>
 
-  <div class="signs">
+  <div class="play">
     <div class="sign score"><span class="kcal"><span id="kcal">0</span><small>kcal</small></span><span class="left" id="left" hidden></span></div>
     <div class="sign next"><span class="cap">next</span><span class="disc" id="nextDisc" role="img"></span></div>
-  </div>
+    <p class="status" id="status" role="status"></p>
 
-  <p class="status" id="status" role="status"></p>
-  <p class="fail" id="fail" hidden>The game could not load. Reload the page to try again.</p>
-
-  <div class="stage" id="stage">
-    <div class="jar" id="jar">
-      <img class="cag" id="cag" src="/web/img/cag.png" alt="">
-      <canvas id="game" tabindex="0" aria-label="Food jar. Left and right arrows aim, space drops the food."></canvas>
-      <span class="shine"></span><span class="shine two"></span>
-      <div class="toast" id="toast" role="status" hidden></div>
-
-      <div class="over" id="home">
-        <img class="logo big" src="/web/img/logo.png" alt="CAGnaval" width="840" height="178">
-        <p class="over-line">Drop food. Merge two of the same.</p>
-        <label class="field" for="name"><span class="cap">your name</span>
-          <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false">
-        </label>
-        <button class="primary" id="play" type="button">Play</button>
-        <button class="ghost" id="openBoard" type="button">Ranking</button>
-        <p class="over-line small">Your best: <b id="best">0</b> kcal</p>
-        <p class="over-line small" id="homeMsg"></p>
-      </div>
-
-      <div class="over" id="over" hidden>
-        <p class="over-title" id="overTitle"></p>
-        <p class="over-kcal"><span id="overKcal">0</span> <small>kcal</small></p>
-        <div class="chips"><span class="chip" id="overUsed"></span><span class="chip" id="overTop"></span></div>
-        <p class="over-line" id="overBonus"></p>
-        <p class="over-line small" id="overCheck"></p>
-        <p class="over-line small" id="overWeek"></p>
-        <button class="primary" id="again" type="button">Play again</button>
-        <button class="ghost" id="openBoard2" type="button">Ranking</button>
-      </div>
-
-      <div class="over" id="board" hidden>
-        <p class="over-title">This week</p>
-        <ol class="rank" id="rank"></ol>
-        <p class="over-line small" id="rankMsg"></p>
-        <button class="ghost" id="closeBoard" type="button">Back</button>
+    <div class="stage" id="stage">
+      <div class="jar" id="jar">
+        <img class="cag" id="cag" src="/web/img/cag.png" alt="">
+        <canvas id="game" tabindex="0" aria-label="Food jar. Left and right arrows aim, space drops the food."></canvas>
+        <span class="shine"></span><span class="shine two"></span>
+        <div class="toast" id="toast" role="status" hidden></div>
       </div>
     </div>
-  </div>
 
-  <div class="counter">
-    <ol class="ladder" id="ladder" aria-label="Food order, smallest to biggest"></ol>
     <div class="powers">
       <button class="pw" id="pwShake" type="button" disabled>
         <span class="ico blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9c2.2-3.4 4.4 3.4 6.6 0s4.4 3.4 6.6 0M6.8 16c2.2-3.4 4.4 3.4 6.6 0s4.4 3.4 6.6 0" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg></span>
@@ -75,7 +40,43 @@
         <span class="txt"><span class="pw-n">Sweep</span><span class="pw-d">clear small ones</span></span>
       </button>
     </div>
+  </div>
+
+  <p class="fail" id="fail" hidden>The game could not load. Reload the page to try again.</p>
+
+  <div class="counter">
+    <ol class="ladder" id="ladder" aria-label="Food order, smallest to biggest"></ol>
     <p class="note">Practice mode. No tickets, no prizes.</p>
+  </div>
+
+  <div class="over" id="home">
+    <img class="logo big" src="/web/img/logo.png" alt="CAGnaval" width="840" height="178">
+    <p class="over-line">Drop food. Merge two of the same.</p>
+    <label class="field" for="name"><span class="cap">your name</span>
+      <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false">
+    </label>
+    <button class="primary" id="play" type="button">Play</button>
+    <button class="ghost" id="openBoard" type="button">Ranking</button>
+    <p class="over-line small">Your best: <b id="best">0</b> kcal</p>
+    <p class="over-line small" id="homeMsg"></p>
+  </div>
+
+  <div class="over" id="over" hidden>
+    <p class="over-title" id="overTitle"></p>
+    <p class="over-kcal"><span id="overKcal">0</span> <small>kcal</small></p>
+    <div class="chips"><span class="chip" id="overUsed"></span><span class="chip" id="overTop"></span></div>
+    <p class="over-line" id="overBonus"></p>
+    <p class="over-line small" id="overCheck"></p>
+    <p class="over-line small" id="overWeek"></p>
+    <button class="primary" id="again" type="button">Play again</button>
+    <button class="ghost" id="openBoard2" type="button">Ranking</button>
+  </div>
+
+  <div class="over" id="board" hidden>
+    <p class="over-title">This week</p>
+    <ol class="rank" id="rank"></ol>
+    <p class="over-line small" id="rankMsg"></p>
+    <button class="ghost" id="closeBoard" type="button">Back</button>
   </div>
 </main>
 

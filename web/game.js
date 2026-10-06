@@ -84,7 +84,7 @@
 
   /* ---------- run state ---------- */
   var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
-  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2;
+  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2, boardBack = null;
 
   function toast(msg) {
     toastEl.textContent = msg; toastEl.hidden = false;
@@ -100,7 +100,7 @@
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
       run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0 };
       fx.length = 0; aim = W / 2; acc = 0; last = 0;
-      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true;
+      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true; boardBack = null;
       $('homeMsg').textContent = '';
       cv.focus();
     }).catch(function (e) {
@@ -207,6 +207,9 @@
   function openBoard() {
     var list = $('rank'), msg = $('rankMsg');
     list.textContent = ''; msg.textContent = 'Loading…';
+    // The ranking takes the place of the card it was opened from, and gives it back on close.
+    boardBack = !overEl.hidden ? overEl : !homeEl.hidden ? homeEl : null;
+    if (boardBack) boardBack.hidden = true;
     boardEl.hidden = false;
     call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 2).then(function (b) {
       msg.textContent = b.top.length ? '' : 'No runs yet this week. Be the first.';
@@ -408,8 +411,11 @@
   }
 
   function fit() {
-    var bw = stage.clientWidth - 26, bh = stage.clientHeight - 66;   // room for the rim, the glass edge and CAG above the jar
-    var s = clamp(Math.min(bw / W, bh / H), 0.4, 440 / W);
+    // Room for the rim, the glass edge and CAG above the jar. The jar never gets smaller than
+    // MIN_JAR_H: on a very short screen the page scrolls instead of squashing it.
+    var MIN_JAR_H = 300;
+    var bw = stage.clientWidth - 18, bh = Math.max(stage.clientHeight - 66, MIN_JAR_H);
+    var s = clamp(Math.min(bw / W, bh / H), 0.3, 480 / W);
     var cw = Math.floor(W * s), ch = Math.floor(H * s);
     jar.style.width = cw + 'px'; jar.style.height = ch + 'px';
     var dpr = Math.min(window.devicePixelRatio || 1, 3);
@@ -478,7 +484,7 @@
   nameEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') startRun(); });
   $('openBoard').addEventListener('click', openBoard);
   $('openBoard2').addEventListener('click', openBoard);
-  $('closeBoard').addEventListener('click', function () { boardEl.hidden = true; });
+  $('closeBoard').addEventListener('click', function () { boardEl.hidden = true; if (boardBack) boardBack.hidden = false; boardBack = null; });
 
   nameEl.value = player.name || '';
   fit();

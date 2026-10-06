@@ -51,13 +51,35 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .app {
-  height: 100%;
-  max-width: 440px;
+  min-height: 100%;
+  max-width: 460px;
   margin-inline: auto;
   padding-inline: 16px;
   display: flex;
   flex-direction: column;
 }
+
+/*
+ * Play area. Phone shape: signs on top, then the jar with the three
+ * power-ups in a narrow column on its right. Wide screens (see the end of
+ * this file): the jar in the middle at full height, score on the left,
+ * next food and power-ups on the right.
+ */
+.play {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  column-gap: 6px;
+  margin-bottom: -14px;
+}
+.sign.score { grid-area: 1 / 1 / 2 / -1; justify-self: start; }
+.sign.next { grid-area: 1 / 1 / 2 / -1; justify-self: end; }
+.status { grid-area: 2 / 1 / 3 / -1; }
+.stage { grid-area: 3 / 1 / 4 / 2; }
+.powers { grid-area: 3 / 2 / 4 / 3; }
 
 /* Awning */
 .awning {
@@ -94,8 +116,7 @@ body {
 .logo.big { height: auto; width: 250px; max-width: 92%; margin-bottom: 2px; }
 
 /* Signs hanging from the awning */
-.signs { position: relative; z-index: 1; flex: 0 0 auto; display: flex; justify-content: space-between; align-items: flex-start; margin-top: 20px; }
-.sign { position: relative; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 3px 14px 5px; background: var(--paper); border-radius: 16px; box-shadow: 0 4px 0 var(--shade); }
+.sign { position: relative; margin-top: 20px; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 3px 14px 5px; background: var(--paper); border-radius: 16px; box-shadow: 0 4px 0 var(--shade); }
 .sign::before, .sign::after { content: ""; position: absolute; bottom: 100%; width: 3px; height: 22px; border-radius: 2px; background: var(--wood-d); }
 .sign::before { left: 16px; }
 .sign::after { right: 16px; }
@@ -107,14 +128,14 @@ body {
 .disc.gold { border-radius: 50%; animation: ring 0.9s ease-in-out infinite alternate; box-shadow: 0 0 0 3px var(--yellow); }
 @keyframes ring { to { box-shadow: 0 0 0 8px rgba(255, 201, 60, 0.3); } }
 
-.status { flex: 0 0 auto; margin: 6px 0 0; min-height: 24px; align-self: center; padding: 3px 14px; font-size: 13px; font-weight: 600; line-height: 18px; color: var(--dim); text-align: center; border-radius: 999px; }
+.status { margin: 6px 0 0; min-height: 24px; justify-self: center; padding: 3px 14px; font-size: 13px; font-weight: 600; line-height: 18px; color: var(--dim); text-align: center; border-radius: 999px; }
 .status.hot { background: var(--yellow); color: var(--ink); font-weight: 700; box-shadow: 0 3px 0 var(--yellow-d); }
 .status.bad { background: var(--pink); color: #fff; font-weight: 700; }
 
 /* Glass jar, with CAG leaning over it */
-.stage { position: relative; z-index: 1; flex: 1 1 auto; min-height: 300px; display: grid; place-items: center; margin-bottom: -14px; }
+.stage { min-width: 0; min-height: 366px; display: grid; place-items: end center; }
 .jar { position: relative; width: 300px; height: 433px; margin-top: 54px; }
-.jar::before { content: ""; position: absolute; left: -12px; right: -12px; top: -10px; height: 12px; border-radius: 8px; background: var(--glass-edge); box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.55), 0 3px 0 var(--shade); }
+.jar::before { content: ""; position: absolute; left: -8px; right: -8px; top: -10px; height: 12px; border-radius: 8px; background: var(--glass-edge); box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.55), 0 3px 0 var(--shade); }
 .jar::after { content: ""; position: absolute; inset: 0 -4px -4px -4px; border: 4px solid var(--glass-edge); border-top: 0; border-radius: 0 0 20px 20px; box-shadow: 0 8px 0 -2px var(--shade); pointer-events: none; }
 #game { display: block; width: 100%; height: 100%; background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: 0 0 16px 16px; touch-action: none; cursor: pointer; }
 #game:focus-visible { outline: 3px solid var(--blue-d); outline-offset: 8px; }
@@ -128,9 +149,9 @@ body {
 @keyframes pop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } }
 
 /* Start, result and ranking boards */
-.over { position: absolute; z-index: 2; inset: 6px 4px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 26px 16px 16px; text-align: center; background: var(--paper); border-radius: 24px; box-shadow: 0 6px 0 var(--shade); overflow-x: hidden; overflow-y: auto; }
+.over { position: fixed; z-index: 20; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(330px, calc(100% - 32px)); max-height: calc(100% - 24px); display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 30px 18px 20px; text-align: center; background: var(--paper); border-radius: 24px; box-shadow: 0 6px 0 var(--shade), 0 0 0 200vmax rgba(255, 243, 220, 0.78); overflow-x: hidden; overflow-y: auto; }
 .over::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 12px; background: repeating-linear-gradient(90deg, var(--pink) 0 20px, var(--pink-l) 20px 40px); }
-#board { justify-content: flex-start; }
+#board { min-height: 260px; }
 #board::before { background: repeating-linear-gradient(90deg, var(--yellow) 0 20px, var(--yellow-l) 20px 40px); }
 #over::before { background: repeating-linear-gradient(90deg, var(--blue) 0 20px, var(--blue-l) 20px 40px); }
 .over-title { margin: 0; font-weight: 700; font-size: 27px; line-height: 1.1; text-wrap: balance; }
@@ -164,25 +185,48 @@ body {
 .rank .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Counter: the jar stands on it; the menu of foods and the power-ups are on its front */
-.counter { flex: 0 0 auto; margin-inline: -16px; padding: 24px 16px max(10px, env(safe-area-inset-bottom, 0px)); background: var(--wood); border-top: 6px solid var(--wood-l); border-radius: 22px 22px 0 0; box-shadow: 0 -3px 0 var(--shade); display: flex; flex-direction: column; gap: 9px; }
+.counter { flex: 0 0 auto; margin-inline: -16px; padding: 24px 16px max(8px, env(safe-area-inset-bottom, 0px)); background: var(--wood); border-top: 6px solid var(--wood-l); border-radius: 22px 22px 0 0; box-shadow: 0 -3px 0 var(--shade); display: flex; flex-direction: column; gap: 6px; }
 .ladder { display: grid; grid-template-columns: repeat(11, minmax(0, 28px)); gap: 3px; justify-content: center; margin: 0; padding: 0; list-style: none; }
 .ladder li { aspect-ratio: 1; opacity: 0.32; }
 .ladder li.on { opacity: 1; }
 
-.powers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.pw { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 7px 8px 8px; font-family: var(--font); color: var(--ink); text-align: left; background: var(--paper); border: 0; border-radius: 16px; box-shadow: 0 4px 0 var(--wood-d); cursor: pointer; transition: transform 0.1s ease, box-shadow 0.1s ease; }
-.pw:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 var(--wood-d); }
-.ico { flex: 0 0 auto; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; }
-.ico svg { width: 22px; height: 22px; display: block; }
-.ico.blue { background: var(--blue); box-shadow: inset 0 -3px 0 var(--blue-d); }
-.ico.pink { background: var(--pink); box-shadow: inset 0 -3px 0 var(--pink-d); }
-.ico.yellow { background: var(--yellow); box-shadow: inset 0 -3px 0 var(--yellow-d); }
+.powers { display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+.pw { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 0; font-family: var(--font); color: var(--ink); text-align: center; background: none; border: 0; cursor: pointer; transition: transform 0.1s ease; }
+.pw:active:not(:disabled) { transform: translateY(3px); }
+.ico { flex: 0 0 auto; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; }
+.ico svg { width: 30px; height: 30px; display: block; }
+.ico.blue { background: var(--blue); box-shadow: inset 0 -4px 0 var(--blue-d), 0 3px 0 var(--shade); }
+.ico.pink { background: var(--pink); box-shadow: inset 0 -4px 0 var(--pink-d), 0 3px 0 var(--shade); }
+.ico.yellow { background: var(--yellow); box-shadow: inset 0 -4px 0 var(--yellow-d), 0 3px 0 var(--shade); }
 .txt { display: flex; flex-direction: column; min-width: 0; }
-.pw-n { font-weight: 700; font-size: 14.5px; line-height: 1.15; }
-.pw-d { font-size: 11px; font-weight: 500; color: var(--dim); line-height: 1.15; }
-.pw:disabled { cursor: default; opacity: 0.5; filter: grayscale(1); box-shadow: 0 2px 0 var(--wood-d); }
+.pw-n { font-weight: 700; font-size: 12.5px; line-height: 1.15; }
+.pw-d { display: none; font-size: 11.5px; font-weight: 500; color: var(--dim); line-height: 1.15; }
+.pw:disabled { cursor: default; opacity: 0.45; filter: grayscale(1); }
 
 .note { margin: 0; font-size: 11.5px; font-weight: 500; color: #9A7A3F; text-align: center; }
 .fail { margin: 8px 0; padding: 12px; background: var(--paper); border-radius: 14px; }
 
 @media (prefers-reduced-motion: reduce) { .disc.gold, .toast { animation: none; } }
+
+/* Tablets held upright: same layout, more room */
+@media (min-width: 620px) { .app { max-width: 600px; } }
+
+/* Wide screens (a computer, a phone on its side): jar in the middle at full height, panels on both sides. */
+@media (min-width: 720px) and (min-aspect-ratio: 11/10) {
+  .app { max-width: 860px; }
+  .play { grid-template-columns: 190px minmax(0, 1fr) 190px; grid-template-rows: auto minmax(0, 1fr); column-gap: 16px; }
+  .sign.score { grid-area: 1 / 1 / 2 / 2; }
+  .sign.next { grid-area: 1 / 3 / 2 / 4; }
+  .status { grid-area: 2 / 1 / 3 / 2; justify-self: start; align-self: start; margin-top: 12px; text-align: left; border-radius: 16px; }
+  .stage { grid-area: 1 / 2 / -1 / 3; min-height: 380px; margin-top: 16px; }
+  .powers { grid-area: 2 / 3 / 3 / 4; justify-content: flex-start; gap: 10px; margin-top: 16px; }
+  .pw { flex-direction: row; gap: 10px; padding: 8px 12px 9px; text-align: left; background: var(--paper); border-radius: 18px; box-shadow: 0 4px 0 var(--shade); }
+  .pw:active:not(:disabled) { box-shadow: 0 1px 0 var(--shade); }
+  .ico { width: 40px; height: 40px; }
+  .ico svg { width: 26px; height: 26px; }
+  .ico.blue { box-shadow: inset 0 -4px 0 var(--blue-d); }
+  .ico.pink { box-shadow: inset 0 -4px 0 var(--pink-d); }
+  .ico.yellow { box-shadow: inset 0 -4px 0 var(--yellow-d); }
+  .pw-n { font-size: 16px; }
+  .pw-d { display: block; }
+}
