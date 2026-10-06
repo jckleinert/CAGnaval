@@ -437,8 +437,11 @@
 
   function draw() {
     var sim = run ? run.sim : null, step = sim ? sim.step : 0, i;
+    // Wipe every pixel of the canvas: it can be a fraction taller than the scaled game area, and a
+    // strip left unwiped at the bottom would keep piling up whatever is drawn over it.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    ctx.clearRect(0, 0, W, H);
 
     ctx.save();
     ctx.globalAlpha = sim && sim.warn ? (reduced ? 1 : 0.6 + 0.4 * Math.sin(step / 5.4)) : 0.45;
