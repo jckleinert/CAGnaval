@@ -9,6 +9,7 @@
     "start": "node server/index.js",
     "test": "node --test",
     "build:matter": "node scripts/build-matter.js",
-    "build:foods": "node scripts/gen-foods.js"
+    "build:foods": "node scripts/gen-foods.js",
+    "build:art": "python3 scripts/gen-art.py && node scripts/gen-foods.js"
   }
 }

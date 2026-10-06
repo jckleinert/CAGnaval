@@ -73,16 +73,35 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Dibujos de las comidas
 
-Mientras no haya dibujos propios, cada comida se muestra como un sticker provisorio con un emoji.
+Mientras una comida no tenga dibujo propio, se muestra como un sticker provisorio con un emoji. Hoy tiene dibujo propio el onigiri (nivel 2).
 
-Para poner un dibujo propio:
+Cada comida puede tener hasta cuatro caras, para que parpadee y se sorprenda:
 
-1. Usar como guía la plantilla de su forma, en `docs/plantillas/` (redonda, triángulo, óvalo o cuadrada). El borde de la plantilla es el borde exacto con el que la comida choca en el juego.
-2. Guardar el dibujo como PNG cuadrado con fondo transparente, de 512 x 512 o más, ocupando la plantilla hasta el borde.
-3. Guardarlo en `web/img/foods/` con el número de nivel como nombre: `0.png` es la más chica y `10.png` la más grande.
-4. Agregar ese número a la lista `ART_LEVELS` al principio de `web/game.js`.
+| Archivo | Cara | ¿Obligatorio? |
+|---|---|---|
+| `open.png` | Normal, ojos abiertos | Sí |
+| `half.png` | Ojos a medio cerrar | No |
+| `closed.png` | Ojos cerrados | No (sin esta no parpadea) |
+| `wow.png` | Sorpresa | No |
 
-Cambiar el dibujo no cambia el juego. Cambiar la forma o el tamaño de una comida sí, y obliga a volver a probar la dificultad.
+Cómo tienen que ser los dibujos:
+
+- PNG cuadrado con fondo transparente, de 512 x 512 o más.
+- Las caras de una misma comida, todas del mismo tamaño y con la comida exactamente en el mismo lugar. Solo cambian los ojos o la boca.
+- Sin tocar el borde de la imagen.
+- Las plantillas de `docs/plantillas/` sirven de guía para la forma general (redonda, triángulo, óvalo o cuadrada).
+
+Para poner o cambiar un dibujo:
+
+1. Guardar las caras en `art/foods/<nivel>/` (`0` es la comida más chica y `10` la más grande).
+2. Correr `npm run build:art` (necesita Python con Pillow y numpy). Arma la imagen que usa el juego en `web/img/foods/<nivel>.webp` y vuelve a generar `shared/foods.js`.
+3. Subir `RULES.VERSION` en `shared/sim.js` si la comida no es redonda (ver abajo).
+
+Cuándo aparece cada cara: la comida parpadea sola cada pocos segundos, cada una a su ritmo. Pone cara de sorpresa mientras cae, recién fusionada, cuando se usa Shake, cuando asoma por encima de la línea y, la que está por caer, en los últimos 3 segundos.
+
+**El borde con el que chocan.** Las comidas redondas siguen chocando como un círculo, y su dibujo se ajusta a ese círculo. Las que no son redondas (onigiri, sushi, Big Order) chocan con el contorno de su propio dibujo, llevado al mismo tamaño que tenían. Por eso, cambiar el dibujo de una comida no redonda cambia un poco cómo rebota y obliga a subir `RULES.VERSION`.
+
+Cambiar el tamaño de una comida o su forma general sí cambia el juego, y obliga a volver a probar la dificultad.
 
 ## Qué controla el árbitro
 
@@ -116,5 +135,5 @@ Cambiar el dibujo no cambia el juego. Cambiar la forma o el tamaño de una comid
 
 - `shared/sim.js` es la única fuente de verdad de las reglas. Si cambia algo que altera el resultado de una partida, hay que subir `RULES.VERSION`.
 - Dentro de la simulación no se puede usar `Math.sin`, `Math.pow`, `Math.random` ni nada parecido: no dan el mismo resultado en todos los navegadores. `shared/detmath.js` los reemplaza o los bloquea.
-- `shared/matter-det.js` y `shared/foods.js` son archivos generados. Se rehacen con `npm run build:matter` y `npm run build:foods`.
+- `shared/matter-det.js`, `shared/foods.js`, `scripts/art.json` y `web/img/foods/*.webp` son archivos generados. Se rehacen con `npm run build:matter`, `npm run build:foods` y `npm run build:art`.
 - Prueba de punta a punta en navegador (necesita Playwright): `node scripts/e2e.js`.

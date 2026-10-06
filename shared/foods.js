@@ -5,7 +5,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   /* e emoji, n name, r radius, c colour, rest bounce, fric grip, dens weight,
-     poly outline (non-round foods), ext farthest point, hw half width, es/ey emoji size and offset */
+     poly outline (non-round foods), ext farthest point, hw half width, es/ey emoji size and offset,
+     art.half half side of the food's own picture (web/img/foods/<level>.webp), when it has one */
   return [
  {
   "e": "🍬",
@@ -40,23 +41,29 @@
   "fric": 0.7,
   "dens": 0.0012,
   "shape": "tri",
-  "ext": 32.321,
-  "hw": 29.665,
+  "ext": 31.237,
+  "hw": 27.117,
   "es": 1.05,
   "ey": 0.1,
+  "art": {
+   "half": 31.202},
   "poly": [
-   {"x": -10.825, "y": -26.072},
-   {"x": -6.144, "y": -30.708},
-   {"x": 0.244, "y": -32.32},
-   {"x": 6.564, "y": -30.46},
-   {"x": 27.991, "y": 3.661},
-   {"x": 29.665, "y": 10.033},
-   {"x": 27.867, "y": 16.371},
-   {"x": 23.097, "y": 20.915},
-   {"x": -17.166, "y": 22.411},
-   {"x": -23.521, "y": 20.675},
-   {"x": -28.111, "y": 15.949},
-   {"x": -29.66, "y": 9.546}
+   {"x": -5.102, "y": -30.465},
+   {"x": 3.347, "y": -30.465},
+   {"x": 14.218, "y": -20.157},
+   {"x": 24.019, "y": -4.103},
+   {"x": 26.666, "y": 4.402},
+   {"x": 27.117, "y": 12.119},
+   {"x": 24.582, "y": 19.273},
+   {"x": 17.372, "y": 22.653},
+   {"x": 9.486, "y": 23.498},
+   {"x": -7.807, "y": 23.272},
+   {"x": -19.184, "y": 21.357},
+   {"x": -26.395, "y": 14.316},
+   {"x": -26.958, "y": 9.19},
+   {"x": -23.522, "y": -6.131},
+   {"x": -16.988, "y": -18.129},
+   {"x": -10.679, "y": -26.86}
   ]},
  {
   "e": "🍩",

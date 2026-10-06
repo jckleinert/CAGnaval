@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""
+Turns the drawings in art/foods/<level>/ into what the game uses.
+
+For each level folder it reads up to four drawings of the same food, all the
+same size and with the food in the same place:
+    open.png    normal face (the only one that is required)
+    half.png    eyes half closed      (optional, falls back to closed/open)
+    closed.png  eyes closed           (optional, falls back to open)
+    wow.png     surprised face        (optional, falls back to open)
+
+and writes:
+    web/img/foods/<level>.webp   the four faces side by side, cut square
+    scripts/art.json             the outline of each drawing, for gen-foods.js
+
+Needs Pillow and numpy. Run it, then run: node scripts/gen-foods.js
+"""
+import json
+import os
+import sys
+
+import numpy as np
+from PIL import Image
+
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SRC = os.path.join(ROOT, 'art', 'foods')
+OUT = os.path.join(ROOT, 'web', 'img', 'foods')
+FACES = ['open', 'half', 'closed', 'wow']
+FALLBACK = {'half': ['closed', 'open'], 'closed': ['open'], 'wow': ['open']}
+OUTLINE_POINTS = 16
+
+
+def hull(points):
+    """Convex hull (monotone chain) of an (n, 2) integer array."""
+    pts = sorted(set(map(tuple, points)))
+    def cross(o, a, b): return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], p) <= 0: lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], p) <= 0: upper.pop()
+        upper.append(p)
+    return np.array(lower[:-1] + upper[:-1], dtype=float)
+
+
+def area_centroid(p):
+    x, y = p[:, 0], p[:, 1]
+    xn, yn = np.roll(x, -1), np.roll(y, -1)
+    c = x * yn - xn * y
+    a = c.sum() / 2
+    return a, np.array([((x + xn) * c).sum() / (6 * a), ((y + yn) * c).sum() / (6 * a)])
+
+
+def simplify(p, n):
+    """Drop, one at a time, the corner whose removal changes the shape least."""
+    p = list(map(tuple, p))
+    while len(p) > n:
+        best, at = None, 0
+        for i in range(len(p)):
+            a, b, c = p[i - 1], p[i], p[(i + 1) % len(p)]
+            t = abs((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]))
+            if best is None or t < best: best, at = t, i
+        p.pop(at)
+    return np.array(p)
+
+
+def load(folder):
+    imgs = {}
+    for face in FACES:
+        for name in [face] + FALLBACK.get(face, []):
+            path = os.path.join(folder, name + '.png')
+            if os.path.exists(path):
+                imgs[face] = Image.open(path).convert('RGBA')
+                break
+    if 'open' not in imgs: sys.exit(folder + ': open.png is missing')
+    if len({im.size for im in imgs.values()}) != 1: sys.exit(folder + ': the drawings are not all the same size')
+    return imgs
+
+
+def build(level, folder):
+    imgs = load(folder)
+    alpha = np.max([np.array(im)[..., 3] for im in imgs.values()], axis=0)
+    solid = alpha > 127
+    if not solid.any(): sys.exit(folder + ': the drawing is empty')
+    if solid[0].any() or solid[-1].any() or solid[:, 0].any() or solid[:, -1].any():
+        print('  note: the drawing touches the edge of the picture; it may be cut off there')
+
+    # Outline: the hull of the solid part, taken at the pixel corners.
+    edge = solid & ~(np.roll(solid, 1, 0) & np.roll(solid, -1, 0) & np.roll(solid, 1, 1) & np.roll(solid, -1, 1))
+    ys, xs = np.nonzero(edge)
+    corners = np.concatenate([np.stack([xs + dx, ys + dy], 1) for dx in (0, 1) for dy in (0, 1)])
+    full = hull(corners)
+    area_full, centre = area_centroid(full)
+    out = simplify(full, OUTLINE_POINTS)
+    area, _ = area_centroid(out)
+    if area < 0: out = out[::-1]; area = -area
+    cover = area / abs(area_full)
+    # Cutting corners made it a little smaller: grow it back to the area of the full outline.
+    out = centre + (out - centre) * (abs(area_full) / area) ** 0.5
+    unit = abs(area_full) ** 0.5                 # one unit = side of a square with the outline's area
+    start = int(np.argmin(out[:, 1] * 3 + out[:, 0]))   # start near the top, like the built-in shapes
+    out = np.roll(out, -start, axis=0)
+
+    # Square cut around the centre that holds every painted pixel of every face.
+    ys, xs = np.nonzero(alpha > 0)
+    half = max(np.abs(xs + 0.5 - centre[0]).max(), np.abs(ys + 0.5 - centre[1]).max()) + 3
+    reach = np.sqrt((full[:, 0] - centre[0]) ** 2 + (full[:, 1] - centre[1]) ** 2).max()
+    size = int(min(640, 192 + 48 * level))
+    box = [int(round(centre[0] - half)), int(round(centre[1] - half))]
+    side = int(round(half * 2))
+    sheet = Image.new('RGBA', (size * len(FACES), size), (0, 0, 0, 0))
+    for i, face in enumerate(FACES):
+        cut = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+        cut.paste(imgs[face], (-box[0], -box[1]))
+        # Shrink with the colours weighted by their opacity, so no dark rim appears on the edge.
+        small = cut.convert('RGBa').resize((size, size), Image.LANCZOS).convert('RGBA')
+        sheet.paste(small, (i * size, 0))
+    os.makedirs(OUT, exist_ok=True)
+    target = os.path.join(OUT, '%d.webp' % level)
+    sheet.save(target, 'WEBP', quality=92, alpha_quality=100, method=6, exact=False)
+    print('  %s  %d faces of %dx%d, %d KB' % (os.path.relpath(target, ROOT), len(FACES), size, size, os.path.getsize(target) // 1024))
+    print('  outline %d points, %.1f%% of the full outline before growing it back' % (len(out), 100 * cover))
+    return {
+        'outline': [[round(float(x - centre[0]) / unit, 5), round(float(y - centre[1]) / unit, 5)] for x, y in out],
+        'half': round(side / 2 / unit, 5),       # half side of the square picture
+        'reach': round(float(reach) / unit, 5),  # farthest point of the drawing from its centre
+        'faces': sorted(set(f for f in FACES if os.path.exists(os.path.join(folder, f + '.png'))), key=FACES.index)
+    }
+
+
+def main():
+    art = {}
+    for name in sorted(os.listdir(SRC), key=lambda s: (len(s), s)):
+        folder = os.path.join(SRC, name)
+        if not (os.path.isdir(folder) and name.isdigit()): continue
+        print('level', name)
+        art[name] = build(int(name), folder)
+    with open(os.path.join(ROOT, 'scripts', 'art.json'), 'w') as fh:
+        json.dump(art, fh, indent=1)
+        fh.write('\n')
+    print('scripts/art.json written for levels', ', '.join(art) or '(none)')
+
+
+if __name__ == '__main__':
+    main()

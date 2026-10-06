@@ -15,16 +15,17 @@
   var GOLD = '#FFC93C';
   var CONFETTI = ['#EE3D77', '#3BC7F5', '#FFC93C'];
   var GREEN = '#4CC463';
-  /* Levels that have their own sticker picture in web/img/foods/<level>.png. The rest are drawn as placeholders. */
-  var ART_LEVELS = [];
+  /* A food with its own drawing (f.art) has a picture in web/img/foods/<level>.webp holding its four
+     faces side by side: normal, eyes half closed, eyes closed, surprised. The rest are drawn as placeholders. */
+  var FACE_OPEN = 0, FACE_HALF = 1, FACE_CLOSED = 2, FACE_WOW = 3, FACES = 4;
   var ART = {};
-  ART_LEVELS.forEach(function (lv) {
-    var img = new Image();
-    ART[lv] = { img: img, ok: false };
-    img.onload = function () { ART[lv].ok = true; lastNext = '?'; };
-    img.src = '/web/img/foods/' + lv + '.png';
+  FOODS.forEach(function (f, i) {
+    f.i = i;
+    if (!f.art) return;
+    var img = new Image(), a = ART[i] = { img: img, ok: false, cache: {}, cached: 0 };
+    img.onload = function () { a.ok = true; lastNext = '?'; drawLadder(); };
+    img.src = '/web/img/foods/' + i + '.webp';
   });
-  FOODS.forEach(function (f, i) { f.i = i; });
   var apiMeta = document.querySelector('meta[name="cag-api"]');
   var API = apiMeta ? apiMeta.content.replace(/\/$/, '') : '';
 
@@ -84,7 +85,7 @@
 
   /* ---------- run state ---------- */
   var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
-  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2, boardBack = null, avSize = 44;
+  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2, boardBack = null, avSize = 44, nowMs = 0;
 
   function toast(msg) {
     toastEl.textContent = msg; toastEl.hidden = false;
@@ -230,15 +231,20 @@
     c.width = c.height = Math.round(size * dpr);
     var g = c.getContext('2d'), s = (size / 2 - 2) / (f.ext * (gold ? 1.5 : 1)) * dpr;
     g.setTransform(s, 0, 0, s, c.width / 2, c.height / 2);
-    drawFood(g, 0, 0, f, 0, gold, 0);
+    drawFood(g, 0, 0, f, 0, gold, 0, FACE_OPEN);
     return c;
   }
-  FOODS.forEach(function (f) {
-    var li = document.createElement('li');
-    li.title = f.n; li.setAttribute('aria-label', f.n);
-    li.appendChild(icon(f, 28, false));
-    ladder.appendChild(li);
-  });
+  function drawLadder() {
+    ladder.textContent = '';
+    FOODS.forEach(function (f) {
+      var li = document.createElement('li');
+      li.title = f.n; li.setAttribute('aria-label', f.n);
+      li.appendChild(icon(f, 28, false));
+      ladder.appendChild(li);
+    });
+    lastMax = -2;
+  }
+  drawLadder();
 
   function refresh() {
     var sim = run ? run.sim : null, i;
@@ -292,8 +298,40 @@
       c.closePath();
     } else c.arc(0, 0, f.r, 0, TAU);
   }
-  /* spin: rotation of the golden rays; only used when gold is true */
-  function drawFood(c, x, y, f, angle, gold, spin) {
+  /* One face of a food's picture, already shrunk to the size it will have on screen. Shrinking in
+     halves and keeping the result gives clean edges; drawing the big picture small each frame does not. */
+  function sprite(a, face, px, gold) {
+    var key = face + (gold ? 'g' : '') + '@' + px, c = a.cache[key];
+    if (c) return c;
+    var src = a.img, size = a.img.height, sx = face * size, g, half;
+    while (size / 2 >= px && size > 8) {
+      half = Math.round(size / 2);
+      c = document.createElement('canvas'); c.width = c.height = half;
+      c.getContext('2d').drawImage(src, sx, 0, size, size, 0, 0, half, half);
+      src = c; sx = 0; size = half;
+    }
+    c = document.createElement('canvas'); c.width = c.height = px;
+    g = c.getContext('2d');
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(src, sx, 0, size, size, 0, 0, px, px);
+    if (gold) { g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.42; g.fillStyle = GOLD; g.fillRect(0, 0, px, px); }
+    if (a.cached > 80) { a.cache = {}; a.cached = 0; }
+    a.cache[key] = c; a.cached++;
+    return c;
+  }
+  /* Which face a food shows. Blinking follows the real clock and is different for every food. */
+  function blink(id) {
+    var period = 2600 + (id * 7919) % 3700, t = (nowMs + id * 1371) % period;
+    return t < 60 ? FACE_HALF : t < 150 ? FACE_CLOSED : t < 210 ? FACE_HALF : FACE_OPEN;
+  }
+  function faceOf(b, step) {
+    if (reduced) return FACE_OPEN;
+    // Surprised while it falls, right after a merge or a shake, and while it pokes above the line.
+    if (step - b.food.born < 40 || b.food.above > 0) return FACE_WOW;
+    return blink(b.id);
+  }
+  /* spin: rotation of the golden rays; only used when gold is true. face: which face to show. */
+  function drawFood(c, x, y, f, angle, gold, spin, face) {
     c.save();
     c.translate(x, y);
     c.lineJoin = 'round';
@@ -314,8 +352,10 @@
     c.rotate(angle);
     var art = ART[f.i];
     if (art && art.ok) {
-      // The picture is a square that reaches the farthest point of the shape on every side.
-      c.drawImage(art.img, -f.ext, -f.ext, f.ext * 2, f.ext * 2);
+      // The picture is a square of side 2 * f.art.half centred on the food.
+      var m = c.getTransform(), h = f.art.half;
+      var px = Math.max(4, Math.round(h * 2 * Math.sqrt(m.a * m.a + m.b * m.b)));
+      c.drawImage(sprite(art, face || FACE_OPEN, px, gold), -h, -h, h * 2, h * 2);
       c.restore();
       return;
     }
@@ -355,12 +395,13 @@
       ctx.setLineDash([1, 9]); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(28,159,208,0.45)';
       ctx.beginPath(); ctx.moveTo(x, R.DROP_Y + f.r + 4); ctx.lineTo(x, H); ctx.stroke();
       ctx.restore();
-      drawFood(ctx, x, R.DROP_Y, f, 0, cur.gold, spin);
+      // The food in hand blinks too, and gets nervous in the last three seconds.
+      drawFood(ctx, x, R.DROP_Y, f, 0, cur.gold, spin, reduced ? FACE_OPEN : sim.deadline() - step < 180 ? FACE_WOW : blink(977));
     }
 
     var b;
-    for (i = 0; i < sim.foods.length; i++) { b = sim.foods[i]; if (!b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, false, 0); }
-    for (i = 0; i < sim.foods.length; i++) { b = sim.foods[i]; if (b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, true, spin); }
+    for (i = 0; i < sim.foods.length; i++) { b = sim.foods[i]; if (!b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, false, 0, faceOf(b, step)); }
+    for (i = 0; i < sim.foods.length; i++) { b = sim.foods[i]; if (b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, true, spin, faceOf(b, step)); }
 
     for (i = fx.length - 1; i >= 0; i--) {
       var p = fx[i], k = (step - p.t) / (p.gold ? 54 : 34);
@@ -456,7 +497,7 @@
   function frame(t) {
     // The game clock follows the real clock, also across a pause (hidden tab, slow frame):
     // it catches up instead of stopping, because the referee does not accept a clock that falls behind.
-    var dt = Math.min(30000, t - (last || t)); last = t;
+    var dt = Math.min(30000, t - (last || t)); last = t; nowMs = t;
     if (run && run.live) {
       acc += dt;
       var n = 0;
