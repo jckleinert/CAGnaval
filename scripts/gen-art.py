@@ -10,7 +10,7 @@ same size and with the food in the same place:
     wow.png     surprised face        (optional, falls back to open)
 
 and writes:
-    web/img/foods/<level>.webp   the four faces side by side, cut square
+    web/img/foods/<level>.webp   the different faces side by side, cut square
     scripts/art.json             the outline of each drawing, for gen-foods.js
 
 Needs Pillow and numpy. Run it, then run: node scripts/gen-foods.js
@@ -66,21 +66,27 @@ def simplify(p, n):
 
 
 def load(folder):
-    imgs = {}
+    """Returns the drawings that exist and, for each of the four faces, which drawing it uses."""
+    names, imgs, use = [], [], []
     for face in FACES:
         for name in [face] + FALLBACK.get(face, []):
             path = os.path.join(folder, name + '.png')
-            if os.path.exists(path):
-                imgs[face] = Image.open(path).convert('RGBA')
-                break
-    if 'open' not in imgs: sys.exit(folder + ': open.png is missing')
-    if len({im.size for im in imgs.values()}) != 1: sys.exit(folder + ': the drawings are not all the same size')
-    return imgs
+            if not os.path.exists(path): continue
+            if name not in names:
+                im = np.array(Image.open(path).convert('RGBA'))
+                im[..., 3][im[..., 3] >= 245] = 255      # "almost solid" left by some drawing tools is solid
+                names.append(name); imgs.append(Image.fromarray(im, 'RGBA'))
+            use.append(names.index(name))
+            break
+        else:
+            sys.exit(folder + ': open.png is missing')
+    if len({im.size for im in imgs}) != 1: sys.exit(folder + ': the drawings are not all the same size')
+    return names, imgs, use
 
 
 def build(level, folder):
-    imgs = load(folder)
-    alpha = np.max([np.array(im)[..., 3] for im in imgs.values()], axis=0)
+    names, imgs, use = load(folder)
+    alpha = np.max([np.array(im)[..., 3] for im in imgs], axis=0)
     solid = alpha > 127
     if not solid.any(): sys.exit(folder + ': the drawing is empty')
     if solid[0].any() or solid[-1].any() or solid[:, 0].any() or solid[:, -1].any():
@@ -105,27 +111,25 @@ def build(level, folder):
     # Square cut around the centre that holds every painted pixel of every face.
     ys, xs = np.nonzero(alpha > 0)
     half = max(np.abs(xs + 0.5 - centre[0]).max(), np.abs(ys + 0.5 - centre[1]).max()) + 3
-    reach = np.sqrt((full[:, 0] - centre[0]) ** 2 + (full[:, 1] - centre[1]) ** 2).max()
     size = int(min(640, 192 + 48 * level))
     box = [int(round(centre[0] - half)), int(round(centre[1] - half))]
     side = int(round(half * 2))
-    sheet = Image.new('RGBA', (size * len(FACES), size), (0, 0, 0, 0))
-    for i, face in enumerate(FACES):
+    sheet = Image.new('RGBA', (size * len(imgs), size), (0, 0, 0, 0))
+    for i, im in enumerate(imgs):
         cut = Image.new('RGBA', (side, side), (0, 0, 0, 0))
-        cut.paste(imgs[face], (-box[0], -box[1]))
+        cut.paste(im, (-box[0], -box[1]))
         # Shrink with the colours weighted by their opacity, so no dark rim appears on the edge.
         small = cut.convert('RGBa').resize((size, size), Image.LANCZOS).convert('RGBA')
         sheet.paste(small, (i * size, 0))
     os.makedirs(OUT, exist_ok=True)
     target = os.path.join(OUT, '%d.webp' % level)
     sheet.save(target, 'WEBP', quality=92, alpha_quality=100, method=6, exact=False)
-    print('  %s  %d faces of %dx%d, %d KB' % (os.path.relpath(target, ROOT), len(FACES), size, size, os.path.getsize(target) // 1024))
+    print('  %s  %s, %dx%d each, %d KB' % (os.path.relpath(target, ROOT), ' + '.join(names), size, size, os.path.getsize(target) // 1024))
     print('  outline %d points, %.1f%% of the full outline before growing it back' % (len(out), 100 * cover))
     return {
         'outline': [[round(float(x - centre[0]) / unit, 5), round(float(y - centre[1]) / unit, 5)] for x, y in out],
         'half': round(side / 2 / unit, 5),       # half side of the square picture
-        'reach': round(float(reach) / unit, 5),  # farthest point of the drawing from its centre
-        'faces': sorted(set(f for f in FACES if os.path.exists(os.path.join(folder, f + '.png'))), key=FACES.index)
+        'faces': use                             # for open, half, closed, wow: which picture in the row
     }
 
 

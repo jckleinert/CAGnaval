@@ -15,8 +15,9 @@
   var GOLD = '#FFC93C';
   var CONFETTI = ['#EE3D77', '#3BC7F5', '#FFC93C'];
   var GREEN = '#4CC463';
-  /* A food with its own drawing (f.art) has a picture in web/img/foods/<level>.webp holding its four
-     faces side by side: normal, eyes half closed, eyes closed, surprised. The rest are drawn as placeholders. */
+  /* A food with its own drawing (f.art) has a picture in web/img/foods/<level>.webp holding its faces
+     side by side; f.art.faces says which one is the normal face, eyes half closed, eyes closed and
+     surprised (a food drawn with a single face uses it for all four). The rest are placeholders. */
   var FACE_OPEN = 0, FACE_HALF = 1, FACE_CLOSED = 2, FACE_WOW = 3, FACES = 4;
   var ART = {};
   FOODS.forEach(function (f, i) {
@@ -85,7 +86,7 @@
 
   /* ---------- run state ---------- */
   var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
-  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2, boardBack = null, avSize = 44, nowMs = 0;
+  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2, boardBack = null, avSize = 44, nowMs = 0, vis = {};
 
   function toast(msg) {
     toastEl.textContent = msg; toastEl.hidden = false;
@@ -100,7 +101,7 @@
       var sim = new Sim({ pub: start.pub, events: true });
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
       run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0 };
-      fx.length = 0; aim = W / 2; acc = 0; last = 0;
+      fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0;
       homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true; boardBack = null;
       $('homeMsg').textContent = '';
       cv.focus();
@@ -300,10 +301,10 @@
   }
   /* One face of a food's picture, already shrunk to the size it will have on screen. Shrinking in
      halves and keeping the result gives clean edges; drawing the big picture small each frame does not. */
-  function sprite(a, face, px, gold) {
-    var key = face + (gold ? 'g' : '') + '@' + px, c = a.cache[key];
+  function sprite(a, pic, px, kind) {
+    var key = pic + kind + '@' + px, c = a.cache[key];
     if (c) return c;
-    var src = a.img, size = a.img.height, sx = face * size, g, half;
+    var src = a.img, size = a.img.height, sx = pic * size, g, half;
     while (size / 2 >= px && size > 8) {
       half = Math.round(size / 2);
       c = document.createElement('canvas'); c.width = c.height = half;
@@ -314,7 +315,8 @@
     g = c.getContext('2d');
     g.imageSmoothingQuality = 'high';
     g.drawImage(src, sx, 0, size, size, 0, 0, px, px);
-    if (gold) { g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.42; g.fillStyle = GOLD; g.fillRect(0, 0, px, px); }
+    if (kind === 'gold') { g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.42; g.fillStyle = GOLD; g.fillRect(0, 0, px, px); }
+    if (kind === 'shadow') { g.globalCompositeOperation = 'source-in'; g.fillStyle = INK; g.fillRect(0, 0, px, px); }
     if (a.cached > 80) { a.cache = {}; a.cached = 0; }
     a.cache[key] = c; a.cached++;
     return c;
@@ -330,11 +332,63 @@
     if (step - b.food.born < 40 || b.food.above > 0) return FACE_WOW;
     return blink(b.id);
   }
-  /* spin: rotation of the golden rays; only used when gold is true. face: which face to show. */
-  function drawFood(c, x, y, f, angle, gold, spin, face) {
+  /* How a food in the jar moves on screen, apart from where the simulation puts it: it squashes and
+     wobbles when something hits it, and pops in when it is born from a merge. This is only for the
+     eye and never touches the simulation. */
+  function feel(sim) {
+    var i, b, v, dx, dy, d, k, t;
+    for (i = 0; i < sim.foods.length; i++) {
+      b = sim.foods[i]; v = vis[b.id];
+      if (!v) {
+        // A dropped food appears at the drop height; anything appearing elsewhere comes from a merge.
+        vis[b.id] = { vx: b.velocity.x, vy: b.velocity.y, hitAt: -99, hitK: 0, hitDir: 0, popAt: Math.abs(b.position.y - R.DROP_Y) > 3 ? sim.step : -99 };
+        continue;
+      }
+      dx = b.velocity.x - v.vx; dy = b.velocity.y - v.vy; v.vx = b.velocity.x; v.vy = b.velocity.y;
+      d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 2.4) continue;                       // gravity alone changes the speed by about 0.4 a step
+      k = Math.min(0.16, (d - 2) * 0.012);
+      t = sim.step - v.hitAt;
+      if (k > v.hitK * Math.exp(-t / 6)) { v.hitAt = sim.step; v.hitK = k; v.hitDir = Math.atan2(dy, dx); }
+    }
+    if (sim.step % 600 === 0) {                    // forget the foods that are gone
+      var keep = {};
+      for (i = 0; i < sim.foods.length; i++) keep[sim.foods[i].id] = vis[sim.foods[i].id];
+      vis = keep;
+    }
+  }
+  var POSE = { k: 0, dir: 0, pop: 1, shadow: true };
+  function poseOf(b, step, live) {
+    var v = vis[b.id], t;
+    POSE.k = 0; POSE.pop = 1;
+    if (v && live && !reduced) {
+      t = step - v.hitAt;
+      if (t < 30) { POSE.k = v.hitK * Math.exp(-t / 6) * Math.cos(t * 0.7); POSE.dir = v.hitDir; }
+      t = step - v.popAt;
+      if (t < 24) POSE.pop = 1 - 0.32 * Math.exp(-t / 4) * Math.cos(t * 0.6);
+    }
+    return POSE;
+  }
+  function applyPose(c, angle, pose) {
+    if (pose) {
+      if (pose.pop !== 1) c.scale(pose.pop, pose.pop);
+      if (pose.k) { c.rotate(pose.dir); c.scale(1 - pose.k, 1 + pose.k * 0.8); c.rotate(-pose.dir); }
+    }
+    c.rotate(angle);
+  }
+  var SHADOW_DY = 3.4, SHADOW_ALPHA = 0.17;
+  /* spin: rotation of the golden rays; only used when gold is true. face: which face to show.
+     pose: squash, pop and shadow of a food in the jar (see poseOf); leave it out for a plain picture. */
+  function drawFood(c, x, y, f, angle, gold, spin, face, pose) {
     c.save();
     c.translate(x, y);
     c.lineJoin = 'round';
+    var art = ART[f.i], h = 0, px = 0, m;
+    if (art && art.ok) {
+      // The picture is a square of side 2 * f.art.half centred on the food.
+      m = c.getTransform(); h = f.art.half;
+      px = Math.max(4, Math.round(h * 2 * Math.sqrt(m.a * m.a + m.b * m.b)));
+    } else art = null;
     if (gold) {
       var n = 10, R1 = f.ext * 1.4, R0 = f.ext * 1.06;
       c.save();
@@ -349,13 +403,19 @@
       c.lineWidth = 2.5; c.strokeStyle = INK; c.stroke();
       c.restore();
     }
-    c.rotate(angle);
-    var art = ART[f.i];
-    if (art && art.ok) {
-      // The picture is a square of side 2 * f.art.half centred on the food.
-      var m = c.getTransform(), h = f.art.half;
-      var px = Math.max(4, Math.round(h * 2 * Math.sqrt(m.a * m.a + m.b * m.b)));
-      c.drawImage(sprite(art, face || FACE_OPEN, px, gold), -h, -h, h * 2, h * 2);
+    if (pose && pose.shadow) {
+      // The shadow always falls straight down the screen, however the food is turned.
+      c.save();
+      c.translate(0, SHADOW_DY);
+      applyPose(c, angle, pose);
+      c.globalAlpha = SHADOW_ALPHA;
+      if (art) c.drawImage(sprite(art, f.art.faces[FACE_OPEN], px, 'shadow'), -h, -h, h * 2, h * 2);
+      else { trace(c, f); c.fillStyle = INK; c.fill(); }
+      c.restore();
+    }
+    applyPose(c, angle, pose);
+    if (art) {
+      c.drawImage(sprite(art, f.art.faces[face || FACE_OPEN], px, gold ? 'gold' : ''), -h, -h, h * 2, h * 2);
       c.restore();
       return;
     }
@@ -399,9 +459,10 @@
       drawFood(ctx, x, R.DROP_Y, f, 0, cur.gold, spin, reduced ? FACE_OPEN : sim.deadline() - step < 180 ? FACE_WOW : blink(977));
     }
 
-    var b;
-    for (i = 0; i < sim.foods.length; i++) { b = sim.foods[i]; if (!b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, false, 0, faceOf(b, step)); }
-    for (i = 0; i < sim.foods.length; i++) { b = sim.foods[i]; if (b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, true, spin, faceOf(b, step)); }
+    // From the bottom of the jar up, so that each food's shadow falls on the ones under it.
+    var b, pile = sim.foods.slice().sort(function (p, q) { return q.position.y - p.position.y || p.id - q.id; });
+    for (i = 0; i < pile.length; i++) { b = pile[i]; if (!b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, false, 0, faceOf(b, step), poseOf(b, step, run.live)); }
+    for (i = 0; i < pile.length; i++) { b = pile[i]; if (b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, true, spin, faceOf(b, step), poseOf(b, step, run.live)); }
 
     for (i = fx.length - 1; i >= 0; i--) {
       var p = fx[i], k = (step - p.t) / (p.gold ? 54 : 34);
@@ -477,6 +538,7 @@
   function stepOnce() {
     var sim = run.sim;
     sim.tick();
+    feel(sim);
     if (sim.events.length) {
       for (var i = 0; i < sim.events.length; i++) {
         var ev = sim.events[i];

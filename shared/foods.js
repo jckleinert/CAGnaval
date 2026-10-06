@@ -6,7 +6,8 @@
   'use strict';
   /* e emoji, n name, r radius, c colour, rest bounce, fric grip, dens weight,
      poly outline (non-round foods), ext farthest point, hw half width, es/ey emoji size and offset,
-     art.half half side of the food's own picture (web/img/foods/<level>.webp), when it has one */
+     art half side of the food's own picture (web/img/foods/<level>.webp) and, for each face
+     (open, half closed, closed, surprised), which picture of the row it uses */
   return [
  {
   "e": "🍬",
@@ -46,7 +47,13 @@
   "es": 1.05,
   "ey": 0.1,
   "art": {
-   "half": 31.202},
+   "half": 31.202,
+   "faces": [
+    0,
+    1,
+    2,
+    3
+   ]},
   "poly": [
    {"x": -5.102, "y": -30.465},
    {"x": 3.347, "y": -30.465},
@@ -127,7 +134,15 @@
   "ext": 46,
   "hw": 46,
   "es": 1.18,
-  "ey": 0.07},
+  "ey": 0.07,
+  "art": {
+   "half": 46.66,
+   "faces": [
+    0,
+    0,
+    0,
+    0
+   ]}},
  {
   "e": "🍔",
   "n": "Burger",

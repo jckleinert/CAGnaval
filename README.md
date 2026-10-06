@@ -73,9 +73,9 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Dibujos de las comidas
 
-Mientras una comida no tenga dibujo propio, se muestra como un sticker provisorio con un emoji. Hoy tiene dibujo propio el onigiri (nivel 2).
+Mientras una comida no tenga dibujo propio, se muestra como un sticker provisorio con un emoji. Hoy tienen dibujo propio el onigiri (nivel 2, con cara) y el ramen (nivel 5, sin cara).
 
-Cada comida puede tener hasta cuatro caras, para que parpadee y se sorprenda:
+Una comida puede tener un solo dibujo, o hasta cuatro caras para que parpadee y se sorprenda. No hace falta que todas tengan cara:
 
 | Archivo | Cara | ¿Obligatorio? |
 |---|---|---|
@@ -98,6 +98,8 @@ Para poner o cambiar un dibujo:
 3. Subir `RULES.VERSION` en `shared/sim.js` si la comida no es redonda (ver abajo).
 
 Cuándo aparece cada cara: la comida parpadea sola cada pocos segundos, cada una a su ritmo. Pone cara de sorpresa mientras cae, recién fusionada, cuando se usa Shake, cuando asoma por encima de la línea y, la que está por caer, en los últimos 3 segundos.
+
+Aparte de las caras, todas las comidas del frasco (con dibujo propio o no) se aplastan un poco y rebotan cuando algo las golpea, aparecen con un pequeño salto al nacer de una fusión y tienen una sombra que cae siempre hacia abajo, aunque giren. Es solo visual: lo hace la página y no cambia la partida.
 
 **El borde con el que chocan.** Las comidas redondas siguen chocando como un círculo, y su dibujo se ajusta a ese círculo. Las que no son redondas (onigiri, sushi, Big Order) chocan con el contorno de su propio dibujo, llevado al mismo tamaño que tenían. Por eso, cambiar el dibujo de una comida no redonda cambia un poco cómo rebota y obliga a subir `RULES.VERSION`.
 
