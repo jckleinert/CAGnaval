@@ -13,6 +13,7 @@
   var W = R.W, H = R.H, TAU = Math.PI * 2;
   var EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
   var GOLD = '#FFC93C';
+  var CONFETTI = ['#EE3D77', '#3BC7F5', '#FFC93C'];
   /* Levels that have their own sticker picture in web/img/foods/<level>.png. The rest are drawn as placeholders. */
   var ART_LEVELS = [];
   var ART = {};
@@ -35,7 +36,7 @@
   var css = getComputedStyle(document.documentElement);
   var INK = css.getPropertyValue('--ink').trim() || '#1B2233';
   var LANTERN = css.getPropertyValue('--pink').trim() || '#EF4360';
-  var cagEl = $('cag');
+  var cagEl = $('cag'), leftEl = $('left');
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function fmt(n) { return Number(n).toLocaleString('en-US'); }
@@ -82,7 +83,7 @@
 
   /* ---------- run state ---------- */
   var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
-  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999;
+  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2;
 
   function toast(msg) {
     toastEl.textContent = msg; toastEl.hidden = false;
@@ -168,12 +169,12 @@
     if (problem === 'run-expired' || (res && res.status === 'expired')) title = 'Run expired';
     else if (problem === 'network') title = 'Connection lost';
     else if (problem) title = 'Run stopped';
-    else title = sim.overReason === 'done' ? 'All ' + R.MAX_FOODS + ' foods dropped' : 'Jar is full';
+    else title = sim.overReason === 'done' ? 'All ' + R.MAX_FOODS + ' foods dropped!' : 'Jar is full!';
     $('overTitle').textContent = title;
     $('overKcal').textContent = fmt(kcal);
-    $('overUsed').textContent = (res ? res.dropped : sim.dropped) + ' of ' + R.MAX_FOODS + ' foods used';
+    $('overUsed').textContent = (res ? res.dropped : sim.dropped) + ' of ' + R.MAX_FOODS + ' foods';
     var topFood = FOODS[Math.max(0, res ? res.maxLv : sim.maxLv)];
-    $('overTop').textContent = 'Biggest food: ' + topFood.e + ' ' + topFood.n;
+    $('overTop').textContent = 'Biggest: ' + topFood.e + ' ' + topFood.n;
 
     var ob = $('overBonus'), g = res && res.gold;
     ob.classList.toggle('hot', !!(g && g.merged));
@@ -181,9 +182,9 @@
       : g.appeared ? 'Golden food was not merged: no bonus' : 'No golden food this run';
 
     var oc = $('overCheck'), ok = !!(res && res.verified);
-    oc.classList.toggle('bad', !ok);
+    oc.classList.toggle('bad', !ok); oc.classList.toggle('ok', ok);
     oc.textContent = !res ? 'The referee could not be reached: this run was not saved.'
-      : ok ? 'Checked by the referee.'
+      : ok ? '✓ Checked by the referee'
       : res.status === 'expired' ? 'More than 15 seconds without a move. Calories so far were kept.'
       : !res.counted ? 'The referee refused this run. It does not count.'
       : res.sync === false ? 'Your screen and the referee disagreed from move ' + res.mismatchAt + '. The referee score is used.'
@@ -193,7 +194,7 @@
     if (res && res.counted) {
       if (res.verified && kcal > best) { best = kcal; save('cagnaval.best', best); }
       call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 1).then(function (b) {
-        if (run === r && b.you) $('overWeek').textContent = 'This week: ' + fmt(b.you.total) + ' kcal, rank ' + b.you.rank;
+        if (run === r && b.you) $('overWeek').textContent = 'Rank ' + b.you.rank + ' this week with ' + fmt(b.you.total) + ' kcal';
       }).catch(function () { /* ranking is optional here */ });
     }
     overEl.hidden = false;
@@ -237,6 +238,8 @@
     var sim = run ? run.sim : null, i;
     kcalEl.textContent = fmt(sim ? sim.kcal : 0);
     bestEl.textContent = fmt(best);
+    var leftKey = sim && run.live ? sim.left() : -1;
+    if (leftKey !== lastLeft) { lastLeft = leftKey; leftEl.hidden = leftKey < 0; leftEl.textContent = leftKey + ' foods left'; }
 
     var p = sim ? sim.preview() : null, key = p ? p.lv + (p.gold ? 'g' : '') : '';
     if (key !== lastNext) {
@@ -257,21 +260,20 @@
       Object.keys(btn).forEach(function (k) {
         var left = sim ? sim.uses[k] : 1;
         btn[k].disabled = !(sim && run.live && left);
-        btn[k].querySelector('.pw-c').textContent = left ? '×1' : 'used';
       });
     }
 
     var text = '', cls = '';
     if (sim && run.desync) { text = 'Out of sync with the referee'; cls = 'bad'; }
-    else if (sim && sim.gold === 'merged') { text = 'Golden food merged. Bonus shown at the end'; cls = 'hot'; }
-    else if (sim && sim.gold === 'jar') { text = 'Merge the golden food with the same food'; cls = 'hot'; }
-    else if (sim && run.live && ((p && p.gold) || (sim.current() && sim.current().gold))) { text = 'Golden food is coming up'; cls = 'hot'; }
-    else if (sim && run.live) text = 'Merge two of the same food';
+    else if (sim && sim.gold === 'merged') { text = 'Golden bonus won! See it at the end'; cls = 'hot'; }
+    else if (sim && sim.gold === 'jar') { text = 'Merge the golden one with its twin!'; cls = 'hot'; }
+    else if (sim && run.live && ((p && p.gold) || (sim.current() && sim.current().gold))) { text = 'A golden food is coming!'; cls = 'hot'; }
+    if (sim && !run.live && !run.desync) { text = ''; cls = ''; }   // the result card says the rest
     if (text + cls !== lastStatus) { lastStatus = text + cls; statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); }
 
     // CAG rides along the top of the jar, above where the food will fall.
-    var jw = jar.clientWidth, ax = clamp(Math.round(clamp(aim, 0, W)), 20, W - 20);
-    var cagX = Math.round(ax / W * jw - 18);
+    var jw = jar.clientWidth, ax = clamp(Math.round(clamp(aim, 0, W)), 24, W - 24);
+    var cagX = Math.round(ax / W * jw - 22);
     if (cagX !== lastCag) { lastCag = cagX; cagEl.style.transform = 'translateX(' + cagX + 'px)'; }
   }
 
@@ -290,7 +292,7 @@
     c.translate(x, y);
     c.lineJoin = 'round';
     if (gold) {
-      var n = 10, R1 = f.ext * 1.5, R0 = f.ext * 1.08;
+      var n = 10, R1 = f.ext * 1.4, R0 = f.ext * 1.06;
       c.save();
       c.rotate(spin);
       c.beginPath();
@@ -334,7 +336,7 @@
 
     ctx.save();
     ctx.globalAlpha = sim && sim.warn ? (reduced ? 1 : 0.6 + 0.4 * Math.sin(step / 5.4)) : 0.45;
-    ctx.setLineDash([10, 8]); ctx.lineWidth = 3; ctx.strokeStyle = LANTERN;
+    ctx.setLineDash([2, 10]); ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = LANTERN;
     ctx.beginPath(); ctx.moveTo(0, R.LINE_Y); ctx.lineTo(W, R.LINE_Y); ctx.stroke();
     ctx.restore();
     if (!sim) return;
@@ -344,7 +346,7 @@
       var f = FOODS[cur.lv], x = clamp(Math.round(clamp(aim, 0, W)), f.hw + R.PAD + 2, W - f.hw - R.PAD - 2);
       x = clamp(x, f.ext + R.PAD + 1, W - f.ext - R.PAD - 1);
       ctx.save();
-      ctx.setLineDash([4, 8]); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(27,34,51,0.22)';
+      ctx.setLineDash([1, 9]); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(28,159,208,0.45)';
       ctx.beginPath(); ctx.moveTo(x, R.DROP_Y + f.r + 4); ctx.lineTo(x, H); ctx.stroke();
       ctx.restore();
       drawFood(ctx, x, R.DROP_Y, f, 0, cur.gold, spin);
@@ -360,35 +362,42 @@
       ctx.save();
       ctx.globalAlpha = 1 - k;
       if (!reduced) {
-        ctx.lineWidth = p.gold ? 6 : 3; ctx.strokeStyle = p.gold ? GOLD : INK;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + (p.gold ? 0.9 : 0.4) * k), 0, TAU); ctx.stroke();
+        ctx.lineWidth = p.gold ? 6 : 4; ctx.strokeStyle = p.gold ? GOLD : '#ffffff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + (p.gold ? 0.9 : 0.35) * k), 0, TAU); ctx.stroke();
+        // a few confetti dots flying out
+        for (var d = 0; d < 6; d++) {
+          var ang = d * TAU / 6 + p.x, dist = p.r * (1.1 + 0.9 * k);
+          ctx.fillStyle = CONFETTI[d % 3];
+          ctx.beginPath(); ctx.arc(p.x + Math.cos(ang) * dist, p.y + Math.sin(ang) * dist, 3.2 * (1 - k * 0.5), 0, TAU); ctx.fill();
+        }
       }
       if (p.txt) {
-        ctx.font = '700 18px Fredoka,"Trebuchet MS",sans-serif';
+        ctx.font = '700 19px Fredoka,"Trebuchet MS",sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.fillStyle = INK;
+        ctx.lineWidth = 5; ctx.strokeStyle = '#ffffff'; ctx.fillStyle = LANTERN;
         var ty = clamp(p.y - p.r - 10 - (reduced ? 0 : 16 * k), 14, H - 10);
         ctx.strokeText(p.txt, p.x, ty); ctx.fillText(p.txt, p.x, ty);
       }
       ctx.restore();
     }
 
-    /* Foods left (top left) and seconds to drop (top right) */
-    ctx.save();
-    ctx.font = '700 11px "Space Mono","Courier New",monospace';
-    ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    var leftTxt = sim.left() + ' left';
-    ctx.textAlign = 'left'; ctx.fillStyle = INK; ctx.strokeText(leftTxt, 10, 14); ctx.fillText(leftTxt, 10, 14);
+    /* Time left to drop: a bar along the top of the jar that runs out */
     if (run.live && sim.ready && sim.dropped < R.MAX_FOODS) {
-      var secs = Math.max(0, Math.ceil((sim.deadline() - step) / 60)), secTxt = secs + 's';
-      ctx.textAlign = 'right'; ctx.fillStyle = secs <= 5 ? LANTERN : INK;
-      ctx.strokeText(secTxt, W - 10, 14); ctx.fillText(secTxt, W - 10, 14);
+      var frac = clamp((sim.deadline() - step) / R.DROP_STEPS, 0, 1), secsLeft = (sim.deadline() - step) / 60;
+      ctx.save();
+      ctx.lineCap = 'round'; ctx.lineWidth = 6;
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.beginPath(); ctx.moveTo(8, 6); ctx.lineTo(W - 8, 6); ctx.stroke();
+      if (frac > 0.01) {
+        ctx.strokeStyle = secsLeft <= 5 ? LANTERN : GOLD;
+        ctx.beginPath(); ctx.moveTo(8, 6); ctx.lineTo(8 + (W - 16) * frac, 6); ctx.stroke();
+      }
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   function fit() {
-    var bw = stage.clientWidth - 6, bh = stage.clientHeight - 52;   // room for the outline, the shadow and CAG above the jar
+    var bw = stage.clientWidth - 26, bh = stage.clientHeight - 66;   // room for the rim, the glass edge and CAG above the jar
     var s = clamp(Math.min(bw / W, bh / H), 0.4, 440 / W);
     var cw = Math.floor(W * s), ch = Math.floor(H * s);
     jar.style.width = cw + 'px'; jar.style.height = ch + 'px';

@@ -3,23 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#FFF3DC">
+  <meta name="theme-color" content="#EE3D77">
   <title>CAGnaval</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="/web/style.css">
 </head>
 <body>
 <main class="app">
-  <header class="hud">
-    <div>
-      <span class="logo" aria-label="CAGnaval"><b>CAG</b><i>naval</i></span>
-      <span class="kcal"><span id="kcal">0</span><small>kcal</small></span>
-    </div>
-    <div class="side">
-      <div><span class="mono">Best</span><span class="best-n" id="best">0</span></div>
-      <div><span class="mono">Next</span><span class="disc" id="nextDisc" role="img"></span></div>
-    </div>
-  </header>
+  <div class="awning"><span class="plaque logo" aria-label="CAGnaval"><b>CAG</b><i>naval</i></span></div>
+
+  <div class="signs">
+    <div class="sign score"><span class="kcal"><span id="kcal">0</span><small>kcal</small></span><span class="left" id="left" hidden></span></div>
+    <div class="sign next"><span class="cap">next</span><span class="disc" id="nextDisc" role="img"></span></div>
+  </div>
 
   <p class="status" id="status" role="status"></p>
   <p class="fail" id="fail" hidden>The game could not load. Reload the page to try again.</p>
@@ -28,29 +24,30 @@
     <div class="jar" id="jar">
       <img class="cag" id="cag" src="/web/img/cag.png" alt="">
       <canvas id="game" tabindex="0" aria-label="Food jar. Left and right arrows aim, space drops the food."></canvas>
+      <span class="shine"></span><span class="shine two"></span>
       <div class="toast" id="toast" role="status" hidden></div>
 
       <div class="over" id="home">
         <p class="over-title logo" aria-label="CAGnaval"><b>CAG</b><i>naval</i></p>
-        <p class="over-line">Drop food, merge two of the same, score calories.</p>
-        <label class="field" for="name"><span class="mono">Your name</span>
+        <p class="over-line">Drop food. Merge two of the same.</p>
+        <label class="field" for="name"><span class="cap">your name</span>
           <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false">
         </label>
         <button class="primary" id="play" type="button">Play</button>
-        <button class="ghost" id="openBoard" type="button">This week's ranking</button>
+        <button class="ghost" id="openBoard" type="button">Ranking</button>
+        <p class="over-line small">Your best: <b id="best">0</b> kcal</p>
         <p class="over-line small" id="homeMsg"></p>
       </div>
 
       <div class="over" id="over" hidden>
         <p class="over-title" id="overTitle"></p>
         <p class="over-kcal"><span id="overKcal">0</span> <small>kcal</small></p>
-        <p class="over-line" id="overUsed"></p>
-        <p class="over-line" id="overTop"></p>
+        <div class="chips"><span class="chip" id="overUsed"></span><span class="chip" id="overTop"></span></div>
         <p class="over-line" id="overBonus"></p>
         <p class="over-line small" id="overCheck"></p>
         <p class="over-line small" id="overWeek"></p>
         <button class="primary" id="again" type="button">Play again</button>
-        <button class="ghost" id="openBoard2" type="button">This week's ranking</button>
+        <button class="ghost" id="openBoard2" type="button">Ranking</button>
       </div>
 
       <div class="over" id="board" hidden>
@@ -62,15 +59,24 @@
     </div>
   </div>
 
-  <ol class="ladder" id="ladder" aria-label="Food order, smallest to biggest"></ol>
-
-  <div class="powers">
-    <button class="pw" id="pwShake" type="button" disabled><span class="pw-n">Shake</span><span class="pw-d">Jolt the jar</span><span class="pw-c">×1</span></button>
-    <button class="pw" id="pwSwap" type="button" disabled><span class="pw-n">Swap</span><span class="pw-d">Use the next food now</span><span class="pw-c">×1</span></button>
-    <button class="pw" id="pwSweep" type="button" disabled><span class="pw-n">Sweep</span><span class="pw-d">Clear candy and cookies</span><span class="pw-c">×1</span></button>
+  <div class="counter">
+    <ol class="ladder" id="ladder" aria-label="Food order, smallest to biggest"></ol>
+    <div class="powers">
+      <button class="pw" id="pwShake" type="button" disabled>
+        <span class="ico blue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9c2.2-3.4 4.4 3.4 6.6 0s4.4 3.4 6.6 0M6.8 16c2.2-3.4 4.4 3.4 6.6 0s4.4 3.4 6.6 0" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+        <span class="txt"><span class="pw-n">Shake</span><span class="pw-d">jolt the jar</span></span>
+      </button>
+      <button class="pw" id="pwSwap" type="button" disabled>
+        <span class="ico pink"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8.5h13l-3.4-3.4M19 15.5H6l3.4 3.4" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="txt"><span class="pw-n">Swap</span><span class="pw-d">use next food</span></span>
+      </button>
+      <button class="pw" id="pwSweep" type="button" disabled>
+        <span class="ico yellow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3.5l1.9 5.1 5.1 1.9-5.1 1.9L10 17.5l-1.9-5.1L3 10.500l5.1-1.9zM18 14l.9 2.3 2.3.9-2.3.9L18 20.400l-.9-2.3-2.3-.9 2.3-.9z" fill="#fff"/></svg></span>
+        <span class="txt"><span class="pw-n">Sweep</span><span class="pw-d">clear small ones</span></span>
+      </button>
+    </div>
+    <p class="note">Practice mode. No tickets, no prizes.</p>
   </div>
-
-  <p class="note">Practice mode: no tickets, no prizes. Every run is checked by the referee.</p>
 </main>
 
 <script src="/shared/detmath.js"></script>
