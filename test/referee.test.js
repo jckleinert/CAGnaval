@@ -171,7 +171,10 @@ test('power-ups keep the page and the referee in step', () => {
   page.waitReady();
   page.power('swap'); page.tick(5);
   page.power('shake'); page.tick(30);
-  page.power('sweep');
+  // Sweep only applies while there is a candy or a cookie in the jar, and the foods of a run are
+  // random: on the runs where none is left, the page must not send it at all.
+  if (page.sim.foods.some((b) => b.food.lv <= 1 && !b.food.gold)) page.power('sweep');
+  else assert.strictEqual(page.sim.power('sweep'), false);
   for (let i = 0; i < 10; i++) { page.waitReady(); page.tick(15); assert.strictEqual(page.drop(30 + i * 30).sync, true); }
   const res = page.finish();
   assert.strictEqual(res.verified, true);
