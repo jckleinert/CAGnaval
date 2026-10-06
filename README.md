@@ -64,7 +64,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Reglas del juego que ya están implementadas
 
-- 11 comidas, de Candy a Big Order. El onigiri es triangular, el sushi ovalado y el Big Order cuadrado.
+- 11 comidas, de Candy a Big Order. El onigiri es triangular, la lata de CAG Energy (nivel 4) alargada y el Big Order cuadrado.
 - Hasta 200 fichas por partida y 15 segundos para soltar cada una. Si se acaba el tiempo, cae sola.
 - La partida termina cuando el frasco se llena o se acaban las fichas.
 - Comida dorada en 1 de cada 8 partidas. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).
@@ -73,7 +73,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Dibujos de las comidas
 
-Mientras una comida no tenga dibujo propio, se muestra como un sticker provisorio con un emoji. Hoy tienen dibujo propio la cookie (nivel 1, sin cara), el onigiri (nivel 2, con cara) y el ramen (nivel 5, sin cara).
+Mientras una comida no tenga dibujo propio, se muestra como un sticker provisorio con un emoji. Hoy tienen dibujo propio la cookie (nivel 1, sin cara), el onigiri (nivel 2, con cara), la lata de CAG Energy (nivel 4, sin cara) y el ramen (nivel 5, sin cara).
 
 Una comida puede tener un solo dibujo, o hasta cuatro caras para que parpadee y se sorprenda. No hace falta que todas tengan cara:
 
@@ -89,6 +89,7 @@ Cómo tienen que ser los dibujos:
 - PNG cuadrado con fondo transparente, de 512 x 512 o más.
 - Las caras de una misma comida, todas del mismo tamaño y con la comida exactamente en el mismo lugar. Solo cambian los ojos o la boca.
 - Sin tocar el borde de la imagen.
+- Las comidas alargadas, acostadas: el dibujo se guarda como va a caer en el frasco (la lata está guardada de costado).
 - Las plantillas de `docs/plantillas/` sirven de guía para la forma general (redonda, triángulo, óvalo o cuadrada).
 
 Para poner o cambiar un dibujo:
@@ -101,7 +102,7 @@ Cuándo aparece cada cara: la comida parpadea sola cada pocos segundos, cada una
 
 Aparte de las caras, todas las comidas del frasco (con dibujo propio o no) se aplastan un poco y rebotan cuando algo las golpea, aparecen con un pequeño salto al nacer de una fusión y tienen una sombra que cae siempre hacia abajo, aunque giren. Es solo visual: lo hace la página y no cambia la partida.
 
-**El borde con el que chocan.** Las comidas redondas siguen chocando como un círculo, y su dibujo se ajusta a ese círculo. Las que no son redondas (onigiri, sushi, Big Order) chocan con el contorno de su propio dibujo, llevado al mismo tamaño que tenían. Por eso, cambiar el dibujo de una comida no redonda cambia un poco cómo rebota y obliga a subir `RULES.VERSION`.
+**El borde con el que chocan.** Las comidas redondas siguen chocando como un círculo, y su dibujo se ajusta a ese círculo. Las que no son redondas (onigiri, lata, Big Order) chocan con el contorno de su propio dibujo, llevado al mismo tamaño que tenían. Por eso, cambiar el dibujo de una comida no redonda cambia un poco cómo rebota y obliga a subir `RULES.VERSION`.
 
 Cambiar el tamaño de una comida o su forma general sí cambia el juego, y obliga a volver a probar la dificultad.
 

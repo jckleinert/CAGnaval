@@ -20,7 +20,7 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 SRC = os.path.join(ROOT, 'art', 'foods')
@@ -75,6 +75,10 @@ def load(folder):
             if name not in names:
                 im = np.array(Image.open(path).convert('RGBA'))
                 im[..., 3][im[..., 3] >= 245] = 255      # "almost solid" left by some drawing tools is solid
+                # A faint glow around the drawing would become part of the food: keep only what is
+                # solid, plus the few soft pixels that smooth its edge.
+                near = Image.fromarray(((im[..., 3] > 127) * 255).astype('uint8')).filter(ImageFilter.MaxFilter(5))
+                im[..., 3][np.array(near) == 0] = 0
                 names.append(name); imgs.append(Image.fromarray(im, 'RGBA'))
             use.append(names.index(name))
             break

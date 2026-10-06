@@ -20,7 +20,7 @@ const FOODS = [
   { e: '🍪', n: 'Cookie',    r: 19, c: '#e3ad72', rest: 0.15, fric: 0.60, dens: 0.0010 },
   { e: '🍙', n: 'Onigiri',   r: 25, c: '#fdfdfd', rest: 0.08, fric: 0.70, dens: 0.0012, shape: 'tri' },
   { e: '🍩', n: 'Donut',     r: 31, c: '#c9a2f5', rest: 0.38, fric: 0.06, dens: 0.0009 },
-  { e: '🍣', n: 'Sushi',     r: 38, c: '#ff9d6c', rest: 0.18, fric: 0.30, dens: 0.0010, shape: 'pill' },
+  { e: '🥤', n: 'CAG Energy', r: 38, c: '#3bc7f5', rest: 0.18, fric: 0.30, dens: 0.0010, shape: 'pill' },
   { e: '🍜', n: 'Ramen',     r: 46, c: '#74dcc9', rest: 0.08, fric: 0.40, dens: 0.0018 },
   { e: '🍔', n: 'Burger',    r: 55, c: '#a4d65e', rest: 0.30, fric: 0.40, dens: 0.0010 },
   { e: '🍕', n: 'Pizza',     r: 64, c: '#ff7566', rest: 0.20, fric: 0.12, dens: 0.0010 },
