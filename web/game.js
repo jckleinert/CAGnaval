@@ -1,0 +1,439 @@
+/*
+ * The game page. It plays the run with the shared simulation and reports
+ * every move to the referee, which plays the same run on its side and owns
+ * the score. The page never decides which foods come next.
+ */
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var Sim = window.CAG && window.CAG.Sim;
+  if (!Sim) { $('fail').hidden = false; return; }
+
+  var R = Sim.RULES, FOODS = Sim.FOODS, TOP = Sim.TOP;
+  var W = R.W, H = R.H, TAU = Math.PI * 2;
+  var EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+  var GOLD = '#ffd23f';
+  var apiMeta = document.querySelector('meta[name="cag-api"]');
+  var API = apiMeta ? apiMeta.content.replace(/\/$/, '') : '';
+
+  var cv = $('game'), ctx = cv.getContext('2d'), stage = $('stage'), jar = $('jar');
+  var kcalEl = $('kcal'), bestEl = $('best'), nextDisc = $('nextDisc'), ladder = $('ladder');
+  var statusEl = $('status'), toastEl = $('toast');
+  var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name');
+  var btn = { shake: $('pwShake'), swap: $('pwSwap'), sweep: $('pwSweep') };
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var css = getComputedStyle(document.documentElement);
+  var INK = css.getPropertyValue('--ink').trim() || '#131838';
+  var LANTERN = css.getPropertyValue('--lantern').trim() || '#ff5a4a';
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function fmt(n) { return Number(n).toLocaleString('en-US'); }
+  function load(key, fallback) { try { var v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); } catch (e) { return fallback; } }
+  function save(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage is optional */ } }
+
+  /* Player: a random id kept in this browser plus the name typed on the start screen. */
+  function newId() {
+    var a = new Uint8Array(16), s = '';
+    (window.crypto || window.msCrypto).getRandomValues(a);
+    for (var i = 0; i < a.length; i++) s += ('0' + a[i].toString(16)).slice(-2);
+    return s;
+  }
+  var player = load('cagnaval.player', null);
+  if (!player || typeof player.id !== 'string' || player.id.length < 8) { player = { id: newId(), name: '' }; save('cagnaval.player', player); }
+  var best = load('cagnaval.best', 0) || 0;
+
+  /* Talking to the referee */
+  function call(method, path, body, tries) {
+    return new Promise(function (resolve, reject) {
+      var attempt = 0;
+      function fail(code, status) { var e = new Error(code); e.code = code; e.status = status || 0; reject(e); }
+      (function go() {
+        attempt++;
+        var ctl = window.AbortController ? new AbortController() : null;
+        var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
+        fetch(API + path, {
+          method: method, cache: 'no-store', signal: ctl ? ctl.signal : undefined,
+          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          body: body ? JSON.stringify(body) : undefined
+        }).then(function (res) {
+          clearTimeout(timer);
+          return res.json().catch(function () { return {}; }).then(function (data) {
+            if (res.status >= 500 && attempt < tries) { setTimeout(go, 400 * attempt); return; }
+            if (res.status >= 400) fail(data.error || 'http-' + res.status, res.status); else resolve(data);
+          });
+        }).catch(function () {
+          clearTimeout(timer);
+          if (attempt < tries) setTimeout(go, 400 * attempt); else fail('network');
+        });
+      })();
+    });
+  }
+
+  /* ---------- run state ---------- */
+  var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
+  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '';
+
+  function toast(msg) {
+    toastEl.textContent = msg; toastEl.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.hidden = true; }, 2200);
+  }
+
+  function startRun() {
+    var name = nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
+    player.name = name || 'Player'; save('cagnaval.player', player);
+    $('play').disabled = true; $('again').disabled = true; $('homeMsg').textContent = 'Starting…';
+    call('POST', '/api/runs', { player: player }, 2).then(function (start) {
+      var sim = new Sim({ pub: start.pub, events: true });
+      sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
+      run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false };
+      fx.length = 0; aim = W / 2; acc = 0; last = 0;
+      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true;
+      $('homeMsg').textContent = '';
+      cv.focus();
+    }).catch(function (e) {
+      homeEl.hidden = false; overEl.hidden = true;
+      $('homeMsg').textContent = e.code === 'slow-down' ? 'Too many requests. Wait a moment.' : 'Could not reach the server. Try again.';
+    }).then(function () { $('play').disabled = false; $('again').disabled = false; });
+  }
+
+  /* Messages of a run go out one at a time, in order. */
+  function post(kind, msg, onReply) {
+    var r = run;
+    r.chain = r.chain.then(function () {
+      if (!r.live && !r.ending) return null;
+      return call('POST', '/api/runs/' + r.id + '/' + kind, msg, 3).then(function (reply) {
+        if (reply.sync === false) r.desync = true;
+        onReply(reply);
+      });
+    }).catch(function (e) { stopRun(r, e.code); });
+  }
+
+  function doDrop() {
+    if (!run || !run.live) return;
+    var sim = run.sim, x = Math.round(clamp(aim, 0, W));
+    if (!sim.canDrop()) return;
+    var msg = { seq: run.seq + 1, step: sim.step, x: x, h: sim.hash() };
+    if (!sim.drop(x)) return;
+    run.seq++;
+    post('drop', msg, function (reply) { if (reply.piece) sim.setPiece(reply.k, reply.piece); });
+  }
+
+  function usePower(type) {
+    if (!run || !run.live) return;
+    var sim = run.sim, msg = { seq: run.seq + 1, step: sim.step, power: type, h: sim.hash() };
+    if (!sim.power(type)) {
+      if (!sim.uses[type]) return;
+      toast(type === 'shake' ? 'Nothing to shake yet' : type === 'sweep' ? 'No candy or cookies in the jar' : (sim.ready ? 'No next food to swap' : 'Wait for the next food'));
+      return;
+    }
+    run.seq++;
+    post('power', msg, function (reply) {
+      (reply.pieces || []).forEach(function (p, i) { if (p) sim.setPiece(reply.k + i, p); });
+    });
+  }
+
+  /* The run ended normally: wait for pending messages, then ask the referee for the result. */
+  function endRun() {
+    var r = run, sim = r.sim;
+    r.live = false; r.ending = true;
+    r.chain = r.chain.then(function () {
+      return call('POST', '/api/runs/' + r.id + '/finish', { step: sim.overStep, kcal: sim.kcal, reason: 'over' }, 3);
+    }).then(function (res) { showResult(r, res, null); }).catch(function (e) { stopRun(r, e.code); });
+  }
+
+  /* Something broke the run (expired, connection lost, refused move). Show what the referee has. */
+  function stopRun(r, code) {
+    if (r.stopped) return;
+    r.stopped = true; r.live = false; r.ending = false;
+    var sim = r.sim;
+    call('POST', '/api/runs/' + r.id + '/finish', { step: sim.over ? sim.overStep : sim.step, kcal: sim.kcal, reason: sim.over ? 'over' : 'quit' }, 2)
+      .then(function (res) { showResult(r, res, code); })
+      .catch(function () { showResult(r, null, code); });
+  }
+
+  function showResult(r, res, problem) {
+    if (run !== r) return;
+    var sim = r.sim, kcal = res ? res.kcal : sim.kcal, title;
+    if (problem === 'run-expired' || (res && res.status === 'expired')) title = 'Run expired';
+    else if (problem === 'network') title = 'Connection lost';
+    else if (problem) title = 'Run stopped';
+    else title = sim.overReason === 'done' ? 'All ' + R.MAX_FOODS + ' foods dropped' : 'Jar is full';
+    $('overTitle').textContent = title;
+    $('overKcal').textContent = fmt(kcal);
+    $('overUsed').textContent = (res ? res.dropped : sim.dropped) + ' of ' + R.MAX_FOODS + ' foods used';
+    var topFood = FOODS[Math.max(0, res ? res.maxLv : sim.maxLv)];
+    $('overTop').textContent = 'Biggest food: ' + topFood.e + ' ' + topFood.n;
+
+    var ob = $('overBonus'), g = res && res.gold;
+    ob.classList.toggle('hot', !!(g && g.merged));
+    ob.textContent = !g ? '' : g.merged ? 'Golden bonus: ×' + g.mult + ' (practice, no prize)'
+      : g.appeared ? 'Golden food was not merged: no bonus' : 'No golden food this run';
+
+    var oc = $('overCheck'), ok = !!(res && res.verified);
+    oc.classList.toggle('bad', !ok);
+    oc.textContent = !res ? 'The referee could not be reached: this run was not saved.'
+      : ok ? 'Checked by the referee.'
+      : res.status === 'expired' ? 'More than 15 seconds without a move. Calories so far were kept.'
+      : !res.counted ? 'The referee refused this run. It does not count.'
+      : res.sync === false ? 'Your screen and the referee disagreed from move ' + res.mismatchAt + '. The referee score is used.'
+      : 'The referee score is used.';
+
+    $('overWeek').textContent = '';
+    if (res && res.counted) {
+      if (res.verified && kcal > best) { best = kcal; save('cagnaval.best', best); }
+      call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 1).then(function (b) {
+        if (run === r && b.you) $('overWeek').textContent = 'This week: ' + fmt(b.you.total) + ' kcal, rank ' + b.you.rank;
+      }).catch(function () { /* ranking is optional here */ });
+    }
+    overEl.hidden = false;
+    $('again').focus();
+  }
+
+  function openBoard() {
+    var list = $('rank'), msg = $('rankMsg');
+    list.textContent = ''; msg.textContent = 'Loading…';
+    boardEl.hidden = false;
+    call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 2).then(function (b) {
+      msg.textContent = b.top.length ? '' : 'No runs yet this week. Be the first.';
+      var rows = b.top.slice(0, 15);
+      if (b.you && b.you.rank > rows.length) rows.push(b.you);
+      rows.forEach(function (row) {
+        var li = document.createElement('li'), a = document.createElement('span'), n = document.createElement('span'), k = document.createElement('span');
+        a.className = 'pos'; a.textContent = row.rank; n.className = 'who'; n.textContent = row.name; k.textContent = fmt(row.total);
+        if (row.you) li.className = 'you';
+        li.appendChild(a); li.appendChild(n); li.appendChild(k); list.appendChild(li);
+      });
+    }).catch(function () { msg.textContent = 'Could not load the ranking.'; });
+  }
+
+  /* ---------- screen updates ---------- */
+  function icon(f, size, gold) {
+    var dpr = Math.min(window.devicePixelRatio || 1, 3), c = document.createElement('canvas');
+    c.width = c.height = Math.round(size * dpr);
+    var g = c.getContext('2d'), s = (size / 2 - 2) / (f.ext * (gold ? 1.5 : 1)) * dpr;
+    g.setTransform(s, 0, 0, s, c.width / 2, c.height / 2);
+    drawFood(g, 0, 0, f, 0, gold, 0);
+    return c;
+  }
+  FOODS.forEach(function (f) {
+    var li = document.createElement('li');
+    li.title = f.n; li.setAttribute('aria-label', f.n);
+    li.appendChild(icon(f, 28, false));
+    ladder.appendChild(li);
+  });
+
+  function refresh() {
+    var sim = run ? run.sim : null, i;
+    kcalEl.textContent = fmt(sim ? sim.kcal : 0);
+    bestEl.textContent = fmt(best);
+
+    var p = sim ? sim.preview() : null, key = p ? p.lv + (p.gold ? 'g' : '') : '';
+    if (key !== lastNext) {
+      lastNext = key;
+      nextDisc.textContent = '';
+      nextDisc.classList.toggle('gold', !!(p && p.gold));
+      if (p) { nextDisc.appendChild(icon(FOODS[p.lv], 38, p.gold)); nextDisc.setAttribute('aria-label', 'Next: ' + (p.gold ? 'golden ' : '') + FOODS[p.lv].n); }
+      else nextDisc.setAttribute('aria-label', 'No next food');
+      if (p && p.gold && run && !run.goldSeen) { run.goldSeen = true; toast('Golden ' + FOODS[p.lv].n.toLowerCase() + ' is next!'); }
+    }
+
+    var max = sim ? sim.maxLv : -1;
+    if (max !== lastMax) { lastMax = max; for (i = 0; i < ladder.children.length; i++) ladder.children[i].classList.toggle('on', i <= max); }
+
+    var uses = sim && run.live ? '' + sim.uses.shake + sim.uses.swap + sim.uses.sweep : 'off';
+    if (uses !== lastUses) {
+      lastUses = uses;
+      Object.keys(btn).forEach(function (k) {
+        var left = sim ? sim.uses[k] : 1;
+        btn[k].disabled = !(sim && run.live && left);
+        btn[k].querySelector('.pw-c').textContent = left ? '×1' : 'used';
+      });
+    }
+
+    var text = '', cls = '';
+    if (sim && run.desync) { text = 'Out of sync with the referee'; cls = 'bad'; }
+    else if (sim && sim.gold === 'merged') { text = 'Golden food merged. Bonus shown at the end'; cls = 'hot'; }
+    else if (sim && sim.gold === 'jar') { text = 'Merge the golden food with the same food'; cls = 'hot'; }
+    else if (sim && run.live && ((p && p.gold) || (sim.current() && sim.current().gold))) { text = 'Golden food is coming up'; cls = 'hot'; }
+    else if (sim && run.live) text = 'Merge two of the same food';
+    if (text + cls !== lastStatus) { lastStatus = text + cls; statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); }
+  }
+
+  /* ---------- drawing ---------- */
+  function trace(c, f) {
+    c.beginPath();
+    if (f.poly) {
+      c.moveTo(f.poly[0].x, f.poly[0].y);
+      for (var i = 1; i < f.poly.length; i++) c.lineTo(f.poly[i].x, f.poly[i].y);
+      c.closePath();
+    } else c.arc(0, 0, f.r, 0, TAU);
+  }
+  /* spin: rotation of the golden rays; only used when gold is true */
+  function drawFood(c, x, y, f, angle, gold, spin) {
+    c.save();
+    c.translate(x, y);
+    c.lineJoin = 'round';
+    if (gold) {
+      var n = 10, R1 = f.ext * 1.5, R0 = f.ext * 1.08;
+      c.save();
+      c.rotate(spin);
+      c.beginPath();
+      for (var i = 0; i < n * 2; i++) {
+        var a = i * Math.PI / n, rr = i % 2 ? R0 : R1;
+        if (i) c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else c.moveTo(rr, 0);
+      }
+      c.closePath();
+      c.fillStyle = '#ff9d00'; c.fill();
+      c.lineWidth = 2; c.strokeStyle = '#fff6c9'; c.stroke();
+      c.restore();
+    }
+    c.rotate(angle);
+    trace(c, f);
+    c.fillStyle = gold ? GOLD : f.c; c.fill();
+    if (gold) {
+      c.lineWidth = 4.5; c.strokeStyle = '#fff6c9'; c.stroke();
+      c.lineWidth = 1.5; c.strokeStyle = '#a46f00'; c.stroke();
+    } else { c.lineWidth = 1.5; c.strokeStyle = 'rgba(19,24,56,0.28)'; c.stroke(); }
+    c.font = Math.round(f.r * f.es * (gold ? 0.72 : 1)) + 'px ' + EMOJI;
+    c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = INK;
+    c.fillText(f.e, 0, f.r * f.ey);
+    c.restore();
+  }
+
+  function draw() {
+    var sim = run ? run.sim : null, step = sim ? sim.step : 0, i;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.save();
+    ctx.globalAlpha = sim && sim.warn ? (reduced ? 1 : 0.6 + 0.4 * Math.sin(step / 5.4)) : 0.45;
+    ctx.setLineDash([8, 7]); ctx.lineWidth = 2; ctx.strokeStyle = LANTERN;
+    ctx.beginPath(); ctx.moveTo(0, R.LINE_Y); ctx.lineTo(W, R.LINE_Y); ctx.stroke();
+    ctx.restore();
+    if (!sim) return;
+
+    var spin = reduced ? 0 : step / 54, cur = run.live ? sim.current() : null;
+    if (cur && sim.canDrop()) {
+      var f = FOODS[cur.lv], x = clamp(Math.round(clamp(aim, 0, W)), f.hw + R.PAD + 2, W - f.hw - R.PAD - 2);
+      x = clamp(x, f.ext + R.PAD + 1, W - f.ext - R.PAD - 1);
+      ctx.save();
+      ctx.setLineDash([4, 8]); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(19,24,56,0.2)';
+      ctx.beginPath(); ctx.moveTo(x, R.DROP_Y + f.r + 4); ctx.lineTo(x, H); ctx.stroke();
+      ctx.restore();
+      drawFood(ctx, x, R.DROP_Y, f, 0, cur.gold, spin);
+    }
+
+    var b;
+    for (i = 0; i < sim.foods.length; i++) { b = sim.foods[i]; if (!b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, false, 0); }
+    for (i = 0; i < sim.foods.length; i++) { b = sim.foods[i]; if (b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, true, spin); }
+
+    for (i = fx.length - 1; i >= 0; i--) {
+      var p = fx[i], k = (step - p.t) / (p.gold ? 54 : 34);
+      if (k >= 1 || k < 0) { fx.splice(i, 1); continue; }
+      ctx.save();
+      ctx.globalAlpha = 1 - k;
+      if (!reduced) {
+        ctx.lineWidth = p.gold ? 6 : 3; ctx.strokeStyle = p.gold ? GOLD : '#ffffff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + (p.gold ? 0.9 : 0.4) * k), 0, TAU); ctx.stroke();
+      }
+      if (p.txt) {
+        ctx.font = '16px "Dela Gothic One","Arial Black",sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff'; ctx.fillStyle = INK;
+        var ty = clamp(p.y - p.r - 10 - (reduced ? 0 : 16 * k), 14, H - 10);
+        ctx.strokeText(p.txt, p.x, ty); ctx.fillText(p.txt, p.x, ty);
+      }
+      ctx.restore();
+    }
+
+    /* Foods left (top left) and seconds to drop (top right) */
+    ctx.save();
+    ctx.font = '700 12px "Zen Maru Gothic","Trebuchet MS",sans-serif';
+    ctx.textBaseline = 'middle'; ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    var leftTxt = sim.left() + ' left';
+    ctx.textAlign = 'left'; ctx.fillStyle = INK; ctx.strokeText(leftTxt, 10, 14); ctx.fillText(leftTxt, 10, 14);
+    if (run.live && sim.ready && sim.dropped < R.MAX_FOODS) {
+      var secs = Math.max(0, Math.ceil((sim.deadline() - step) / 60)), secTxt = secs + 's';
+      ctx.textAlign = 'right'; ctx.fillStyle = secs <= 5 ? LANTERN : INK;
+      ctx.strokeText(secTxt, W - 10, 14); ctx.fillText(secTxt, W - 10, 14);
+    }
+    ctx.restore();
+  }
+
+  function fit() {
+    var bw = stage.clientWidth - 8, bh = stage.clientHeight - 4;
+    var s = clamp(Math.min(bw / W, bh / H), 0.4, 440 / W);
+    var cw = Math.floor(W * s), ch = Math.floor(H * s);
+    jar.style.width = cw + 'px'; jar.style.height = ch + 'px';
+    var dpr = Math.min(window.devicePixelRatio || 1, 3);
+    cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+    scale = cv.width / W;
+  }
+  if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
+  window.addEventListener('resize', fit);
+
+  /* ---------- main loop: game time follows real time, never faster ---------- */
+  var last = 0, acc = 0;
+  function stepOnce() {
+    var sim = run.sim;
+    sim.tick();
+    if (sim.events.length) {
+      for (var i = 0; i < sim.events.length; i++) {
+        var ev = sim.events[i];
+        if (ev.type === 'merge') {
+          fx.push({ x: ev.x, y: ev.y, r: FOODS[ev.lv].ext, t: sim.step, txt: '+' + ev.gain, gold: ev.gold });
+          if (ev.gold) toast('Golden food merged!');
+          else if (!ev.made) toast('Double Big Order! +' + fmt(ev.gain) + ' kcal');
+          else if (ev.lv === TOP) toast('Big Order! +' + fmt(ev.gain) + ' kcal');
+        } else if (ev.type === 'sweep') fx.push({ x: ev.x, y: ev.y, r: FOODS[ev.lv].r, t: sim.step, txt: '', gold: false });
+      }
+      sim.events.length = 0;
+    }
+    if (sim.mustDrop()) doDrop();
+    if (sim.over && run.live) endRun();
+    // The 15 seconds passed and the food could not be dropped (the referee's answer never came).
+    else if (run.live && sim.ready && sim.dropped < R.MAX_FOODS && sim.step > sim.deadline()) stopRun(run, 'run-expired');
+  }
+  function frame(t) {
+    // The game clock follows the real clock, also across a pause (hidden tab, slow frame):
+    // it catches up instead of stopping, because the referee does not accept a clock that falls behind.
+    var dt = Math.min(30000, t - (last || t)); last = t;
+    if (run && run.live) {
+      acc += dt;
+      var n = 0;
+      while (acc >= R.STEP_MS && n < 240 && run.live) { stepOnce(); acc -= R.STEP_MS; n++; }
+    }
+    refresh();
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------- input ---------- */
+  function aimAt(e) {
+    var r = cv.getBoundingClientRect();
+    if (r.width) aim = clamp((e.clientX - r.left) / r.width * W, 0, W);
+  }
+  cv.addEventListener('pointerdown', function (e) {
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
+    down = true; aimAt(e); e.preventDefault();
+  });
+  cv.addEventListener('pointermove', function (e) { if (e.pointerType === 'mouse' || down) aimAt(e); });
+  cv.addEventListener('pointerup', function (e) { if (down) { down = false; aimAt(e); doDrop(); } });
+  cv.addEventListener('pointercancel', function () { down = false; });
+  cv.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') { aim = clamp(aim - 12, 0, W); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { aim = clamp(aim + 12, 0, W); e.preventDefault(); }
+    else if (e.key === ' ' || e.key === 'Enter') { doDrop(); e.preventDefault(); }
+  });
+  Object.keys(btn).forEach(function (k) { btn[k].addEventListener('click', function () { usePower(k); }); });
+  $('play').addEventListener('click', startRun);
+  $('again').addEventListener('click', startRun);
+  nameEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') startRun(); });
+  $('openBoard').addEventListener('click', openBoard);
+  $('openBoard2').addEventListener('click', openBoard);
+  $('closeBoard').addEventListener('click', function () { boardEl.hidden = true; });
+
+  nameEl.value = player.name || '';
+  fit();
+  requestAnimationFrame(frame);
+})();

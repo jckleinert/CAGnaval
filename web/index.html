@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#131838">
+  <title>CAGnaval</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Zen+Maru+Gothic:wght@500;700&display=swap">
+  <link rel="stylesheet" href="/web/style.css">
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <span class="label">Calories</span>
+      <span class="kcal"><span id="kcal">0</span><small>kcal</small></span>
+    </div>
+    <div class="side">
+      <div><span class="label">Best</span><span class="best-n" id="best">0</span></div>
+      <div><span class="label">Next</span><span class="disc" id="nextDisc" role="img"></span></div>
+    </div>
+  </header>
+
+  <p class="status" id="status" role="status"></p>
+  <p class="fail" id="fail" hidden>The game could not load. Reload the page to try again.</p>
+
+  <div class="stage" id="stage">
+    <div class="jar" id="jar">
+      <canvas id="game" tabindex="0" aria-label="Food jar. Left and right arrows aim, space drops the food."></canvas>
+      <div class="toast" id="toast" role="status" hidden></div>
+
+      <div class="over" id="home">
+        <p class="over-title">CAGnaval</p>
+        <p class="over-line">Drop food, merge two of the same, score calories.</p>
+        <label class="field" for="name">Your name
+          <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false">
+        </label>
+        <button class="primary" id="play" type="button">Play</button>
+        <button class="ghost" id="openBoard" type="button">This week's ranking</button>
+        <p class="over-line small" id="homeMsg"></p>
+      </div>
+
+      <div class="over" id="over" hidden>
+        <p class="over-title" id="overTitle"></p>
+        <p class="over-kcal"><span id="overKcal">0</span> kcal</p>
+        <p class="over-line" id="overUsed"></p>
+        <p class="over-line" id="overTop"></p>
+        <p class="over-line" id="overBonus"></p>
+        <p class="over-line small" id="overCheck"></p>
+        <p class="over-line small" id="overWeek"></p>
+        <button class="primary" id="again" type="button">Play again</button>
+        <button class="ghost" id="openBoard2" type="button">This week's ranking</button>
+      </div>
+
+      <div class="over" id="board" hidden>
+        <p class="over-title">This week</p>
+        <ol class="rank" id="rank"></ol>
+        <p class="over-line small" id="rankMsg"></p>
+        <button class="ghost" id="closeBoard" type="button">Back</button>
+      </div>
+    </div>
+  </div>
+
+  <ol class="ladder" id="ladder" aria-label="Food order, smallest to biggest"></ol>
+
+  <div class="powers">
+    <button class="pw" id="pwShake" type="button" disabled><span class="pw-n">Shake</span><span class="pw-d">Jolt the jar</span><span class="pw-c">×1</span></button>
+    <button class="pw" id="pwSwap" type="button" disabled><span class="pw-n">Swap</span><span class="pw-d">Use the next food now</span><span class="pw-c">×1</span></button>
+    <button class="pw" id="pwSweep" type="button" disabled><span class="pw-n">Sweep</span><span class="pw-d">Clear candy and cookies</span><span class="pw-c">×1</span></button>
+  </div>
+
+  <p class="note">Practice mode: no tickets, no prizes. Every run is checked by the referee.</p>
+</main>
+
+<script src="/shared/detmath.js"></script>
+<script src="/shared/matter-det.js"></script>
+<script src="/shared/foods.js"></script>
+<script src="/shared/sim.js"></script>
+<script src="/web/game.js"></script>
+</body>
+</html>

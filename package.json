@@ -1,0 +1,14 @@
+{
+  "name": "cagnaval",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CAGnaval: drop-and-merge food game with a referee server (stage 1, practice mode)",
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test",
+    "build:matter": "node scripts/build-matter.js",
+    "build:foods": "node scripts/gen-foods.js"
+  }
+}
