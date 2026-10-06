@@ -14,6 +14,7 @@
   var EMOJI = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
   var GOLD = '#FFC93C';
   var CONFETTI = ['#EE3D77', '#3BC7F5', '#FFC93C'];
+  var GREEN = '#4CC463';
   /* Levels that have their own sticker picture in web/img/foods/<level>.png. The rest are drawn as placeholders. */
   var ART_LEVELS = [];
   var ART = {};
@@ -97,7 +98,7 @@
     call('POST', '/api/runs', { player: player }, 2).then(function (start) {
       var sim = new Sim({ pub: start.pub, events: true });
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
-      run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false };
+      run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0 };
       fx.length = 0; aim = W / 2; acc = 0; last = 0;
       homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true;
       $('homeMsg').textContent = '';
@@ -125,8 +126,10 @@
     var sim = run.sim, x = Math.round(clamp(aim, 0, W));
     if (!sim.canDrop()) return;
     var msg = { seq: run.seq + 1, step: sim.step, x: x, h: sim.hash() };
+    var timeLeft = clamp((sim.deadline() - sim.step) / R.DROP_STEPS, 0, 1);
     if (!sim.drop(x)) return;
     run.seq++;
+    run.barFrom = timeLeft; run.barAt = sim.step;   // the time bar refills from here
     post('drop', msg, function (reply) { if (reply.piece) sim.setPiece(reply.k, reply.piece); });
   }
 
@@ -381,15 +384,23 @@
       ctx.restore();
     }
 
-    /* Time left to drop: a bar along the top of the jar that runs out */
-    if (run.live && sim.ready && sim.dropped < R.MAX_FOODS) {
-      var frac = clamp((sim.deadline() - step) / R.DROP_STEPS, 0, 1), secsLeft = (sim.deadline() - step) / 60;
+    /* Time left to drop: a bar along the top of the jar. It runs out while you aim and, after each drop, refills in green. */
+    if (run.live && sim.dropped < R.MAX_FOODS) {
+      var frac, barColor;
+      if (sim.ready) {
+        frac = clamp((sim.deadline() - step) / R.DROP_STEPS, 0, 1);
+        barColor = step - sim.turnStart < 24 ? GREEN : (sim.deadline() - step) / 60 <= 5 ? LANTERN : GOLD;
+      } else {
+        var grow = reduced ? 1 : clamp((step - run.barAt) / R.READY_STEPS, 0, 1);
+        frac = run.barFrom + (1 - run.barFrom) * (1 - (1 - grow) * (1 - grow));
+        barColor = GREEN;
+      }
       ctx.save();
       ctx.lineCap = 'round'; ctx.lineWidth = 6;
       ctx.strokeStyle = 'rgba(255,255,255,0.75)';
       ctx.beginPath(); ctx.moveTo(8, 6); ctx.lineTo(W - 8, 6); ctx.stroke();
       if (frac > 0.01) {
-        ctx.strokeStyle = secsLeft <= 5 ? LANTERN : GOLD;
+        ctx.strokeStyle = barColor;
         ctx.beginPath(); ctx.moveTo(8, 6); ctx.lineTo(8 + (W - 16) * frac, 6); ctx.stroke();
       }
       ctx.restore();
