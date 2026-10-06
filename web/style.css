@@ -26,6 +26,8 @@
   --wood-d: #E0AE5E;
   --wood-l: #FCE4B4;
   --shade: rgba(27, 34, 51, 0.12);
+  /* Size factor of the scenery and the signs. Bigger windows raise it (see the end of this file). */
+  --k: 1;
   --font: Fredoka, "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif;
   color-scheme: light;
 }
@@ -70,7 +72,7 @@ body {
   z-index: 1;
   flex: 1 1 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 52px;
+  grid-template-columns: minmax(0, 1fr) calc(52px * var(--k));
   grid-template-rows: auto auto minmax(0, 1fr);
   column-gap: 6px;
   margin-bottom: -14px;
@@ -88,68 +90,69 @@ body {
   flex: 0 0 auto;
   margin-inline: -16px;
   padding-top: env(safe-area-inset-top, 0px);
-  height: calc(38px + env(safe-area-inset-top, 0px));
+  height: calc(38px * var(--k) + env(safe-area-inset-top, 0px));
   display: grid;
   place-items: end center;
-  background: repeating-linear-gradient(90deg, var(--pink) 0 28px, #FFFAF0 28px 56px);
+  background: repeating-linear-gradient(90deg, var(--pink) 0 calc(28px * var(--k)), #FFFAF0 calc(28px * var(--k)) calc(56px * var(--k)));
   filter: drop-shadow(0 4px 0 var(--shade));
 }
 .awning::after {
   content: "";
   position: absolute;
   left: 0; right: 0; top: 100%;
-  height: 14px;
+  height: calc(14px * var(--k));
   background:
-    radial-gradient(circle at 14px 0, var(--pink) 13.5px, transparent 14px) 0 0 / 56px 14px repeat-x,
-    radial-gradient(circle at 14px 0, #FFFAF0 13.5px, transparent 14px) 28px 0 / 56px 14px repeat-x;
+    radial-gradient(circle at calc(14px * var(--k)) 0, var(--pink) calc(13.5px * var(--k)), transparent calc(14px * var(--k))) 0 0 / calc(56px * var(--k)) calc(14px * var(--k)) repeat-x,
+    radial-gradient(circle at calc(14px * var(--k)) 0, #FFFAF0 calc(13.5px * var(--k)), transparent calc(14px * var(--k))) calc(28px * var(--k)) 0 / calc(56px * var(--k)) calc(14px * var(--k)) repeat-x;
 }
 .plaque {
   position: relative;
   z-index: 1;
-  transform: translateY(10px);
-  padding: 5px 14px 4px;
+  transform: translateY(calc(10px * var(--k)));
+  padding: calc(5px * var(--k)) calc(14px * var(--k)) calc(4px * var(--k));
   background: var(--paper);
   border-radius: 999px;
   box-shadow: 0 3px 0 var(--shade);
 }
-.logo { display: block; height: 27px; width: auto; }
+.logo { display: block; height: calc(27px * var(--k)); width: auto; }
 .logo.big { height: auto; width: 250px; max-width: 92%; margin-bottom: 2px; }
 
 /* Signs hanging from the awning */
-.sign { position: relative; margin-top: 20px; display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 3px 14px 5px; background: var(--paper); border-radius: 16px; box-shadow: 0 4px 0 var(--shade); }
-.sign::before, .sign::after { content: ""; position: absolute; bottom: 100%; width: 3px; height: 22px; border-radius: 2px; background: var(--wood-d); }
-.sign::before { left: 16px; }
-.sign::after { right: 16px; }
-.kcal { font-weight: 700; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
-.kcal small { font-size: 14px; font-weight: 600; color: var(--pink); margin-left: 4px; }
-.cap { font-size: 12px; font-weight: 600; color: var(--dim); }
-.disc { display: block; width: 36px; height: 36px; }
+.sign { position: relative; margin-top: calc(20px * var(--k)); display: flex; align-items: center; gap: calc(8px * var(--k)); min-height: calc(44px * var(--k)); padding: calc(3px * var(--k)) calc(14px * var(--k)) calc(5px * var(--k)); background: var(--paper); border-radius: calc(16px * var(--k)); box-shadow: 0 4px 0 var(--shade); }
+.sign::before, .sign::after { content: ""; position: absolute; bottom: 100%; width: 3px; height: calc(22px * var(--k)); border-radius: 2px; background: var(--wood-d); }
+.sign::before { left: calc(16px * var(--k)); }
+.sign::after { right: calc(16px * var(--k)); }
+.kcal { font-weight: 700; font-size: calc(30px * var(--k)); line-height: 1; font-variant-numeric: tabular-nums; }
+.kcal small { font-size: calc(14px * var(--k)); font-weight: 600; color: var(--pink); margin-left: 4px; }
+.cap { font-size: calc(12px * var(--k)); font-weight: 600; color: var(--dim); }
+.disc { display: block; width: calc(36px * var(--k)); height: calc(36px * var(--k)); }
 .disc canvas, .ladder canvas { display: block; width: 100%; height: 100%; }
 .disc.gold { border-radius: 50%; animation: ring 0.9s ease-in-out infinite alternate; box-shadow: 0 0 0 3px var(--yellow); }
 @keyframes ring { to { box-shadow: 0 0 0 8px rgba(255, 201, 60, 0.3); } }
 
-.status { margin: 6px 0 0; min-height: 24px; justify-self: center; padding: 3px 14px; font-size: 13px; font-weight: 600; line-height: 18px; color: var(--dim); text-align: center; border-radius: 999px; }
+.status { margin: 6px 0 0; min-height: calc(24px * var(--k)); justify-self: center; padding: 3px calc(14px * var(--k)); font-size: calc(13px * var(--k)); font-weight: 600; line-height: calc(18px * var(--k)); color: var(--dim); text-align: center; border-radius: 999px; }
 .status.hot { background: var(--yellow); color: var(--ink); font-weight: 700; box-shadow: 0 3px 0 var(--yellow-d); }
 .status.bad { background: var(--pink); color: #fff; font-weight: 700; }
 
 /* Glass jar, with CAG leaning over it */
 .stage { min-width: 0; min-height: 366px; display: grid; place-items: end center; }
-.jar { position: relative; width: 300px; height: 433px; margin-top: 54px; }
+.jar { position: relative; width: 300px; height: 433px; margin-top: calc(var(--av, 44px) + 10px); }
 .jar::before { content: ""; position: absolute; left: -8px; right: -8px; top: -10px; height: 12px; border-radius: 8px; background: var(--glass-edge); box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.55), 0 3px 0 var(--shade); }
 .jar::after { content: ""; position: absolute; inset: 0 -4px -4px -4px; border: 4px solid var(--glass-edge); border-top: 0; border-radius: 0 0 20px 20px; box-shadow: 0 8px 0 -2px var(--shade); pointer-events: none; }
 #game { display: block; width: 100%; height: 100%; background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: 0 0 16px 16px; touch-action: none; cursor: pointer; }
-#game:focus-visible { outline: 3px solid var(--blue-d); outline-offset: 8px; }
+#game:focus-visible { outline: none; }
+.jar:has(#game:focus-visible)::before { background: var(--blue); }   /* keyboard focus lights up the rim */
 .shine { position: absolute; left: 9px; top: 14%; width: 9px; height: 34%; border-radius: 9px; background: rgba(255, 255, 255, 0.6); pointer-events: none; }
 .shine.two { top: 52%; height: 9%; }
 .sign.score { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
-.left { font-size: 12px; font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
-.cag { position: absolute; z-index: 1; top: -58px; left: 0; width: 44px; height: 44px; border: 3px solid var(--paper); border-radius: 50%; background: var(--blue); box-shadow: 0 3px 0 var(--shade); object-fit: cover; pointer-events: none; will-change: transform; }
+.left { font-size: calc(12px * var(--k)); font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
+.cag { position: absolute; z-index: 1; top: calc(-14px - var(--av, 44px)); left: 0; width: var(--av, 44px); height: var(--av, 44px); border: 3px solid var(--paper); border-radius: 50%; background: var(--blue); box-shadow: 0 3px 0 var(--shade); object-fit: cover; pointer-events: none; will-change: transform; }
 
-.toast { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; padding: 5px 16px; border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--shade); color: var(--ink); font-weight: 700; font-size: 15px; text-align: center; pointer-events: none; animation: pop 0.25s ease-out; }
+.toast { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; padding: 5px 16px; border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--shade); color: var(--ink); font-weight: 700; font-size: calc(15px * var(--k)); text-align: center; pointer-events: none; animation: pop 0.25s ease-out; }
 @keyframes pop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } }
 
 /* Start, result and ranking boards */
-.over { position: fixed; z-index: 20; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(330px, calc(100% - 32px)); max-height: calc(100% - 24px); display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 30px 18px 20px; text-align: center; background: var(--paper); border-radius: 24px; box-shadow: 0 6px 0 var(--shade), 0 0 0 200vmax rgba(255, 243, 220, 0.78); overflow-x: hidden; overflow-y: auto; }
+.over { position: fixed; z-index: 20; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(var(--k)); width: min(330px, calc(100% - 32px)); max-height: calc((100% - 24px) / var(--k)); display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 30px 18px 20px; text-align: center; background: var(--paper); border-radius: 24px; box-shadow: 0 6px 0 var(--shade), 0 0 0 200vmax rgba(255, 243, 220, 0.78); overflow-x: hidden; overflow-y: auto; }
 .over::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 12px; background: repeating-linear-gradient(90deg, var(--pink) 0 20px, var(--pink-l) 20px 40px); }
 #board { min-height: 260px; }
 #board::before { background: repeating-linear-gradient(90deg, var(--yellow) 0 20px, var(--yellow-l) 20px 40px); }
@@ -186,47 +189,57 @@ body {
 
 /* Counter: the jar stands on it; the menu of foods and the power-ups are on its front */
 .counter { flex: 0 0 auto; margin-inline: -16px; padding: 24px 16px max(8px, env(safe-area-inset-bottom, 0px)); background: var(--wood); border-top: 6px solid var(--wood-l); border-radius: 22px 22px 0 0; box-shadow: 0 -3px 0 var(--shade); display: flex; flex-direction: column; gap: 6px; }
-.ladder { display: grid; grid-template-columns: repeat(11, minmax(0, 28px)); gap: 3px; justify-content: center; margin: 0; padding: 0; list-style: none; }
+.ladder { display: grid; grid-template-columns: repeat(11, minmax(0, calc(28px * var(--k)))); gap: 3px; justify-content: center; margin: 0; padding: 0; list-style: none; }
 .ladder li { aspect-ratio: 1; opacity: 0.32; }
 .ladder li.on { opacity: 1; }
 
 .powers { display: flex; flex-direction: column; justify-content: center; gap: 14px; }
 .pw { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0; padding: 0; font-family: var(--font); color: var(--ink); text-align: center; background: none; border: 0; cursor: pointer; transition: transform 0.1s ease; }
 .pw:active:not(:disabled) { transform: translateY(3px); }
-.ico { flex: 0 0 auto; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; }
-.ico svg { width: 30px; height: 30px; display: block; }
+.ico { flex: 0 0 auto; display: grid; place-items: center; width: calc(48px * var(--k)); height: calc(48px * var(--k)); border-radius: 50%; }
+.ico svg { width: 62%; height: 62%; display: block; }
 .ico.blue { background: var(--blue); box-shadow: inset 0 -4px 0 var(--blue-d), 0 3px 0 var(--shade); }
 .ico.pink { background: var(--pink); box-shadow: inset 0 -4px 0 var(--pink-d), 0 3px 0 var(--shade); }
 .ico.yellow { background: var(--yellow); box-shadow: inset 0 -4px 0 var(--yellow-d), 0 3px 0 var(--shade); }
 .txt { display: flex; flex-direction: column; min-width: 0; }
-.pw-n { font-weight: 700; font-size: 12.5px; line-height: 1.15; }
-.pw-d { display: none; font-size: 11.5px; font-weight: 500; color: var(--dim); line-height: 1.15; }
+.pw-n { font-weight: 700; font-size: calc(12.5px * var(--k)); line-height: 1.15; }
+.pw-d { display: none; font-size: calc(11.5px * var(--k)); font-weight: 500; color: var(--dim); line-height: 1.15; }
 .pw:disabled { cursor: default; opacity: 0.45; filter: grayscale(1); }
 
-.note { margin: 0; font-size: 11.5px; font-weight: 500; color: #9A7A3F; text-align: center; }
+.note { margin: 0; font-size: calc(11.5px * var(--k)); font-weight: 500; color: #9A7A3F; text-align: center; }
 .fail { margin: 8px 0; padding: 12px; background: var(--paper); border-radius: 14px; }
 
 @media (prefers-reduced-motion: reduce) { .disc.gold, .toast { animation: none; } }
 
-/* Tablets held upright: same layout, more room */
+/* Tablets held upright: same layout, more room, everything a bit bigger */
 @media (min-width: 620px) { .app { max-width: 600px; } }
+@media (min-width: 620px) and (min-height: 900px) { :root { --k: 1.25; } .app { max-width: 680px; } }
 
-/* Wide screens (a computer, a phone on its side): jar in the middle at full height, panels on both sides. */
+/*
+ * Wide screens (a computer, a phone on its side): the awning and the counter
+ * span the whole window, the jar stands in the middle at full height, with
+ * the score on its left and the next food and power-ups on its right.
+ * The middle column is as wide as the jar can get for the window's height.
+ */
 @media (min-width: 720px) and (min-aspect-ratio: 11/10) {
-  .app { max-width: 860px; }
-  .play { grid-template-columns: 190px minmax(0, 1fr) 190px; grid-template-rows: auto minmax(0, 1fr); column-gap: 16px; }
+  :root { --jar-col: clamp(300px, calc((100vh - 126px - 82px * var(--k)) * 0.6923 + 38px), 780px); }
+  .app { max-width: none; }
+  .play { grid-template-columns: calc(190px * var(--k)) minmax(0, var(--jar-col)) calc(190px * var(--k)); grid-template-rows: auto minmax(0, 1fr); column-gap: calc(18px * var(--k)); justify-content: center; }
   .sign.score { grid-area: 1 / 1 / 2 / 2; }
   .sign.next { grid-area: 1 / 3 / 2 / 4; }
   .status { grid-area: 2 / 1 / 3 / 2; justify-self: start; align-self: start; margin-top: 12px; text-align: left; border-radius: 16px; }
   .stage { grid-area: 1 / 2 / -1 / 3; min-height: 380px; margin-top: 16px; }
-  .powers { grid-area: 2 / 3 / 3 / 4; justify-content: flex-start; gap: 10px; margin-top: 16px; }
-  .pw { flex-direction: row; gap: 10px; padding: 8px 12px 9px; text-align: left; background: var(--paper); border-radius: 18px; box-shadow: 0 4px 0 var(--shade); }
+  .powers { grid-area: 2 / 3 / 3 / 4; justify-content: flex-start; gap: calc(10px * var(--k)); margin-top: 16px; }
+  .pw { flex-direction: row; gap: calc(10px * var(--k)); padding: calc(8px * var(--k)) calc(12px * var(--k)) calc(9px * var(--k)); text-align: left; background: var(--paper); border-radius: calc(18px * var(--k)); box-shadow: 0 4px 0 var(--shade); }
   .pw:active:not(:disabled) { box-shadow: 0 1px 0 var(--shade); }
-  .ico { width: 40px; height: 40px; }
-  .ico svg { width: 26px; height: 26px; }
+  .ico { width: calc(40px * var(--k)); height: calc(40px * var(--k)); }
   .ico.blue { box-shadow: inset 0 -4px 0 var(--blue-d); }
   .ico.pink { box-shadow: inset 0 -4px 0 var(--pink-d); }
   .ico.yellow { box-shadow: inset 0 -4px 0 var(--yellow-d); }
-  .pw-n { font-size: 16px; }
+  .pw-n { font-size: calc(16px * var(--k)); }
   .pw-d { display: block; }
 }
+/* Bigger windows: grow the awning, the signs and the buttons along with the jar. */
+@media (min-width: 1000px) and (min-height: 760px) and (min-aspect-ratio: 11/10) { :root { --k: 1.2; } }
+@media (min-width: 1200px) and (min-height: 900px) and (min-aspect-ratio: 11/10) { :root { --k: 1.4; } }
+@media (min-width: 1500px) and (min-height: 1080px) and (min-aspect-ratio: 11/10) { :root { --k: 1.65; } }

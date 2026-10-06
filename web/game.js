@@ -84,7 +84,7 @@
 
   /* ---------- run state ---------- */
   var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
-  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2, boardBack = null;
+  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2, boardBack = null, avSize = 44;
 
   function toast(msg) {
     toastEl.textContent = msg; toastEl.hidden = false;
@@ -279,7 +279,7 @@
 
     // CAG rides along the top of the jar, above where the food will fall.
     var jw = jar.clientWidth, ax = clamp(Math.round(clamp(aim, 0, W)), 24, W - 24);
-    var cagX = Math.round(ax / W * jw - 22);
+    var cagX = Math.round(ax / W * jw - avSize / 2);
     if (cagX !== lastCag) { lastCag = cagX; cagEl.style.transform = 'translateX(' + cagX + 'px)'; }
   }
 
@@ -411,13 +411,19 @@
   }
 
   function fit() {
-    // Room for the rim, the glass edge and CAG above the jar. The jar never gets smaller than
-    // MIN_JAR_H: on a very short screen the page scrolls instead of squashing it.
-    var MIN_JAR_H = 300;
-    var bw = stage.clientWidth - 18, bh = Math.max(stage.clientHeight - 66, MIN_JAR_H);
-    var s = clamp(Math.min(bw / W, bh / H), 0.3, 480 / W);
+    // The jar takes all the room the stage gives it, keeping its shape. Above it goes CAG, whose
+    // size follows the jar's. The jar never gets smaller than MIN_JAR_H: on a very short screen
+    // the page scrolls instead of squashing it.
+    var MIN_JAR_H = 300, MAX_JAR_W = 760;
+    var bw = stage.clientWidth - 18, sh = stage.clientHeight;
+    var guess = Math.min(bw / W, (sh - 66) / H);
+    avSize = clamp(Math.round(W * guess * 0.15), 40, 84);
+    var bh = Math.max(sh - (avSize + 24), MIN_JAR_H);
+    var s = clamp(Math.min(bw / W, bh / H), 0.3, MAX_JAR_W / W);
     var cw = Math.floor(W * s), ch = Math.floor(H * s);
     jar.style.width = cw + 'px'; jar.style.height = ch + 'px';
+    jar.style.setProperty('--av', avSize + 'px');
+    lastCag = -999;
     var dpr = Math.min(window.devicePixelRatio || 1, 3);
     cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
     scale = cv.width / W;
