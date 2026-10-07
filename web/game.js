@@ -237,7 +237,7 @@
   function icon(f, size, gold) {
     var dpr = Math.min(window.devicePixelRatio || 1, 3), c = document.createElement('canvas');
     c.width = c.height = Math.max(8, Math.round(size * dpr));
-    var g = c.getContext('2d'), s = (c.width / 2 - 2 * dpr) / (f.ext * (gold ? 1.3 : 1));
+    var g = c.getContext('2d'), s = (c.width / 2 - 2 * dpr) / (f.ext * (gold ? 1.15 : 1));
     g.setTransform(s, 0, 0, s, c.width / 2, c.height / 2);
     drawFood(g, 0, 0, f, 0, gold, 0, FACE_OPEN);
     return c;
@@ -403,10 +403,11 @@
       px = Math.max(4, Math.round(h * 2 * Math.sqrt(m.a * m.a + m.b * m.b)));
     } else art = null;
     if (gold) {
-      // A soft golden glow around it, gently pulsing (spin runs with the game clock).
-      var glow = f.ext * (1.5 + 0.06 * Math.sin(spin * 5)), halo = c.createRadialGradient(0, 0, f.ext * 0.6, 0, 0, glow);
-      halo.addColorStop(0, 'rgba(255,214,64,0.95)');
-      halo.addColorStop(0.55, 'rgba(255,214,64,0.5)');
+      // A faint golden glow around it, just a detail, that swells and fades slowly (spin runs with the game clock).
+      var beat = Math.sin(spin * 4), glow = f.ext * (1.24 + 0.04 * beat), light = 0.46 + 0.14 * beat;
+      var halo = c.createRadialGradient(0, 0, f.ext * 0.75, 0, 0, glow);
+      halo.addColorStop(0, 'rgba(255,214,64,' + light.toFixed(3) + ')');
+      halo.addColorStop(0.6, 'rgba(255,214,64,' + (light * 0.4).toFixed(3) + ')');
       halo.addColorStop(1, 'rgba(255,214,64,0)');
       c.fillStyle = halo;
       c.beginPath(); c.arc(0, 0, glow, 0, TAU); c.fill();
