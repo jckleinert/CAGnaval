@@ -39,7 +39,7 @@
   var css = getComputedStyle(document.documentElement);
   var INK = css.getPropertyValue('--ink').trim() || '#1B2233';
   var LANTERN = css.getPropertyValue('--pink').trim() || '#EF4360';
-  var cagEl = $('cag'), leftEl = $('left');
+  var leftEl = $('left');
 
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function fmt(n) { return Number(n).toLocaleString('en-US'); }
@@ -86,7 +86,7 @@
 
   /* ---------- run state ---------- */
   var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
-  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastCag = -999, lastLeft = -2, boardBack = null, avSize = 44, nowMs = 0, vis = {};
+  var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastLeft = -2, boardBack = null, nowMs = 0, vis = {};
 
   function toast(msg) {
     toastEl.textContent = msg; toastEl.hidden = false;
@@ -284,10 +284,6 @@
     if (sim && !run.live && !run.desync) { text = ''; cls = ''; }   // the result card says the rest
     if (text + cls !== lastStatus) { lastStatus = text + cls; statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); }
 
-    // CAG rides along the top of the jar, above where the food will fall.
-    var jw = jar.clientWidth, ax = clamp(Math.round(clamp(aim, 0, W)), 24, W - 24);
-    var cagX = Math.round(ax / W * jw - avSize / 2);
-    if (cagX !== lastCag) { lastCag = cagX; cagEl.style.transform = 'translateX(' + cagX + 'px)'; }
   }
 
   /* ---------- drawing ---------- */
@@ -435,6 +431,12 @@
     c.restore();
   }
 
+  /* Where the food in hand hangs: above the aim, kept clear of the walls. */
+  function holdX(f) {
+    var x = clamp(Math.round(clamp(aim, 0, W)), f.hw + R.PAD + 2, W - f.hw - R.PAD - 2);
+    return clamp(x, f.ext + R.PAD + 1, W - f.ext - R.PAD - 1);
+  }
+
   function draw() {
     var sim = run ? run.sim : null, step = sim ? sim.step : 0, i;
     // Wipe every pixel of the canvas: it can be a fraction taller than the scaled game area, and a
@@ -452,8 +454,7 @@
 
     var spin = reduced ? 0 : step / 54, cur = run.live ? sim.current() : null;
     if (cur && sim.canDrop()) {
-      var f = FOODS[cur.lv], x = clamp(Math.round(clamp(aim, 0, W)), f.hw + R.PAD + 2, W - f.hw - R.PAD - 2);
-      x = clamp(x, f.ext + R.PAD + 1, W - f.ext - R.PAD - 1);
+      var f = FOODS[cur.lv], x = holdX(f);
       ctx.save();
       ctx.setLineDash([1, 9]); ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(28,159,208,0.45)';
       ctx.beginPath(); ctx.moveTo(x, R.DROP_Y + f.r + 4); ctx.lineTo(x, H); ctx.stroke();
@@ -515,6 +516,119 @@
     }
   }
 
+  /* ---------- CAG, who holds the food over the jar and drops it ----------
+     Her bust rests on the rim and follows the aim. Her two hands go to the sides of the food in
+     hand, whatever its size, and the arms are drawn here from the shoulders to the wrists. The
+     drawings and their anchor points come from web/cag-art.js (see scripts/gen-cag.py). All of
+     this is only for the eye. */
+  var puppet = $('puppet'), pctx = puppet.getContext('2d'), ART_P = window.CAG_PUPPET || null;
+  var PUP = { SIDE: 60, DEPTH: 150, RIM_PX: 8, bodyH: 0, scale: 1, ox: 0, oy: 0, rim: 8, cache: {}, ok: 0,
+              x: W / 2, lx: W / 2 - 30, ly: 20, rx: W / 2 + 30, ry: 20, held: false, grip: 30 };
+  if (ART_P) {
+    PUP.bodyH = ART_P.bodyWidth * ART_P.body.h / ART_P.body.w;
+    PUP.body = new Image(); PUP.hand = new Image();
+    PUP.body.onload = PUP.hand.onload = function () { PUP.ok++; };
+    PUP.body.src = '/web/img/cag/body.webp'; PUP.hand.src = '/web/img/cag/hand.webp';
+  }
+  /* A piece of a picture, shrunk once to the size it has on screen and kept. */
+  function shrunk(key, img, sx, sw, sh, dw, dh) {
+    var k = key + '@' + dw, c = PUP.cache[k];
+    if (c) return c;
+    var src = img, w = sw, h = sh, t;
+    while (w / 2 >= dw && w > 8) {
+      t = document.createElement('canvas'); t.width = Math.round(w / 2); t.height = Math.round(h / 2);
+      t.getContext('2d').drawImage(src, sx, 0, w, h, 0, 0, t.width, t.height);
+      src = t; sx = 0; w = t.width; h = t.height;
+    }
+    c = document.createElement('canvas'); c.width = dw; c.height = dh;
+    t = c.getContext('2d'); t.imageSmoothingQuality = 'high';
+    t.drawImage(src, sx, 0, w, h, 0, 0, dw, dh);
+    PUP.cache[k] = c;
+    return c;
+  }
+  /* How far a food reaches to each side when it hangs at this angle. */
+  function reach(f, ang) {
+    if (!f.poly) return f.r;
+    var c = Math.cos(ang), sn = Math.sin(ang), m = 0;
+    for (var i = 0; i < f.poly.length; i++) m = Math.max(m, Math.abs(f.poly[i].x * c - f.poly[i].y * sn));
+    return m;
+  }
+  function drawPuppet() {
+    pctx.setTransform(1, 0, 0, 1, 0, 0);
+    pctx.clearRect(0, 0, puppet.width, puppet.height);
+    if (!ART_P || PUP.ok < 2) return;
+    var A = ART_P, B = A.body, HD = A.hand, BW = A.bodyWidth, HH = A.handHeight;
+    var sim = run ? run.sim : null, live = !!(run && run.live), step = sim ? sim.step : 0;
+    var cur = live ? sim.current() : null, holding = !!(cur && sim.canDrop());
+    var justDropped = live && sim.dropped > 0 && step - run.barAt < 22;
+
+    // Where the hands want to be: on both sides of the food, spread apart right after letting go,
+    // otherwise hanging open under the shoulders.
+    // The food is pinched with the fingertips, not cupped: the player has to see all of it to aim.
+    var tx, g, ty, tips = (HD.w / HD.h - HD.grip[0]) * HH;
+    if (holding) { var f = FOODS[cur.lv]; tx = holdX(f); g = PUP.grip = reach(f, sim.dropAngle()) + tips - 4; ty = R.DROP_Y - 4; }
+    else if (justDropped) { tx = (PUP.lx + PUP.rx) / 2; g = PUP.grip + 9; ty = R.DROP_Y - 9; }
+    else { tx = clamp(aim, 0, W); g = 30; ty = 20; }
+    var bx = clamp(tx, BW / 2 - 14, W - BW / 2 + 14);
+    PUP.x += (bx - PUP.x) * 0.4;
+    var near = Math.abs(PUP.lx - (tx - g)) + Math.abs(PUP.ly - ty) < 3;
+    PUP.held = holding && (PUP.held || near);        // once the hands are on the food they move with it exactly
+    var k = PUP.held || reduced ? 1 : holding ? 0.5 : 0.28;
+    PUP.lx += (tx - g - PUP.lx) * k; PUP.rx += (tx + g - PUP.rx) * k;
+    PUP.ly += (ty - PUP.ly) * k; PUP.ry += (ty - PUP.ry) * k;
+
+    // Face: startled right after dropping and while the jar is about to overflow; blinks otherwise.
+    var face = 0;
+    if (!reduced) {
+      if (justDropped || (live && sim.warn)) face = 2;
+      else if (blink(4242) === FACE_CLOSED) face = 1;
+    }
+    if (face >= B.faces) face = 0;
+    // She breathes a little, and dips when she lets go.
+    var bob = reduced ? 0 : Math.sin(nowMs / 520) * 0.8 + (justDropped ? Math.sin(Math.PI * (step - run.barAt) / 22) * 2.5 : 0);
+
+    var S = PUP.scale;
+    pctx.setTransform(S, 0, 0, S, PUP.ox, PUP.oy);   // game units, measured from the top left of the jar
+    var baseY = -PUP.rim + bob, bodyW = Math.round(BW * S), bodyHpx = Math.round(PUP.bodyH * S);
+    pctx.drawImage(shrunk('b' + face, PUP.body, face * B.w, B.w, B.h, bodyW, bodyHpx), PUP.x - BW / 2, baseY - PUP.bodyH, BW, PUP.bodyH);
+
+    var tilt = A.handTilt * Math.PI / 180, ct = Math.cos(tilt), st = Math.sin(tilt), armW = HD.arm * HH, side, i;
+    var handW = HH * HD.w / HD.h, handImg = shrunk('h', PUP.hand, 0, HD.w, HD.h, Math.round(handW * S), Math.round(HH * S));
+    for (i = 0; i < 2; i++) {
+      side = i ? 1 : -1;                               // -1 the hand on the left of the screen, 1 its mirror
+      var gx = i ? PUP.rx : PUP.lx, gy = i ? PUP.ry : PUP.ly;
+      // wrist and the direction the arm leaves the hand, turned with the hand and mirrored for the right one
+      var wx0 = (HD.wrist[0] - HD.grip[0]) * HH, wy0 = (HD.wrist[1] - HD.grip[1]) * HH;
+      var wx = gx - side * (wx0 * ct - wy0 * st), wy = gy + (wx0 * st + wy0 * ct);
+      var ax = -side * (HD.away[0] * ct - HD.away[1] * st), ay = HD.away[0] * st + HD.away[1] * ct;
+      var rx = PUP.x + B.roots[i][0] * BW, ry = baseY - B.roots[i][1] * BW;
+      var d = Math.sqrt((wx - rx) * (wx - rx) + (wy - ry) * (wy - ry)), out = clamp(d * 0.42, 7, 34);
+      pctx.beginPath();
+      pctx.moveTo(rx, ry);
+      pctx.bezierCurveTo(rx + side * 3, ry + d * 0.34, wx + ax * out, wy + ay * out, wx - ax * 2, wy - ay * 2);
+      pctx.lineCap = 'round';
+      // The dark edge of the arm starts where it comes out from under the bust, so shoulder and arm read as one.
+      pctx.save();
+      pctx.beginPath(); pctx.rect(-PUP.SIDE, baseY - 0.4, W + 2 * PUP.SIDE, PUP.DEPTH + 40); pctx.clip();
+      pctx.beginPath(); pctx.moveTo(rx, ry);
+      pctx.bezierCurveTo(rx + side * 3, ry + d * 0.34, wx + ax * out, wy + ay * out, wx - ax * 2, wy - ay * 2);
+      pctx.lineWidth = armW + 2 * A.outline; pctx.strokeStyle = '#0b0d12'; pctx.stroke();
+      pctx.restore();
+      pctx.beginPath(); pctx.moveTo(rx, ry);
+      pctx.bezierCurveTo(rx + side * 3, ry + d * 0.34, wx + ax * out, wy + ay * out, wx - ax * 2, wy - ay * 2);
+      pctx.lineWidth = armW; pctx.strokeStyle = B.skin; pctx.stroke();
+    }
+    for (i = 0; i < 2; i++) {
+      side = i ? 1 : -1;
+      pctx.save();
+      pctx.translate(i ? PUP.rx : PUP.lx, i ? PUP.ry : PUP.ly);
+      pctx.scale(-side, 1);
+      pctx.rotate(tilt);
+      pctx.drawImage(handImg, -HD.grip[0] * HH, -HD.grip[1] * HH, handW, HH);
+      pctx.restore();
+    }
+  }
+
   function fit() {
     // The jar takes all the room the stage gives it, keeping its shape. Above it goes CAG, whose
     // size follows the jar's. The jar never gets smaller than MIN_JAR_H: on a very short screen
@@ -522,16 +636,24 @@
     var MIN_JAR_H = 300, MAX_JAR_W = 760;
     var bw = stage.clientWidth - 18, sh = stage.clientHeight;
     var guess = Math.min(bw / W, (sh - 66) / H);
-    avSize = clamp(Math.round(W * guess * 0.15), 40, 84);
-    var bh = Math.max(sh - (avSize + 24), MIN_JAR_H);
+    var bh = Math.max(sh - (PUP.bodyH * guess + 16), MIN_JAR_H);
     var s = clamp(Math.min(bw / W, bh / H), 0.3, MAX_JAR_W / W);
     var cw = Math.floor(W * s), ch = Math.floor(H * s);
     jar.style.width = cw + 'px'; jar.style.height = ch + 'px';
-    jar.style.setProperty('--av', avSize + 'px');
-    lastCag = -999;
     var dpr = Math.min(window.devicePixelRatio || 1, 3);
     cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
     scale = cv.width / W;
+
+    // CAG's own canvas lies over the top of the jar: it starts above the rim, where her bust is,
+    // reaches down to where her hands can go, and sticks out a little at both sides.
+    var css = cw / W, above = Math.round(PUP.bodyH * css) + PUP.RIM_PX + 4;
+    jar.style.setProperty('--av', (above - 10) + 'px');
+    puppet.style.left = Math.round(-PUP.SIDE * css) + 'px'; puppet.style.top = -above + 'px';
+    var pw = Math.round((W + 2 * PUP.SIDE) * css), ph = above + Math.round(PUP.DEPTH * css);
+    puppet.style.width = pw + 'px'; puppet.style.height = ph + 'px';
+    puppet.width = Math.round(pw * dpr); puppet.height = Math.round(ph * dpr);
+    PUP.scale = css * dpr; PUP.ox = Math.round(PUP.SIDE * css) * dpr; PUP.oy = above * dpr; PUP.rim = PUP.RIM_PX / css;
+    PUP.cache = {};
   }
   if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
   window.addEventListener('resize', fit);
@@ -570,6 +692,7 @@
     }
     refresh();
     draw();
+    drawPuppet();
     requestAnimationFrame(frame);
   }
 

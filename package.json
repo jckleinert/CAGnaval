@@ -10,6 +10,7 @@
     "test": "node --test",
     "build:matter": "node scripts/build-matter.js",
     "build:foods": "node scripts/gen-foods.js",
-    "build:art": "python3 scripts/gen-art.py && node scripts/gen-foods.js"
+    "build:art": "python3 scripts/gen-art.py && node scripts/gen-foods.js",
+    "build:cag": "python3 scripts/gen-cag.py"
   }
 }

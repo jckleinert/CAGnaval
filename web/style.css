@@ -146,9 +146,10 @@ body {
 .shine.two { top: 52%; height: 9%; }
 .sign.score { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
 .left { font-size: calc(12px * var(--k)); font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
-.cag { position: absolute; z-index: 1; top: calc(-14px - var(--av, 44px)); left: 0; width: var(--av, 44px); height: var(--av, 44px); border: 3px solid var(--paper); border-radius: 50%; background: var(--blue); box-shadow: 0 3px 0 var(--shade); object-fit: cover; pointer-events: none; will-change: transform; }
+/* CAG on top of the jar: her bust above the rim, her arms and hands reaching in. Placed and sized from the page's script. */
+.puppet { position: absolute; z-index: 2; pointer-events: none; }
 
-.toast { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; padding: 5px 16px; border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--shade); color: var(--ink); font-weight: 700; font-size: calc(15px * var(--k)); text-align: center; pointer-events: none; animation: pop 0.25s ease-out; }
+.toast { position: absolute; z-index: 3; top: 22%; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; padding: 5px 16px; border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--shade); color: var(--ink); font-weight: 700; font-size: calc(15px * var(--k)); text-align: center; pointer-events: none; animation: pop 0.25s ease-out; }
 @keyframes pop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } }
 
 /* Start, result and ranking boards */
