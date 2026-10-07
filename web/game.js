@@ -227,10 +227,12 @@
   }
 
   /* ---------- screen updates ---------- */
+  /* A small picture of a food, made at exactly the size it is shown: a picture made smaller and
+     then stretched by the page looks blurred. */
   function icon(f, size, gold) {
     var dpr = Math.min(window.devicePixelRatio || 1, 3), c = document.createElement('canvas');
-    c.width = c.height = Math.round(size * dpr);
-    var g = c.getContext('2d'), s = (size / 2 - 2) / (f.ext * (gold ? 1.5 : 1)) * dpr;
+    c.width = c.height = Math.max(8, Math.round(size * dpr));
+    var g = c.getContext('2d'), s = (c.width / 2 - 2 * dpr) / (f.ext * (gold ? 1.5 : 1));
     g.setTransform(s, 0, 0, s, c.width / 2, c.height / 2);
     drawFood(g, 0, 0, f, 0, gold, 0, FACE_OPEN);
     return c;
@@ -240,12 +242,21 @@
     FOODS.forEach(function (f) {
       var li = document.createElement('li');
       li.title = f.n; li.setAttribute('aria-label', f.n);
-      li.appendChild(icon(f, 28, false));
       ladder.appendChild(li);
     });
+    var size = ladder.children[0].getBoundingClientRect().width || 28;
+    FOODS.forEach(function (f, i) { ladder.children[i].appendChild(icon(f, size, false)); });
     lastMax = -2;
   }
   drawLadder();
+  /* The sizes of the small pictures follow the window: make them again when it changes. */
+  var lastIcons = '';
+  function fitIcons() {
+    var key = (window.devicePixelRatio || 1) + ':' + nextDisc.getBoundingClientRect().width + ':' + (ladder.children[0] ? ladder.children[0].getBoundingClientRect().width : 0);
+    if (key === lastIcons) return;
+    lastIcons = key; lastNext = '?';
+    drawLadder();
+  }
 
   function refresh() {
     var sim = run ? run.sim : null, i;
@@ -259,7 +270,7 @@
       lastNext = key;
       nextDisc.textContent = '';
       nextDisc.classList.toggle('gold', !!(p && p.gold));
-      if (p) { nextDisc.appendChild(icon(FOODS[p.lv], 38, p.gold)); nextDisc.setAttribute('aria-label', 'Next: ' + (p.gold ? 'golden ' : '') + FOODS[p.lv].n); }
+      if (p) { nextDisc.appendChild(icon(FOODS[p.lv], nextDisc.getBoundingClientRect().width || 36, p.gold)); nextDisc.setAttribute('aria-label', 'Next: ' + (p.gold ? 'golden ' : '') + FOODS[p.lv].n); }
       else nextDisc.setAttribute('aria-label', 'No next food');
       if (p && p.gold && run && !run.goldSeen) { run.goldSeen = true; toast('Golden ' + FOODS[p.lv].n.toLowerCase() + ' is next!'); }
     }
@@ -408,6 +419,14 @@
       if (art) c.drawImage(sprite(art, f.art.faces[FACE_OPEN], px, 'shadow'), -h, -h, h * 2, h * 2);
       else { trace(c, f); c.fillStyle = INK; c.fill(); }
       c.restore();
+    }
+    if (art && !angle && !(pose && (pose.k || pose.pop !== 1))) {
+      // Not turned and not squashed: put the picture straight on the screen's own pixels. Going
+      // through the usual scaling would smear it a little, and this is the food the player looks at.
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.drawImage(sprite(art, f.art.faces[face || FACE_OPEN], px, gold ? 'gold' : ''), Math.round(m.e - px / 2), Math.round(m.f - px / 2));
+      c.restore();
+      return;
     }
     applyPose(c, angle, pose);
     if (art) {
@@ -569,9 +588,9 @@
     var bob = reduced ? 0 : Math.sin(nowMs / 520) * 0.8 + (justDropped ? Math.sin(Math.PI * (step - run.barAt) / 18) * 1.6 : 0);
     bob = clamp(bob, -PUP.tuck * 0.8, PUP.tuck * 0.8);
 
-    var S = PUP.scale;
-    pctx.setTransform(S, 0, 0, S, PUP.ox, PUP.oy);   // game units, measured from the top left of the jar
-    pctx.drawImage(shrunk(face, Math.round(BW * S), Math.round(PUP.bodyH * S)), PUP.x - BW / 2, -PUP.tuck + bob - PUP.bodyH, BW, PUP.bodyH);
+    // Drawn straight on the screen's own pixels, at whole positions, so her lines stay sharp.
+    var S = PUP.scale, bw = Math.round(BW * S), bh = Math.round(PUP.bodyH * S);
+    pctx.drawImage(shrunk(face, bw, bh), Math.round(PUP.ox + PUP.x * S - bw / 2), Math.round(PUP.oy + (-PUP.tuck + bob) * S - bh));
   }
 
   function fit() {
@@ -599,6 +618,7 @@
     puppet.width = Math.round(pw * dpr); puppet.height = Math.round(ph * dpr);
     PUP.scale = css * dpr; PUP.ox = Math.round(PUP.SIDE * css) * dpr; PUP.oy = above * dpr; PUP.tuck = PUP.TUCK_PX / css;
     PUP.cache = {};
+    fitIcons();
   }
   if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
   window.addEventListener('resize', fit);
