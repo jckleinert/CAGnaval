@@ -16,8 +16,46 @@
   'use strict';
   var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body, Composite = Matter.Composite, Events = Matter.Events;
 
+  /* Round foods touch as true circles.
+     The engine treats a circle as a polygon with flat sides, and two flat sides resting on each
+     other hold still: a cookie dropped on top of a waffle would sit there in balance, however hard
+     it landed. So when both bodies are round, the contact is worked out here from their centres
+     and radii, which is exact (and much cheaper). Round against flat things (walls, floor,
+     onigiri, can, box) still goes through the engine's polygons. */
+  var Collision = Matter.Collision, Pair = Matter.Pair;
+  if (!Collision.cagRound) {
+    Collision.cagRound = true;
+    var polygons = Collision.collides;
+    Collision.collides = function (bodyA, bodyB, pairs) {
+      if (!bodyA.circleRadius || !bodyB.circleRadius) return polygons(bodyA, bodyB, pairs);
+      var a = bodyA.id < bodyB.id ? bodyA : bodyB, b = a === bodyA ? bodyB : bodyA;
+      var dx = a.position.x - b.position.x, dy = a.position.y - b.position.y;
+      var d2 = dx * dx + dy * dy, r = a.circleRadius + b.circleRadius;
+      if (d2 >= r * r) return null;
+      var pair = pairs && pairs.table[Pair.id(a, b)], c;
+      if (pair) c = pair.collision;
+      else { c = Collision.create(a, b); c.collided = true; c.bodyA = a; c.bodyB = b; c.parentA = a.parent; c.parentB = b.parent; }
+      var d = Math.sqrt(d2), nx = 0, ny = -1;                 // the normal points from b to a
+      if (d > 1e-9) { nx = dx / d; ny = dy / d; }
+      if (nx > -0.004 && nx < 0.004) {                        // dead centre, one right on top of the other:
+        nx = (a.id + b.id) & 1 ? 0.004 : -0.004;              // nothing balances there, so it leans to one side
+        ny = ny < 0 ? -0.999992 : 0.999992;
+      }
+      c.normal.x = nx; c.normal.y = ny;
+      c.tangent.x = -ny; c.tangent.y = nx;
+      c.depth = r - d;
+      c.penetration.x = nx * c.depth; c.penetration.y = ny * c.depth;
+      // One point of contact, halfway into the overlap. The engine keeps it per pair, so it is one object, moved every step.
+      var touch = c.touch || (c.touch = { x: 0, y: 0, index: 0, body: b, isInternal: false });
+      touch.x = b.position.x + nx * (b.circleRadius - c.depth / 2);
+      touch.y = b.position.y + ny * (b.circleRadius - c.depth / 2);
+      c.supports[0] = touch; c.supports.length = 1;
+      return c;
+    };
+  }
+
   var RULES = Object.freeze({
-    VERSION: 7,            // bump whenever anything that changes the outcome of a run changes
+    VERSION: 8,            // bump whenever anything that changes the outcome of a run changes
     W: 360, H: 520,        // jar size in game units
     PAD: 3,                // inner margin of the jar walls
     DROP_Y: 46,            // height the food is dropped from

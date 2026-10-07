@@ -107,7 +107,7 @@ Cuándo aparece cada cara: la comida parpadea sola cada pocos segundos, cada una
 
 Aparte de las caras, todas las comidas del frasco (con dibujo propio o no) se aplastan un poco y rebotan cuando algo las golpea, aparecen con un pequeño salto al nacer de una fusión y tienen una sombra que cae siempre hacia abajo, aunque giren. Es solo visual: lo hace la página y no cambia la partida.
 
-**El borde con el que chocan.** Las comidas redondas siguen chocando como un círculo, y su dibujo se ajusta a ese círculo. Las que no son redondas (onigiri, lata, Big Order) chocan con el contorno de su propio dibujo, llevado al mismo tamaño que tenían. Por eso, cambiar el dibujo de una comida no redonda cambia un poco cómo rebota y obliga a subir `RULES.VERSION`.
+**El borde con el que chocan.** Las comidas redondas chocan como un círculo, y su dibujo se ajusta a ese círculo. Entre dos redondas el choque se calcula como círculo perfecto (no como un polígono de muchas caras), para que una chica no pueda quedarse haciendo equilibrio arriba de una grande: siempre termina rodando hacia un costado. Las que no son redondas (onigiri, lata, Big Order) chocan con el contorno de su propio dibujo, llevado al mismo tamaño que tenían. Por eso, cambiar el dibujo de una comida no redonda cambia un poco cómo rebota y obliga a subir `RULES.VERSION`.
 
 Cambiar el tamaño de una comida o su forma general sí cambia el juego, y obliga a volver a probar la dificultad.
 
