@@ -26,6 +26,11 @@
     var img = new Image(), a = ART[i] = { img: img, ok: false, cache: {}, cached: 0 };
     img.onload = function () { a.ok = true; lastNext = '?'; drawLadder(); };
     img.src = '/web/img/foods/' + i + '.webp';
+    if (f.art.gold) {     // its golden version has a picture of its own
+      a.gold = new Image();
+      a.gold.onload = function () { a.goldOk = true; a.cache = {}; a.cached = 0; lastNext = '?'; };
+      a.gold.src = '/web/img/foods/' + i + '-gold.webp';
+    }
   });
   var apiMeta = document.querySelector('meta[name="cag-api"]');
   var API = apiMeta ? apiMeta.content.replace(/\/$/, '') : '';
@@ -232,7 +237,7 @@
   function icon(f, size, gold) {
     var dpr = Math.min(window.devicePixelRatio || 1, 3), c = document.createElement('canvas');
     c.width = c.height = Math.max(8, Math.round(size * dpr));
-    var g = c.getContext('2d'), s = (c.width / 2 - 2 * dpr) / (f.ext * (gold ? 1.5 : 1));
+    var g = c.getContext('2d'), s = (c.width / 2 - 2 * dpr) / (f.ext * (gold ? 1.3 : 1));
     g.setTransform(s, 0, 0, s, c.width / 2, c.height / 2);
     drawFood(g, 0, 0, f, 0, gold, 0, FACE_OPEN);
     return c;
@@ -311,7 +316,8 @@
   function sprite(a, pic, px, kind) {
     var key = pic + kind + '@' + px, c = a.cache[key];
     if (c) return c;
-    var src = a.img, size = a.img.height, sx = pic * size, g, half;
+    var own = kind === 'gold' && a.goldOk;        // a golden picture of its own, or the plain one tinted
+    var src = own ? a.gold : a.img, size = src.height, sx = pic * size, g, half;
     while (size / 2 >= px && size > 8) {
       half = Math.round(size / 2);
       c = document.createElement('canvas'); c.width = c.height = half;
@@ -322,7 +328,7 @@
     g = c.getContext('2d');
     g.imageSmoothingQuality = 'high';
     g.drawImage(src, sx, 0, size, size, 0, 0, px, px);
-    if (kind === 'gold') { g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.42; g.fillStyle = GOLD; g.fillRect(0, 0, px, px); }
+    if (kind === 'gold' && !own) { g.globalCompositeOperation = 'source-atop'; g.globalAlpha = 0.42; g.fillStyle = GOLD; g.fillRect(0, 0, px, px); }
     if (kind === 'shadow') { g.globalCompositeOperation = 'source-in'; g.fillStyle = INK; g.fillRect(0, 0, px, px); }
     if (a.cached > 80) { a.cache = {}; a.cached = 0; }
     a.cache[key] = c; a.cached++;
@@ -384,7 +390,7 @@
     c.rotate(angle);
   }
   var SHADOW_DY = 3.4, SHADOW_ALPHA = 0.17;
-  /* spin: rotation of the golden rays; only used when gold is true. face: which face to show.
+  /* spin: drives the pulse of the golden glow; only used when gold is true. face: which face to show.
      pose: squash, pop and shadow of a food in the jar (see poseOf); leave it out for a plain picture. */
   function drawFood(c, x, y, f, angle, gold, spin, face, pose) {
     c.save();
@@ -397,18 +403,13 @@
       px = Math.max(4, Math.round(h * 2 * Math.sqrt(m.a * m.a + m.b * m.b)));
     } else art = null;
     if (gold) {
-      var n = 10, R1 = f.ext * 1.4, R0 = f.ext * 1.06;
-      c.save();
-      c.rotate(spin);
-      c.beginPath();
-      for (var i = 0; i < n * 2; i++) {
-        var a = i * Math.PI / n, rr = i % 2 ? R0 : R1;
-        if (i) c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else c.moveTo(rr, 0);
-      }
-      c.closePath();
-      c.fillStyle = GOLD; c.fill();
-      c.lineWidth = 2.5; c.strokeStyle = INK; c.stroke();
-      c.restore();
+      // A soft golden glow around it, gently pulsing (spin runs with the game clock).
+      var glow = f.ext * (1.5 + 0.06 * Math.sin(spin * 5)), halo = c.createRadialGradient(0, 0, f.ext * 0.6, 0, 0, glow);
+      halo.addColorStop(0, 'rgba(255,214,64,0.95)');
+      halo.addColorStop(0.55, 'rgba(255,214,64,0.5)');
+      halo.addColorStop(1, 'rgba(255,214,64,0)');
+      c.fillStyle = halo;
+      c.beginPath(); c.arc(0, 0, glow, 0, TAU); c.fill();
     }
     if (pose && pose.shadow) {
       // The shadow always falls straight down the screen, however the food is turned.
@@ -586,9 +587,9 @@
     var cur = live ? sim.current() : null;
     var justDropped = live && sim.dropped > 0 && step - run.barAt < 18;
 
-    // She stays above the food in hand; near a wall she stops a little before the food does.
+    // She stays above the food in hand; near a wall she stops before the food does.
     var tx = cur && sim.canDrop() ? holdX(FOODS[cur.lv]) : clamp(aim, 0, W);
-    var bx = clamp(tx, BW / 2 - 14, W - BW / 2 + 14);
+    var bx = clamp(tx, BW / 2, W - BW / 2);          // never past the walls of the jar
     PUP.x += (bx - PUP.x) * (reduced ? 1 : 0.6);
 
     // Face: startled right after dropping and while the jar is about to overflow; blinks otherwise.

@@ -68,7 +68,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 - Hasta 200 fichas por partida y 15 segundos para soltar cada una. Si se acaba el tiempo, cae sola.
 - La partida termina cuando el frasco se llena o se acaban las fichas.
 - El frasco se considera lleno cuando el centro de una comida queda por encima de la línea durante 3 segundos seguidos (o sea, puede asomar hasta la mitad). Mientras tanto la línea titila y aparece una cuenta regresiva; si la pila se acomoda o hay una fusión y la comida baja, la cuenta se corta. Una comida recién caída o recién fusionada no cuenta durante el primer segundo.
-- Comida dorada en 1 de cada 8 partidas. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).
+- Comida dorada en 1 de cada 8 partidas. Es siempre el onigiri, en su versión de oro. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).
 - Ventajas Shake, Swap y Sweep, un uso de cada una por partida (en práctica son gratis).
 - Ranking semanal por calorías sumadas.
 
@@ -92,6 +92,8 @@ Cómo tienen que ser los dibujos:
 - Sin tocar el borde de la imagen.
 - Las comidas alargadas, acostadas: el dibujo se guarda como va a caer en el frasco (la lata está guardada de costado).
 - Las plantillas de `docs/plantillas/` sirven de guía para la forma general (redonda, triángulo, óvalo o cuadrada).
+
+**Versión dorada.** El onigiri tiene además su versión de oro, que es la comida dorada de la partida. No se dibuja aparte: el armado toma las cuatro caras del onigiri común y las pinta con los colores de oro indicados en `art/foods/2/art.json`, así parpadea igual y calza en el mismo contorno. `gold-reference.png` es el dibujo del que salieron esos colores. En el frasco lleva un resplandor dorado alrededor.
 
 **Contorno parejo.** Todas las comidas quedan con el contorno negro del mismo grosor en el frasco, sin importar su tamaño ni con qué línea se dibujaron. El armado mide el contorno de cada dibujo y le suma por fuera lo que falte (nunca lo afina); el dibujo original no se toca. El grosor se cambia con `OUTLINE` en `scripts/gen-art.py`. Para dejar una comida tal como se dibujó, poner un archivo `art.json` con `{"outline": false}` en su carpeta.
 

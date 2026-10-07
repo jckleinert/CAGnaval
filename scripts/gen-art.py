@@ -15,8 +15,14 @@ it is shrunk to its size. The script measures the outline of each drawing and ad
 missing around it, outwards; it never thins one. A folder may hold art.json with
 {"outline": false} to leave that food's outline as drawn.
 
+A food can also have a golden version (the golden food of a run). It is not drawn apart: it is
+the same drawing, all its faces, painted over with the colours given under "gold" in art.json,
+so it blinks the same way and fits the same outline to the pixel. gold-reference.png in the
+folder is the drawing those colours were taken from; the script does not read it.
+
 and writes:
-    web/img/foods/<level>.webp   the different faces side by side, cut square
+    web/img/foods/<level>.webp        the different faces side by side, cut square
+    web/img/foods/<level>-gold.webp   the same in gold, for a food that has a golden version
     scripts/art.json             the outline of each drawing, for gen-foods.js
 
 Needs Pillow and numpy. Run it, then run: node scripts/gen-foods.js
@@ -98,6 +104,31 @@ def thicken(im, t):
     return out.round().astype('uint8')
 
 
+def golden(im, cfg):
+    """The drawing in gold. What is pale and has no colour of its own (the body, its shadows, the
+    lines on it) takes the gold ramp by how light it is; the pink of the mouth becomes the gold
+    version's pink; dark things (outline, seaweed) and the whites of the eyes stay as they are."""
+    rgb = im[..., :3].astype(float)
+    hi, lo = rgb.max(axis=2), rgb.min(axis=2)
+    base = float(max(cfg['from']['base']))
+    stops = [(0.0, (0, 0, 0)), (0.55, cfg['to']['deep']), (0.86, cfg['to']['shade']), (1.0, cfg['to']['base'])]
+    v = np.clip(hi / base, 0, 1)
+    ramp = np.stack([np.interp(v, [s[0] for s in stops], [s[1][c] for s in stops]) for c in range(3)], axis=2)
+    out = ramp
+    dark = hi <= 75                                              # outline, pupils, seaweed
+    out[dark] = rgb[dark]
+    pink = (rgb[..., 0] - rgb[..., 1] > 50) & (rgb[..., 0] > 120)
+    scale = np.array(cfg['to']['lips'], dtype=float) / np.array(cfg['from']['lips'], dtype=float)
+    out[pink] = np.clip(rgb[pink] * scale, 0, 255)
+    # The whites of the eyes are the only pure white; keep them and their soft edge against the lines.
+    white = Image.fromarray(((lo >= 249) * 255).astype('uint8')).filter(ImageFilter.MaxFilter(7))
+    eye = (np.array(white) > 0) & ~pink
+    out[eye] = rgb[eye]
+    res = im.copy()
+    res[..., :3] = out.round().astype('uint8')
+    return res
+
+
 def load(folder):
     """Returns the drawings that exist and, for each of the four faces, which drawing it uses."""
     names, imgs, use = [], [], []
@@ -168,6 +199,7 @@ def build(level, folder, radius):
     alpha = np.max([im[..., 3] for im in imgs], axis=0)
     if not (alpha > 127).any(): sys.exit(folder + ': the drawing is empty')
     area_full, centre, out, cover = shape(alpha)
+    gold = [golden(im, cfg['gold']) for im in imgs] if cfg.get('gold') else []
 
     # Outline thickness. In the jar the drawing is scaled so that its area matches the food's, so
     # one game unit is r_px / radius pixels. Adding e pixels all around also makes it e bigger:
@@ -178,12 +210,14 @@ def build(level, folder, radius):
     print('  outline as drawn: %.1f px = %.2f game units%s' % (line, line * radius / r_px, ', adding %.1f px' % extra if extra >= 1 else ''))
     if extra >= 1:
         imgs = [thicken(im, extra) for im in imgs]
+        gold = [thicken(im, extra) for im in gold]
         alpha = np.max([im[..., 3] for im in imgs], axis=0)
         area_full, centre, out, cover = shape(alpha)
     solid = alpha > 127
     if solid[0].any() or solid[-1].any() or solid[:, 0].any() or solid[:, -1].any():
         print('  note: the drawing touches the edge of the picture; it may be cut off there')
     imgs = [Image.fromarray(im, 'RGBA') for im in imgs]
+    gold = [Image.fromarray(im, 'RGBA') for im in gold]
 
     # Cutting corners made the outline a little smaller: grow it back to the area of the full one.
     out = centre + (out - centre) * (1 / cover) ** 0.5
@@ -197,22 +231,25 @@ def build(level, folder, radius):
     size = int(min(640, 192 + 48 * level))
     box = [int(round(centre[0] - half)), int(round(centre[1] - half))]
     side = int(round(half * 2))
-    sheet = Image.new('RGBA', (size * len(imgs), size), (0, 0, 0, 0))
-    for i, im in enumerate(imgs):
-        cut = Image.new('RGBA', (side, side), (0, 0, 0, 0))
-        cut.paste(im, (-box[0], -box[1]))
-        # Shrink with the colours weighted by their opacity, so no dark rim appears on the edge.
-        small = cut.convert('RGBa').resize((size, size), Image.LANCZOS).convert('RGBA')
-        sheet.paste(small, (i * size, 0))
     os.makedirs(OUT, exist_ok=True)
-    target = os.path.join(OUT, '%d.webp' % level)
-    sheet.save(target, 'WEBP', quality=92, alpha_quality=100, method=6, exact=False)
-    print('  %s  %s, %dx%d each, %d KB' % (os.path.relpath(target, ROOT), ' + '.join(names), size, size, os.path.getsize(target) // 1024))
+    for frames, suffix in ((imgs, ''), (gold, '-gold')):
+        if not frames: continue
+        sheet = Image.new('RGBA', (size * len(frames), size), (0, 0, 0, 0))
+        for i, im in enumerate(frames):
+            cut = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+            cut.paste(im, (-box[0], -box[1]))
+            # Shrink with the colours weighted by their opacity, so no dark rim appears on the edge.
+            small = cut.convert('RGBa').resize((size, size), Image.LANCZOS).convert('RGBA')
+            sheet.paste(small, (i * size, 0))
+        target = os.path.join(OUT, '%d%s.webp' % (level, suffix))
+        sheet.save(target, 'WEBP', quality=92, alpha_quality=100, method=6, exact=False)
+        print('  %s  %s, %dx%d each, %d KB' % (os.path.relpath(target, ROOT), ' + '.join(names), size, size, os.path.getsize(target) // 1024))
     print('  outline %d points, %.1f%% of the full outline before growing it back' % (len(out), 100 * cover))
     return {
         'outline': [[round(float(x - centre[0]) / unit, 5), round(float(y - centre[1]) / unit, 5)] for x, y in out],
         'half': round(side / 2 / unit, 5),       # half side of the square picture
-        'faces': use                             # for open, half, closed, wow: which picture in the row
+        'faces': use,                            # for open, half, closed, wow: which picture in the row
+        'gold': bool(gold)                       # it has a golden version of its own
     }
 
 

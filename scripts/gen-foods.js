@@ -46,6 +46,7 @@ for (const f of FOODS) {
   // A round food keeps rolling as a circle: its drawing is sized to cover the same area as the circle
   // (the outline in art.json has area 1, and a circle of area 1 has radius 1 / sqrt(pi)).
   if (art && !pts) f.art = { half: r3(art.half * r * Math.sqrt(Math.PI)), faces: art.faces };
+  if (art && !pts && art.gold) f.art.gold = true;
   if (!pts) continue;
   let poly = Vertices.chamfer(pts, cr, -1, 3, 14);
   f.area = Vertices.area(poly);
@@ -53,6 +54,7 @@ for (const f of FOODS) {
     const k = Math.sqrt(f.area);
     poly = art.outline.map((p) => ({ x: p[0] * k, y: p[1] * k }));
     f.art = { half: r3(art.half * k), faces: art.faces };
+    if (art.gold) f.art.gold = true;
   }
   const c = Vertices.centre(poly);
   f.poly = poly.map((p) => ({ x: r3(p.x - c.x), y: r3(p.y - c.y) }));

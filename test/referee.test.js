@@ -209,7 +209,7 @@ test('golden food: odds, position and prize table match the design', () => {
     if (!g) continue;
     withGold++; sum += g.mult;
     assert.ok(g.at >= cfg.GOLD_FROM && g.at <= cfg.GOLD_TO);
-    assert.ok(g.lv >= 1 && g.lv <= 3);
+    assert.strictEqual(g.lv, pieces.GOLD_LEVEL);   // always the onigiri
   }
   assert.ok(Math.abs(withGold / N - 0.125) < 0.01, 'share of runs with a golden food: ' + withGold / N);
   assert.ok(Math.abs(sum / withGold - 1.8) < 0.15, 'average multiplier: ' + sum / withGold);

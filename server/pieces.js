@@ -25,13 +25,16 @@ function multiplierFor(roll) { // roll in [0, 100)
   return 1;
 }
 
+/* The golden food is always the onigiri: it is the one with a golden drawing. */
+const GOLD_LEVEL = 2;
+
 /* Returns null (no golden food this run) or { at, lv, mult }. */
 function goldPlan(secret, cfg) {
   if (unit(secret, 'gold:roll') >= cfg.GOLD_ODDS) return null;
   const span = cfg.GOLD_TO - cfg.GOLD_FROM + 1;
   return {
     at: cfg.GOLD_FROM + (u32(secret, 'gold:at') % span),
-    lv: 1 + (u32(secret, 'gold:lv') % 3),             // cookie, onigiri or donut
+    lv: GOLD_LEVEL,
     mult: multiplierFor(unit(secret, 'gold:mult') * 100)
   };
 }
@@ -43,4 +46,4 @@ function pieceAt(secret, gold, k) {
   return { lv: u32(secret, 'piece:' + k) % Sim.RULES.SPAWN_LEVELS, gold: false };
 }
 
-module.exports = { BONUS, newSecret, commitOf, goldPlan, pieceAt, multiplierFor, u32 };
+module.exports = { BONUS, GOLD_LEVEL, newSecret, commitOf, goldPlan, pieceAt, multiplierFor, u32 };
