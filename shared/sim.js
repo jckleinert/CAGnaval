@@ -17,19 +17,19 @@
   var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body, Composite = Matter.Composite, Events = Matter.Events;
 
   var RULES = Object.freeze({
-    VERSION: 6,            // bump whenever anything that changes the outcome of a run changes
+    VERSION: 7,            // bump whenever anything that changes the outcome of a run changes
     W: 360, H: 520,        // jar size in game units
     PAD: 3,                // inner margin of the jar walls
     DROP_Y: 46,            // height the food is dropped from
-    LINE_Y: 96,            // the "full" line
+    LINE_Y: 96,            // the "full" line: a food is over it when its centre is, so half of it may stick out
     WALL: 60,
     STEP_MS: 1000 / 60,
     GRAVITY: 1.5,
     READY_STEPS: 31,       // wait after a drop before the next food is ready (about half a second)
     SETTLE_STEPS: 150,     // wait after the last food before the run ends
     GRACE_STEPS: 72,       // a new food cannot count as "over the line" for this long
-    WARN_STEPS: 18,
-    FULL_STEPS: 96,        // a food over the line for this long ends the run
+    WARN_STEPS: 18,        // over the line for this long: the warning starts
+    FULL_STEPS: 180,       // over the line for this long, without a break: the run ends (3 seconds, time for the pile to settle)
     DROP_STEPS: 900,       // 15 seconds to drop each food
     MAX_FOODS: 200,
     SPAWN_LEVELS: 5,       // dropped foods are levels 0..4
@@ -81,7 +81,7 @@
     this.readyAt = 0;
     this.turnStart = 0;
     this.maxLv = -1;
-    this.warn = false;
+    this.warn = false; this.danger = 0;
     this.over = false;
     this.overReason = null;    // 'full' | 'done'
     this.overStep = -1;
@@ -157,17 +157,19 @@
   };
 
   Sim.prototype._checkFull = function () {
-    var warn = false, full = false;
+    var warn = false, full = false, most = 0;
     for (var i = 0; i < this.foods.length; i++) {
       var b = this.foods[i], f = b.food;
       if (this.step - f.born < RULES.GRACE_STEPS) { f.above = 0; continue; }
-      if (b.bounds.min.y < RULES.LINE_Y) {
+      if (b.position.y < RULES.LINE_Y) {
         f.above++;
+        if (f.above > most) most = f.above;
         if (f.above > RULES.WARN_STEPS) warn = true;
         if (f.above > RULES.FULL_STEPS) full = true;
       } else f.above = 0;
     }
     this.warn = warn;
+    this.danger = most;      // steps the worst food has been over the line; the run ends past FULL_STEPS
     if (full) this._end('full');
   };
 

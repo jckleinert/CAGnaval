@@ -512,6 +512,19 @@
       ctx.restore();
     }
 
+    /* A food is over the line: count down the seconds left for the pile to settle before the run ends. */
+    if (run.live && sim.warn) {
+      var secs = clamp(Math.ceil((R.FULL_STEPS - sim.danger) / 60), 1, 9);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(W - 22, R.LINE_Y, 13, 0, TAU);
+      ctx.fillStyle = LANTERN; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+      ctx.font = '700 17px Fredoka,"Trebuchet MS",sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffffff';
+      ctx.fillText(secs, W - 22, R.LINE_Y + 1);
+      ctx.restore();
+    }
+
     /* Time left to drop: a bar along the top of the jar. It runs out while you aim and, after each drop, refills in green. */
     if (run.live && sim.dropped < R.MAX_FOODS) {
       var frac, barColor;
@@ -538,36 +551,37 @@
   /* ---------- CAG, who leans over the jar and drops the food ----------
      Her bust follows the aim, right above the food in hand. Its bottom edge is tucked behind the
      jar's rim, so it never shows a gap when she moves up and down. The drawing and its sizes come
-     from web/cag-art.js (see scripts/gen-cag.py). All of this is only for the eye. */
+     from web/cag-art.js (see scripts/gen-cag.py). All of this is only for the eye.
+
+     Her picture is painted once per face on her own small canvas, with at least twice the pixels
+     of the screen, and after that the page only slides that canvas around. That keeps her lines
+     clean on ordinary monitors and lets her move by fractions of a pixel, so breathing looks
+     smooth instead of going up and down in steps. */
   var puppet = $('puppet'), pctx = puppet.getContext('2d'), ART_P = window.CAG_PUPPET || null;
-  var PUP = { SIDE: 60, BELOW_PX: 4, TUCK_PX: 4, bodyH: 0, scale: 1, ox: 0, oy: 0, tuck: 4, cache: {}, ok: false, x: W / 2 };
+  var PUP = { TUCK_PX: 4, bodyH: 0, css: 1, w: 0, h: 0, ok: false, x: W / 2, shown: -1, moved: '' };
   if (ART_P) {
     PUP.bodyH = ART_P.bodyWidth * ART_P.body.h / ART_P.body.w;
     PUP.body = new Image();
-    PUP.body.onload = function () { PUP.ok = true; };
+    PUP.body.onload = function () { PUP.ok = true; PUP.shown = -1; };
     PUP.body.src = '/web/img/cag/body.webp';
   }
-  /* One face of her picture, shrunk once to the size it has on screen and kept. */
-  function shrunk(face, dw, dh) {
-    var k = face + '@' + dw, c = PUP.cache[k];
-    if (c) return c;
-    var src = PUP.body, sx = face * ART_P.body.w, w = ART_P.body.w, h = ART_P.body.h, t;
-    while (w / 2 >= dw && w > 8) {
+  function paintPuppet(face) {
+    var B = ART_P.body, src = PUP.body, sx = face * B.w, w = B.w, h = B.h, t;
+    // Halve step by step down to the size needed: shrinking a lot in one go looks jagged.
+    while (w / 2 >= puppet.width && w > 8) {
       t = document.createElement('canvas'); t.width = Math.round(w / 2); t.height = Math.round(h / 2);
       t.getContext('2d').drawImage(src, sx, 0, w, h, 0, 0, t.width, t.height);
       src = t; sx = 0; w = t.width; h = t.height;
     }
-    c = document.createElement('canvas'); c.width = dw; c.height = dh;
-    t = c.getContext('2d'); t.imageSmoothingQuality = 'high';
-    t.drawImage(src, sx, 0, w, h, 0, 0, dw, dh);
-    PUP.cache[k] = c;
-    return c;
-  }
-  function drawPuppet() {
     pctx.setTransform(1, 0, 0, 1, 0, 0);
     pctx.clearRect(0, 0, puppet.width, puppet.height);
+    pctx.imageSmoothingQuality = 'high';
+    pctx.drawImage(src, sx, 0, w, h, 0, 0, puppet.width, puppet.height);
+    PUP.shown = face;
+  }
+  function drawPuppet() {
     if (!ART_P || !PUP.ok) return;
-    var B = ART_P.body, BW = ART_P.bodyWidth;
+    var BW = ART_P.bodyWidth;
     var sim = run ? run.sim : null, live = !!(run && run.live), step = sim ? sim.step : 0;
     var cur = live ? sim.current() : null;
     var justDropped = live && sim.dropped > 0 && step - run.barAt < 18;
@@ -583,14 +597,14 @@
       if (justDropped || (live && sim.warn)) face = 2;
       else if (blink(4242) === FACE_CLOSED) face = 1;
     }
-    if (face >= B.faces) face = 0;
-    // She breathes a little and nods when she lets go. Never more than what the rim hides.
-    var bob = reduced ? 0 : Math.sin(nowMs / 520) * 0.8 + (justDropped ? Math.sin(Math.PI * (step - run.barAt) / 18) * 1.6 : 0);
-    bob = clamp(bob, -PUP.tuck * 0.8, PUP.tuck * 0.8);
+    if (face >= ART_P.body.faces) face = 0;
+    if (face !== PUP.shown) paintPuppet(face);
 
-    // Drawn straight on the screen's own pixels, at whole positions, so her lines stay sharp.
-    var S = PUP.scale, bw = Math.round(BW * S), bh = Math.round(PUP.bodyH * S);
-    pctx.drawImage(shrunk(face, bw, bh), Math.round(PUP.ox + PUP.x * S - bw / 2), Math.round(PUP.oy + (-PUP.tuck + bob) * S - bh));
+    // She breathes a little and nods when she lets go. Never more than what the rim hides.
+    var bob = reduced ? 0 : Math.sin(nowMs / 560) * 1.1 + (justDropped ? Math.sin(Math.PI * (step - run.barAt) / 18) * 1.6 : 0);
+    bob = clamp(bob * PUP.css, -PUP.TUCK_PX + 1, PUP.TUCK_PX - 1);
+    var move = 'translate3d(' + (PUP.x * PUP.css - PUP.w / 2).toFixed(2) + 'px,' + bob.toFixed(2) + 'px,0)';
+    if (move !== PUP.moved) { PUP.moved = move; puppet.style.transform = move; }
   }
 
   function fit() {
@@ -608,16 +622,14 @@
     cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
     scale = cv.width / W;
 
-    // CAG's own canvas sits on top of the jar, under the rim's graphic: it holds her bust and
-    // sticks out a little at both sides, for when she is next to a wall.
-    var css = cw / W, above = Math.round(PUP.bodyH * css) + PUP.TUCK_PX + 6;
-    jar.style.setProperty('--av', (above - 10) + 'px');
-    puppet.style.left = Math.round(-PUP.SIDE * css) + 'px'; puppet.style.top = -above + 'px';
-    var pw = Math.round((W + 2 * PUP.SIDE) * css), ph = above + PUP.BELOW_PX;
+    // CAG's own canvas: just her bust, resting behind the rim. See drawPuppet for how it moves.
+    var css = cw / W, pw = Math.round(ART_P ? ART_P.bodyWidth * css : 0), ph = Math.round(PUP.bodyH * css);
+    jar.style.setProperty('--av', (ph + PUP.TUCK_PX - 4) + 'px');
     puppet.style.width = pw + 'px'; puppet.style.height = ph + 'px';
-    puppet.width = Math.round(pw * dpr); puppet.height = Math.round(ph * dpr);
-    PUP.scale = css * dpr; PUP.ox = Math.round(PUP.SIDE * css) * dpr; PUP.oy = above * dpr; PUP.tuck = PUP.TUCK_PX / css;
-    PUP.cache = {};
+    puppet.style.top = -(ph + PUP.TUCK_PX) + 'px';
+    var sharp = Math.max(2, Math.min(Math.ceil(window.devicePixelRatio || 1), 3));   // at least two canvas pixels per screen pixel
+    puppet.width = Math.max(1, pw * sharp); puppet.height = Math.max(1, ph * sharp);
+    PUP.css = css; PUP.w = pw; PUP.h = ph; PUP.shown = -1; PUP.moved = '';
     fitIcons();
   }
   if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
