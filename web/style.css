@@ -137,7 +137,7 @@ body {
 /* Glass jar, with CAG leaning over it */
 .stage { min-width: 0; min-height: 366px; display: grid; place-items: end center; }
 .jar { position: relative; width: 300px; height: 433px; margin-top: calc(var(--av, 44px) + 10px); }
-.jar::before { content: ""; position: absolute; left: -8px; right: -8px; top: -10px; height: 12px; border-radius: 8px; background: var(--glass-edge); box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.55), 0 3px 0 var(--shade); }
+.jar::before { content: ""; position: absolute; z-index: 3; pointer-events: none; left: -8px; right: -8px; top: -10px; height: 12px; border-radius: 8px; background: var(--glass-edge); box-shadow: inset 0 4px 0 rgba(255, 255, 255, 0.55), 0 3px 0 var(--shade); }
 .jar::after { content: ""; position: absolute; inset: 0 -4px -4px -4px; border: 4px solid var(--glass-edge); border-top: 0; border-radius: 0 0 20px 20px; box-shadow: 0 8px 0 -2px var(--shade); pointer-events: none; }
 #game { display: block; width: 100%; height: 100%; background: linear-gradient(180deg, var(--glass), var(--glass-2)); border-radius: 0 0 16px 16px; touch-action: none; cursor: pointer; }
 #game:focus-visible { outline: none; }
@@ -146,10 +146,10 @@ body {
 .shine.two { top: 52%; height: 9%; }
 .sign.score { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; }
 .left { font-size: calc(12px * var(--k)); font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
-/* CAG on top of the jar: her bust above the rim, her arms and hands reaching in. Placed and sized from the page's script. */
+/* CAG on top of the jar. Her canvas goes under the rim (z-index 3 above), which hides the bottom edge of her bust. Placed and sized from the page's script. */
 .puppet { position: absolute; z-index: 2; pointer-events: none; }
 
-.toast { position: absolute; z-index: 3; top: 22%; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; padding: 5px 16px; border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--shade); color: var(--ink); font-weight: 700; font-size: calc(15px * var(--k)); text-align: center; pointer-events: none; animation: pop 0.25s ease-out; }
+.toast { position: absolute; z-index: 4; top: 22%; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; padding: 5px 16px; border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--shade); color: var(--ink); font-weight: 700; font-size: calc(15px * var(--k)); text-align: center; pointer-events: none; animation: pop 0.25s ease-out; }
 @keyframes pop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } }
 
 /* Start, result and ranking boards */

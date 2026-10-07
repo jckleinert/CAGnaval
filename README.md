@@ -110,17 +110,16 @@ Cambiar el tamaño de una comida o su forma general sí cambia el juego, y oblig
 
 ## El personaje (CAG)
 
-CAG está asomada arriba del frasco: sostiene la comida que va a caer y la suelta. Su busto sigue la puntería, las dos manos van a los costados de la comida (sea del tamaño que sea) y los brazos los dibuja la página, del hombro a la muñeca. Parpadea, y abre los ojos al soltar y cuando el frasco está por llenarse. Es solo visual.
+CAG está asomada arriba del frasco, encima de la comida que va a caer, y sigue la puntería. Respira, parpadea, y abre los ojos al soltar y cuando el frasco está por llenarse. El borde de abajo del busto queda escondido detrás del borde del frasco, así no se ve un hueco cuando se mueve. Es solo visual.
 
 Los dibujos están en `art/cag/`:
 
 | Archivo | Qué es |
 |---|---|
-| `normal.png`, `closed.png`, `wide.png` | El busto sin brazos, con tres caras: normal, ojos cerrados y ojos abiertos. Mismo tamaño y misma posición. |
-| `hand.png` | Una mano abierta, con la abertura hacia la derecha y cortada recta en la muñeca. La otra se hace en espejo. |
-| `cag.json` | Dónde están los ojos, de dónde salen los brazos, a qué altura se corta el busto y qué tamaño tiene en el juego. |
+| `normal.png`, `closed.png`, `wide.png` | El busto con tres caras: normal, ojos cerrados y ojos abiertos. Mismo tamaño y misma posición. |
+| `cag.json` | Dónde están los ojos, a qué altura se corta el busto y qué ancho tiene en el juego. |
 
-Se arman con `npm run build:cag` (Python con Pillow y numpy), que escribe `web/img/cag/` y `web/cag-art.js`. De `closed.png` y `wide.png` solo se usan los ojos: el resto del busto sale siempre de `normal.png`, para que no tiemble al parpadear aunque los dibujos no coincidan al píxel.
+Se arman con `npm run build:cag` (Python con Pillow y numpy), que escribe `web/img/cag/body.webp` y `web/cag-art.js`. De `closed.png` y `wide.png` solo se usan los ojos: el resto del busto sale siempre de `normal.png`, para que no tiemble al parpadear aunque los dibujos no coincidan al píxel.
 
 ## Qué controla el árbitro
 

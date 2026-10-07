@@ -516,25 +516,23 @@
     }
   }
 
-  /* ---------- CAG, who holds the food over the jar and drops it ----------
-     Her bust rests on the rim and follows the aim. Her two hands go to the sides of the food in
-     hand, whatever its size, and the arms are drawn here from the shoulders to the wrists. The
-     drawings and their anchor points come from web/cag-art.js (see scripts/gen-cag.py). All of
-     this is only for the eye. */
+  /* ---------- CAG, who leans over the jar and drops the food ----------
+     Her bust follows the aim, right above the food in hand. Its bottom edge is tucked behind the
+     jar's rim, so it never shows a gap when she moves up and down. The drawing and its sizes come
+     from web/cag-art.js (see scripts/gen-cag.py). All of this is only for the eye. */
   var puppet = $('puppet'), pctx = puppet.getContext('2d'), ART_P = window.CAG_PUPPET || null;
-  var PUP = { SIDE: 60, DEPTH: 150, RIM_PX: 8, bodyH: 0, scale: 1, ox: 0, oy: 0, rim: 8, cache: {}, ok: 0,
-              x: W / 2, lx: W / 2 - 30, ly: 20, rx: W / 2 + 30, ry: 20, held: false, grip: 30 };
+  var PUP = { SIDE: 60, BELOW_PX: 4, TUCK_PX: 4, bodyH: 0, scale: 1, ox: 0, oy: 0, tuck: 4, cache: {}, ok: false, x: W / 2 };
   if (ART_P) {
     PUP.bodyH = ART_P.bodyWidth * ART_P.body.h / ART_P.body.w;
-    PUP.body = new Image(); PUP.hand = new Image();
-    PUP.body.onload = PUP.hand.onload = function () { PUP.ok++; };
-    PUP.body.src = '/web/img/cag/body.webp'; PUP.hand.src = '/web/img/cag/hand.webp';
+    PUP.body = new Image();
+    PUP.body.onload = function () { PUP.ok = true; };
+    PUP.body.src = '/web/img/cag/body.webp';
   }
-  /* A piece of a picture, shrunk once to the size it has on screen and kept. */
-  function shrunk(key, img, sx, sw, sh, dw, dh) {
-    var k = key + '@' + dw, c = PUP.cache[k];
+  /* One face of her picture, shrunk once to the size it has on screen and kept. */
+  function shrunk(face, dw, dh) {
+    var k = face + '@' + dw, c = PUP.cache[k];
     if (c) return c;
-    var src = img, w = sw, h = sh, t;
+    var src = PUP.body, sx = face * ART_P.body.w, w = ART_P.body.w, h = ART_P.body.h, t;
     while (w / 2 >= dw && w > 8) {
       t = document.createElement('canvas'); t.width = Math.round(w / 2); t.height = Math.round(h / 2);
       t.getContext('2d').drawImage(src, sx, 0, w, h, 0, 0, t.width, t.height);
@@ -546,36 +544,19 @@
     PUP.cache[k] = c;
     return c;
   }
-  /* How far a food reaches to each side when it hangs at this angle. */
-  function reach(f, ang) {
-    if (!f.poly) return f.r;
-    var c = Math.cos(ang), sn = Math.sin(ang), m = 0;
-    for (var i = 0; i < f.poly.length; i++) m = Math.max(m, Math.abs(f.poly[i].x * c - f.poly[i].y * sn));
-    return m;
-  }
   function drawPuppet() {
     pctx.setTransform(1, 0, 0, 1, 0, 0);
     pctx.clearRect(0, 0, puppet.width, puppet.height);
-    if (!ART_P || PUP.ok < 2) return;
-    var A = ART_P, B = A.body, HD = A.hand, BW = A.bodyWidth, HH = A.handHeight;
+    if (!ART_P || !PUP.ok) return;
+    var B = ART_P.body, BW = ART_P.bodyWidth;
     var sim = run ? run.sim : null, live = !!(run && run.live), step = sim ? sim.step : 0;
-    var cur = live ? sim.current() : null, holding = !!(cur && sim.canDrop());
-    var justDropped = live && sim.dropped > 0 && step - run.barAt < 22;
+    var cur = live ? sim.current() : null;
+    var justDropped = live && sim.dropped > 0 && step - run.barAt < 18;
 
-    // Where the hands want to be: on both sides of the food, spread apart right after letting go,
-    // otherwise hanging open under the shoulders.
-    // The food is pinched with the fingertips, not cupped: the player has to see all of it to aim.
-    var tx, g, ty, tips = (HD.w / HD.h - HD.grip[0]) * HH;
-    if (holding) { var f = FOODS[cur.lv]; tx = holdX(f); g = PUP.grip = reach(f, sim.dropAngle()) + tips - 4; ty = R.DROP_Y - 4; }
-    else if (justDropped) { tx = (PUP.lx + PUP.rx) / 2; g = PUP.grip + 9; ty = R.DROP_Y - 9; }
-    else { tx = clamp(aim, 0, W); g = 30; ty = 20; }
+    // She stays above the food in hand; near a wall she stops a little before the food does.
+    var tx = cur && sim.canDrop() ? holdX(FOODS[cur.lv]) : clamp(aim, 0, W);
     var bx = clamp(tx, BW / 2 - 14, W - BW / 2 + 14);
-    PUP.x += (bx - PUP.x) * 0.4;
-    var near = Math.abs(PUP.lx - (tx - g)) + Math.abs(PUP.ly - ty) < 3;
-    PUP.held = holding && (PUP.held || near);        // once the hands are on the food they move with it exactly
-    var k = PUP.held || reduced ? 1 : holding ? 0.5 : 0.28;
-    PUP.lx += (tx - g - PUP.lx) * k; PUP.rx += (tx + g - PUP.rx) * k;
-    PUP.ly += (ty - PUP.ly) * k; PUP.ry += (ty - PUP.ry) * k;
+    PUP.x += (bx - PUP.x) * (reduced ? 1 : 0.6);
 
     // Face: startled right after dropping and while the jar is about to overflow; blinks otherwise.
     var face = 0;
@@ -584,49 +565,13 @@
       else if (blink(4242) === FACE_CLOSED) face = 1;
     }
     if (face >= B.faces) face = 0;
-    // She breathes a little, and dips when she lets go.
-    var bob = reduced ? 0 : Math.sin(nowMs / 520) * 0.8 + (justDropped ? Math.sin(Math.PI * (step - run.barAt) / 22) * 2.5 : 0);
+    // She breathes a little and nods when she lets go. Never more than what the rim hides.
+    var bob = reduced ? 0 : Math.sin(nowMs / 520) * 0.8 + (justDropped ? Math.sin(Math.PI * (step - run.barAt) / 18) * 1.6 : 0);
+    bob = clamp(bob, -PUP.tuck * 0.8, PUP.tuck * 0.8);
 
     var S = PUP.scale;
     pctx.setTransform(S, 0, 0, S, PUP.ox, PUP.oy);   // game units, measured from the top left of the jar
-    var baseY = -PUP.rim + bob, bodyW = Math.round(BW * S), bodyHpx = Math.round(PUP.bodyH * S);
-    pctx.drawImage(shrunk('b' + face, PUP.body, face * B.w, B.w, B.h, bodyW, bodyHpx), PUP.x - BW / 2, baseY - PUP.bodyH, BW, PUP.bodyH);
-
-    var tilt = A.handTilt * Math.PI / 180, ct = Math.cos(tilt), st = Math.sin(tilt), armW = HD.arm * HH, side, i;
-    var handW = HH * HD.w / HD.h, handImg = shrunk('h', PUP.hand, 0, HD.w, HD.h, Math.round(handW * S), Math.round(HH * S));
-    for (i = 0; i < 2; i++) {
-      side = i ? 1 : -1;                               // -1 the hand on the left of the screen, 1 its mirror
-      var gx = i ? PUP.rx : PUP.lx, gy = i ? PUP.ry : PUP.ly;
-      // wrist and the direction the arm leaves the hand, turned with the hand and mirrored for the right one
-      var wx0 = (HD.wrist[0] - HD.grip[0]) * HH, wy0 = (HD.wrist[1] - HD.grip[1]) * HH;
-      var wx = gx - side * (wx0 * ct - wy0 * st), wy = gy + (wx0 * st + wy0 * ct);
-      var ax = -side * (HD.away[0] * ct - HD.away[1] * st), ay = HD.away[0] * st + HD.away[1] * ct;
-      var rx = PUP.x + B.roots[i][0] * BW, ry = baseY - B.roots[i][1] * BW;
-      var d = Math.sqrt((wx - rx) * (wx - rx) + (wy - ry) * (wy - ry)), out = clamp(d * 0.42, 7, 34);
-      pctx.beginPath();
-      pctx.moveTo(rx, ry);
-      pctx.bezierCurveTo(rx + side * 3, ry + d * 0.34, wx + ax * out, wy + ay * out, wx - ax * 2, wy - ay * 2);
-      pctx.lineCap = 'round';
-      // The dark edge of the arm starts where it comes out from under the bust, so shoulder and arm read as one.
-      pctx.save();
-      pctx.beginPath(); pctx.rect(-PUP.SIDE, baseY - 0.4, W + 2 * PUP.SIDE, PUP.DEPTH + 40); pctx.clip();
-      pctx.beginPath(); pctx.moveTo(rx, ry);
-      pctx.bezierCurveTo(rx + side * 3, ry + d * 0.34, wx + ax * out, wy + ay * out, wx - ax * 2, wy - ay * 2);
-      pctx.lineWidth = armW + 2 * A.outline; pctx.strokeStyle = '#0b0d12'; pctx.stroke();
-      pctx.restore();
-      pctx.beginPath(); pctx.moveTo(rx, ry);
-      pctx.bezierCurveTo(rx + side * 3, ry + d * 0.34, wx + ax * out, wy + ay * out, wx - ax * 2, wy - ay * 2);
-      pctx.lineWidth = armW; pctx.strokeStyle = B.skin; pctx.stroke();
-    }
-    for (i = 0; i < 2; i++) {
-      side = i ? 1 : -1;
-      pctx.save();
-      pctx.translate(i ? PUP.rx : PUP.lx, i ? PUP.ry : PUP.ly);
-      pctx.scale(-side, 1);
-      pctx.rotate(tilt);
-      pctx.drawImage(handImg, -HD.grip[0] * HH, -HD.grip[1] * HH, handW, HH);
-      pctx.restore();
-    }
+    pctx.drawImage(shrunk(face, Math.round(BW * S), Math.round(PUP.bodyH * S)), PUP.x - BW / 2, -PUP.tuck + bob - PUP.bodyH, BW, PUP.bodyH);
   }
 
   function fit() {
@@ -644,15 +589,15 @@
     cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
     scale = cv.width / W;
 
-    // CAG's own canvas lies over the top of the jar: it starts above the rim, where her bust is,
-    // reaches down to where her hands can go, and sticks out a little at both sides.
-    var css = cw / W, above = Math.round(PUP.bodyH * css) + PUP.RIM_PX + 4;
+    // CAG's own canvas sits on top of the jar, under the rim's graphic: it holds her bust and
+    // sticks out a little at both sides, for when she is next to a wall.
+    var css = cw / W, above = Math.round(PUP.bodyH * css) + PUP.TUCK_PX + 6;
     jar.style.setProperty('--av', (above - 10) + 'px');
     puppet.style.left = Math.round(-PUP.SIDE * css) + 'px'; puppet.style.top = -above + 'px';
-    var pw = Math.round((W + 2 * PUP.SIDE) * css), ph = above + Math.round(PUP.DEPTH * css);
+    var pw = Math.round((W + 2 * PUP.SIDE) * css), ph = above + PUP.BELOW_PX;
     puppet.style.width = pw + 'px'; puppet.style.height = ph + 'px';
     puppet.width = Math.round(pw * dpr); puppet.height = Math.round(ph * dpr);
-    PUP.scale = css * dpr; PUP.ox = Math.round(PUP.SIDE * css) * dpr; PUP.oy = above * dpr; PUP.rim = PUP.RIM_PX / css;
+    PUP.scale = css * dpr; PUP.ox = Math.round(PUP.SIDE * css) * dpr; PUP.oy = above * dpr; PUP.tuck = PUP.TUCK_PX / css;
     PUP.cache = {};
   }
   if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
