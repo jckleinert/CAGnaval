@@ -54,8 +54,33 @@
     };
   }
 
+  /*
+   * Rest. Foods pressed together in a pile never come to a full stop on their own: the engine keeps
+   * nudging them apart, and they tremble and slowly turn for ever. So a food that has stayed in the
+   * same spot for a while goes to rest: it stops dead and holds its place like part of the jar.
+   * It gets going again as soon as a food that is moving touches it, and every food gets going
+   * when one is taken out of the jar (a merge, Sweep) or the jar is shaken.
+   */
+  var Sleeping = Matter.Sleeping, Resolver = Matter.Resolver;
+  if (!Resolver.cagRest) {
+    Resolver.cagRest = true;
+    var solveStart = Resolver.preSolvePosition;
+    Resolver.preSolvePosition = function (pairs) {         // runs every step, once the touching pairs are known
+      var fast = RULES.REST_SPEED * RULES.REST_SPEED;
+      for (var i = 0; i < pairs.length; i++) {
+        var p = pairs[i];
+        if (!p.isActive) continue;
+        var a = p.collision.parentA, b = p.collision.parentB;
+        if (!a.food || !b.food || a.isSleeping === b.isSleeping) continue;
+        var still = a.isSleeping ? a : b, other = a.isSleeping ? b : a;
+        if (!(other.food.v2 < fast)) { Sleeping.set(still, false); still.food.quiet = 0; }
+      }
+      solveStart(pairs);
+    };
+  }
+
   var RULES = Object.freeze({
-    VERSION: 8,            // bump whenever anything that changes the outcome of a run changes
+    VERSION: 9,            // bump whenever anything that changes the outcome of a run changes
     W: 360, H: 520,        // jar size in game units
     PAD: 3,                // inner margin of the jar walls
     DROP_Y: 46,            // height the food is dropped from
@@ -68,6 +93,9 @@
     GRACE_STEPS: 72,       // a new food cannot count as "over the line" for this long
     WARN_STEPS: 18,        // over the line for this long: the warning starts
     FULL_STEPS: 180,       // over the line for this long, without a break: the run ends (3 seconds, time for the pile to settle)
+    REST_STEPS: 60,        // a food that stays in the same spot this long goes to rest (1 second)
+    REST_ROOM: 1.2,        // "the same spot": it has not moved or turned (measured at its rim) more than this
+    REST_SPEED: 0.2,       // game units per step; a food moving faster than this wakes the resting foods it touches
     DROP_STEPS: 900,       // 15 seconds to drop each food
     MAX_FOODS: 200,
     SPAWN_LEVELS: 5,       // dropped foods are levels 0..4
@@ -152,11 +180,34 @@
       if (angle) o.angle = angle;
       b = Body.create(o);
     } else b = Bodies.circle(px, py, f.r, o);
-    b.food = { lv: lv, gold: !!gold, born: this.step, above: 0, gone: false };
+    // ax, ay, aa: the spot it is being watched at; quiet: steps it has stayed there; v2: its speed, squared
+    b.food = { lv: lv, gold: !!gold, born: this.step, above: 0, gone: false, ax: px, ay: py, aa: angle || 0, quiet: 0, v2: 1 };
     this._addBody(b);
     this.foods.push(b);
     if (lv > this.maxLv) this.maxLv = lv;
     return b;
+  };
+
+  /* Foods that have settled go to rest (see "Rest" above). */
+  Sim.prototype._rest = function () {
+    var room = RULES.REST_ROOM * RULES.REST_ROOM, slow = RULES.REST_SPEED * RULES.REST_SPEED;
+    for (var i = 0; i < this.foods.length; i++) {
+      var b = this.foods[i], f = b.food;
+      if (b.isSleeping) { f.v2 = 0; continue; }
+      var vx = b.position.x - b.positionPrev.x, vy = b.position.y - b.positionPrev.y, r = FOODS[f.lv].r;
+      var turn = (b.angle - b.anglePrev) * r;
+      var dx = b.position.x - f.ax, dy = b.position.y - f.ay, da = (b.angle - f.aa) * r;
+      f.v2 = vx * vx + vy * vy;
+      if (dx * dx + dy * dy >= room || da * da >= room) { f.ax = b.position.x; f.ay = b.position.y; f.aa = b.angle; f.quiet = 0; }
+      else if (++f.quiet >= RULES.REST_STEPS && f.v2 + turn * turn < slow) Sleeping.set(b, true);
+    }
+  };
+  Sim.prototype._wakeAll = function () {
+    for (var i = 0; i < this.foods.length; i++) {
+      var b = this.foods[i];
+      if (b.isSleeping) Sleeping.set(b, false);
+      b.food.quiet = 0;
+    }
   };
 
   Sim.prototype._remove = function (b) {
@@ -177,6 +228,7 @@
   Sim.prototype._runMerges = function () {
     var m = this._merges;
     if (!m.length) return;
+    this._wakeAll();           // what rested on the merged foods has to fall
     for (var i = 0; i < m.length; i += 2) {
       var a = m[i], b = m[i + 1], lv = a.food.lv, gain;
       var x = (a.position.x + b.position.x) / 2, y = (a.position.y + b.position.y) / 2;
@@ -266,6 +318,7 @@
     var i, b;
     if (type === 'shake') {
       if (!this.foods.length) return false;
+      this._wakeAll();
       for (i = 0; i < this.foods.length; i++) {
         b = this.foods[i];
         var dx = this._rand() * 12 - 6, dy = 4 + this._rand() * 5, da = this._rand() * 0.3 - 0.15;
@@ -284,6 +337,7 @@
         if (b.food.lv <= 1 && !b.food.gone && !b.food.gold) hit.push(b);
       }
       if (!hit.length) return false;
+      this._wakeAll();
       for (i = 0; i < hit.length; i++) {
         hit[i].food.gone = true;
         this._emit({ type: 'sweep', x: hit[i].position.x, y: hit[i].position.y, lv: hit[i].food.lv });
@@ -298,6 +352,7 @@
   Sim.prototype.tick = function () {
     if (this.over) return;
     Engine.update(this.engine, RULES.STEP_MS);
+    this._rest();
     this.step++;
     this._runMerges();
     if (!this.ready) {

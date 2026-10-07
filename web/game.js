@@ -348,15 +348,29 @@
   /* How a food in the jar moves on screen, apart from where the simulation puts it: it squashes and
      wobbles when something hits it, and pops in when it is born from a merge. This is only for the
      eye and never touches the simulation. */
+  /* Foods pressed together in a pile never sit perfectly still in the simulation: they tremble by a
+     fraction of a unit. The picture follows the simulation through a soft filter that swallows that
+     trembling: it eases towards the real place, and is never more than STEADY units behind it. */
+  var STEADY = 0.9, STEADY_EASE = 0.18;
+  function steady(b, v) {
+    var ex = b.position.x - v.x, ey = b.position.y - v.y, d = Math.sqrt(ex * ex + ey * ey), k = STEADY_EASE;
+    if (d * (1 - k) > STEADY) k = 1 - STEADY / d;
+    v.x += ex * k; v.y += ey * k;
+    var ea = b.angle - v.a, most = STEADY / FOODS[b.food.lv].r;      // the same, measured at the rim
+    k = STEADY_EASE;
+    if (Math.abs(ea) * (1 - k) > most) k = 1 - most / Math.abs(ea);
+    v.a += ea * k;
+  }
   function feel(sim) {
     var i, b, v, dx, dy, d, k, t;
     for (i = 0; i < sim.foods.length; i++) {
       b = sim.foods[i]; v = vis[b.id];
       if (!v) {
         // A dropped food appears at the drop height; anything appearing elsewhere comes from a merge.
-        vis[b.id] = { vx: b.velocity.x, vy: b.velocity.y, hitAt: -99, hitK: 0, hitDir: 0, popAt: Math.abs(b.position.y - R.DROP_Y) > 3 ? sim.step : -99 };
+        vis[b.id] = { x: b.position.x, y: b.position.y, a: b.angle, vx: b.velocity.x, vy: b.velocity.y, hitAt: -99, hitK: 0, hitDir: 0, popAt: Math.abs(b.position.y - R.DROP_Y) > 3 ? sim.step : -99 };
         continue;
       }
+      steady(b, v);
       dx = b.velocity.x - v.vx; dy = b.velocity.y - v.vy; v.vx = b.velocity.x; v.vy = b.velocity.y;
       d = Math.sqrt(dx * dx + dy * dy);
       if (d < 2.4) continue;                       // gravity alone changes the speed by about 0.4 a step
@@ -486,8 +500,9 @@
 
     // From the bottom of the jar up, so that each food's shadow falls on the ones under it.
     var b, pile = sim.foods.slice().sort(function (p, q) { return q.position.y - p.position.y || p.id - q.id; });
-    for (i = 0; i < pile.length; i++) { b = pile[i]; if (!b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, false, 0, faceOf(b, step), poseOf(b, step, run.live)); }
-    for (i = 0; i < pile.length; i++) { b = pile[i]; if (b.food.gold) drawFood(ctx, b.position.x, b.position.y, FOODS[b.food.lv], b.angle, true, spin, faceOf(b, step), poseOf(b, step, run.live)); }
+    var at;
+    for (i = 0; i < pile.length; i++) { b = pile[i]; at = vis[b.id] || { x: b.position.x, y: b.position.y, a: b.angle }; if (!b.food.gold) drawFood(ctx, at.x, at.y, FOODS[b.food.lv], at.a, false, 0, faceOf(b, step), poseOf(b, step, run.live)); }
+    for (i = 0; i < pile.length; i++) { b = pile[i]; at = vis[b.id] || { x: b.position.x, y: b.position.y, a: b.angle }; if (b.food.gold) drawFood(ctx, at.x, at.y, FOODS[b.food.lv], at.a, true, spin, faceOf(b, step), poseOf(b, step, run.live)); }
 
     for (i = fx.length - 1; i >= 0; i--) {
       var p = fx[i], k = (step - p.t) / (p.gold ? 54 : 34);

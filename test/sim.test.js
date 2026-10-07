@@ -126,3 +126,31 @@ test('each power-up works once', () => {
   assert.strictEqual(sim.foods.length, 0);
   assert.strictEqual(sim.power('nope'), false);
 });
+
+test('a settled pile goes to rest, and wakes when it is hit or a food is taken away', () => {
+  const sim = new Sim({ pub: 'rest' });
+  // A donut on the floor with a cookie and a candy leaning on it: three different foods, nothing merges.
+  [[3, 180], [1, 140], [0, 216]].forEach(([lv, x], k) => {
+    sim.setPiece(k + 1, { lv, gold: false }); sim.setPiece(k + 2, { lv: 4, gold: false });
+    while (!sim.canDrop()) sim.tick();
+    sim.drop(x);
+  });
+  for (let i = 0; i < 400; i++) sim.tick();
+  assert.ok(sim.foods.every((b) => b.isSleeping), 'everything is at rest a few seconds after the last drop');
+  const before = sim.foods.map((b) => [b.position.x, b.position.y, b.angle]);
+  for (let i = 0; i < 300; i++) sim.tick();
+  assert.deepStrictEqual(sim.foods.map((b) => [b.position.x, b.position.y, b.angle]), before, 'a pile at rest does not move at all');
+
+  // A can lands on the pile: what it hits wakes up.
+  while (!sim.canDrop()) sim.tick();
+  sim.drop(180);
+  let woke = false;
+  for (let i = 0; i < 120 && !woke; i++) { sim.tick(); woke = sim.foods.slice(0, 3).some((b) => !b.isSleeping); }
+  assert.ok(woke, 'a falling food wakes the pile it lands on');
+
+  // Sweep takes the small ones away: everything left is awake, so nothing stays hanging.
+  for (let i = 0; i < 400; i++) sim.tick();
+  assert.ok(sim.foods.every((b) => b.isSleeping));
+  assert.ok(sim.power('sweep'));
+  assert.ok(sim.foods.every((b) => !b.isSleeping), 'taking a food out wakes the rest');
+});

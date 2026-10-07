@@ -68,6 +68,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 - Hasta 200 fichas por partida y 15 segundos para soltar cada una. Si se acaba el tiempo, cae sola.
 - La partida termina cuando el frasco se llena o se acaban las fichas.
 - El frasco se considera lleno cuando el centro de una comida queda por encima de la línea durante 3 segundos seguidos (o sea, puede asomar hasta la mitad). Mientras tanto la línea titila y aparece una cuenta regresiva; si la pila se acomoda o hay una fusión y la comida baja, la cuenta se corta. Una comida recién caída o recién fusionada no cuenta durante el primer segundo.
+- Las comidas descansan: una comida que estuvo un segundo en el mismo lugar se queda completamente quieta (sin temblar ni girar) hasta que otra en movimiento la toca. Cuando se saca una comida del frasco (una fusión, Sweep) o se usa Shake, se despiertan todas, para que ninguna quede colgada.
 - Comida dorada en 1 de cada 8 partidas. Es siempre el onigiri, en su versión de oro. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).
 - Ventajas Shake, Swap y Sweep, un uso de cada una por partida (en práctica son gratis).
 - Ranking semanal por calorías sumadas.
@@ -154,6 +155,7 @@ Se arman con `npm run build:cag` (Python con Pillow y numpy), que escribe `web/i
 
 ## Para quien toque el código
 
+- En una pila apretada el motor de física nunca deja las comidas del todo quietas: las corrige una fracción de unidad en cada paso y por eso temblaban y giraban solas. Hay dos cosas contra eso. En las reglas (`shared/sim.js`, "Rest"): la comida que no se movió de su lugar durante `REST_STEPS` pasa a descansar y el motor la trata como parte del frasco hasta que algo la despierta. En la pantalla (`web/game.js`, `steady`): el dibujo sigue a la simulación con un filtro suave que se traga el temblor que quede; es solo visual y no cambia ninguna partida.
 - `shared/sim.js` es la única fuente de verdad de las reglas. Si cambia algo que altera el resultado de una partida, hay que subir `RULES.VERSION`.
 - Dentro de la simulación no se puede usar `Math.sin`, `Math.pow`, `Math.random` ni nada parecido: no dan el mismo resultado en todos los navegadores. `shared/detmath.js` los reemplaza o los bloquea.
 - `shared/matter-det.js`, `shared/foods.js`, `scripts/art.json` y `web/img/foods/*.webp` son archivos generados. Se rehacen con `npm run build:matter`, `npm run build:foods` y `npm run build:art`.
