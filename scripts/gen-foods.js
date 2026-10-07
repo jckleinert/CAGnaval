@@ -24,7 +24,7 @@ const FOODS = [
   { e: '🧇', n: 'Waffle',    r: 46, c: '#f5b942', rest: 0.08, fric: 0.40, dens: 0.0018 },
   { e: '🍜', n: 'Ramen',     r: 55, c: '#74dcc9', rest: 0.30, fric: 0.40, dens: 0.0010 },
   { e: '🍕', n: 'Pizza',     r: 64, c: '#ff7566', rest: 0.20, fric: 0.12, dens: 0.0010 },
-  { e: '🍛', n: 'Curry',     r: 74, c: '#f4b942', rest: 0.08, fric: 0.50, dens: 0.0018 },
+  { e: '🍣', n: 'Sushi',     r: 74, c: '#ff9d6c', rest: 0.08, fric: 0.50, dens: 0.0018 },
   { e: '🎂', n: 'Cake',      r: 85, c: '#8fd0ff', rest: 0.25, fric: 0.40, dens: 0.0009 },
   { e: '🍱', n: 'Big Order', r: 97, c: '#ff5a4a', rest: 0.08, fric: 0.50, dens: 0.0020, shape: 'box' }
 ];

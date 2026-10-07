@@ -64,7 +64,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Reglas del juego que ya están implementadas
 
-- 11 comidas, de Candy a Big Order. El onigiri es triangular, la lata de CAG Energy (nivel 4) alargada y el Big Order cuadrado. La lata se suelta inclinada (alternando el lado en cada tirada) para que caiga de punta, dé un saltito y se acueste, en vez de caer seca.
+- 11 comidas que se fusionan en este orden: caramelo, cookie, onigiri, donut, lata de CAG Energy, waffle, ramen, pizza, sushi, torta y Big Order. El onigiri es triangular, la lata de CAG Energy (nivel 4) alargada y el Big Order cuadrado. La lata se suelta inclinada (alternando el lado en cada tirada) para que caiga de punta, dé un saltito y se acueste, en vez de caer seca.
 - Hasta 200 fichas por partida y 15 segundos para soltar cada una. Si se acaba el tiempo, cae sola.
 - La partida termina cuando el frasco se llena o se acaban las fichas.
 - Comida dorada en 1 de cada 8 partidas. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).
@@ -73,7 +73,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Dibujos de las comidas
 
-Mientras una comida no tenga dibujo propio, se muestra como un sticker provisorio con un emoji. Hoy tienen dibujo propio el caramelo (nivel 0, sin cara), la cookie (nivel 1, sin cara), el onigiri (nivel 2, con cara), la donut (nivel 3, sin cara), la lata de CAG Energy (nivel 4, sin cara), el waffle (nivel 5, sin cara), el ramen (nivel 6, sin cara), la pizza (nivel 7, sin cara), la torta (nivel 9, sin cara) y el Big Order (nivel 10, una caja de pizza de CAG, sin cara). Solo el curry (nivel 8) sigue con emoji.
+Las once comidas tienen dibujo propio. Si a alguna le faltara, se mostraría como un sticker provisorio con un emoji. Son el caramelo (nivel 0, sin cara), la cookie (nivel 1, sin cara), el onigiri (nivel 2, con cara), la donut (nivel 3, sin cara), la lata de CAG Energy (nivel 4, sin cara), el waffle (nivel 5, sin cara), el ramen (nivel 6, sin cara), la pizza (nivel 7, sin cara), el sushi (nivel 8, sin cara), la torta (nivel 9, sin cara) y el Big Order (nivel 10, una caja de pizza de CAG, sin cara).
 
 Una comida puede tener un solo dibujo, o hasta cuatro caras para que parpadee y se sorprenda. No hace falta que todas tengan cara:
 
