@@ -17,7 +17,7 @@
   var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body, Composite = Matter.Composite, Events = Matter.Events;
 
   var RULES = Object.freeze({
-    VERSION: 5,            // bump whenever anything that changes the outcome of a run changes
+    VERSION: 6,            // bump whenever anything that changes the outcome of a run changes
     W: 360, H: 520,        // jar size in game units
     PAD: 3,                // inner margin of the jar walls
     DROP_Y: 46,            // height the food is dropped from

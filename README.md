@@ -73,7 +73,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Dibujos de las comidas
 
-Mientras una comida no tenga dibujo propio, se muestra como un sticker provisorio con un emoji. Hoy tienen dibujo propio el caramelo (nivel 0, sin cara), la cookie (nivel 1, sin cara), el onigiri (nivel 2, con cara), la donut (nivel 3, sin cara), la lata de CAG Energy (nivel 4, sin cara), el waffle (nivel 5, sin cara), el ramen (nivel 6, sin cara), la pizza (nivel 7, sin cara) y la torta (nivel 9, sin cara).
+Mientras una comida no tenga dibujo propio, se muestra como un sticker provisorio con un emoji. Hoy tienen dibujo propio el caramelo (nivel 0, sin cara), la cookie (nivel 1, sin cara), el onigiri (nivel 2, con cara), la donut (nivel 3, sin cara), la lata de CAG Energy (nivel 4, sin cara), el waffle (nivel 5, sin cara), el ramen (nivel 6, sin cara), la pizza (nivel 7, sin cara), la torta (nivel 9, sin cara) y el Big Order (nivel 10, una caja de pizza de CAG, sin cara). Solo el curry (nivel 8) sigue con emoji.
 
 Una comida puede tener un solo dibujo, o hasta cuatro caras para que parpadee y se sorprenda. No hace falta que todas tengan cara:
 
