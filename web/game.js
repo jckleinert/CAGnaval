@@ -254,7 +254,7 @@
     var topFood = FOODS[Math.max(0, res ? res.maxLv : sim.maxLv)], topEl = $('overTop');
     topEl.textContent = 'Biggest: ';
     var nm = document.createElement('b'); nm.textContent = topFood.n; topEl.appendChild(nm);
-    var hero = $('overHero'); hero.textContent = ''; hero.appendChild(icon(topFood, 66, false));
+    var hero = $('overHero'); hero.textContent = ''; hero.appendChild(icon(topFood, 66 * cardScale(), false));
 
     var g = res && res.gold;
     $('overGold').classList.toggle('hot', !!(g && g.merged));
@@ -302,6 +302,9 @@
     }).catch(function () { msg.textContent = 'Could not load the ranking.'; });
   }
 
+  /* How much the cards (start, result, ranking) are enlarged on this screen: the --k of the page. */
+  function cardScale() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k')) || 1; }
+
   /* ---------- screen updates ---------- */
   /* A small picture of a food, made at exactly the size it is shown: a picture made smaller and
      then stretched by the page looks blurred. */
@@ -326,7 +329,8 @@
     // The same order, small, on the start card.
     var menu = $('homeMenu');
     menu.textContent = '';
-    FOODS.forEach(function (f) { var li = document.createElement('li'); li.title = f.n; li.appendChild(icon(f, 22, false)); menu.appendChild(li); });
+    var big = cardScale();                          // the cards are drawn bigger on big screens: make the pictures that big too
+    FOODS.forEach(function (f) { var li = document.createElement('li'); li.title = f.n; li.appendChild(icon(f, 20 * big, false)); menu.appendChild(li); });
   }
   drawLadder();
   /* The sizes of the small pictures follow the window: make them again when it changes. */
