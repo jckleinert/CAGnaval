@@ -64,7 +64,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Reglas del juego que ya están implementadas
 
-- 11 comidas que se fusionan en este orden: caramelo, cookie, onigiri, donut, lata de CAG Energy, waffle, ramen, pizza, sushi, torta y Big Order. El onigiri es triangular, la lata de CAG Energy (nivel 4) alargada y el Big Order cuadrado. La lata se suelta inclinada (alternando el lado en cada tirada) para que caiga de punta, dé un saltito y se acueste, en vez de caer seca.
+- 11 comidas que se fusionan en este orden: caramelo, cookie, onigiri, donut, lata de CAG Energy, waffle, ramen, pizza, sushi, torta y caja de pizza (Pizza Box). El onigiri es triangular, la lata de CAG Energy (nivel 4) alargada y la caja de pizza cuadrada. La lata se suelta inclinada (alternando el lado en cada tirada) para que caiga de punta, dé un saltito y se acueste, en vez de caer seca.
 - Hasta 200 fichas por partida y 15 segundos para soltar cada una. Si se acaba el tiempo, cae sola.
 - La partida termina cuando el frasco se llena o se acaban las fichas.
 - El frasco se considera lleno cuando el centro de una comida queda por encima de la línea durante 3 segundos seguidos (o sea, puede asomar hasta la mitad). Mientras tanto la línea titila y aparece una cuenta regresiva; si la pila se acomoda o hay una fusión y la comida baja, la cuenta se corta. Una comida recién caída o recién fusionada no cuenta durante el primer segundo.
@@ -76,7 +76,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 
 ## Dibujos de las comidas
 
-Las once comidas tienen dibujo propio. Si a alguna le faltara, se mostraría como un sticker provisorio con un emoji. Son el caramelo (nivel 0, sin cara), la cookie (nivel 1, sin cara), el onigiri (nivel 2, con cara), la donut (nivel 3, sin cara), la lata de CAG Energy (nivel 4, sin cara), el waffle (nivel 5, sin cara), el ramen (nivel 6, sin cara), la pizza (nivel 7, sin cara), el sushi (nivel 8, sin cara), la torta (nivel 9, sin cara) y el Big Order (nivel 10, una caja de pizza de CAG, sin cara).
+Las once comidas tienen dibujo propio. Si a alguna le faltara, se mostraría como un sticker provisorio con un emoji. Son el caramelo (nivel 0, sin cara), la cookie (nivel 1, sin cara), el onigiri (nivel 2, con cara), la donut (nivel 3, sin cara), la lata de CAG Energy (nivel 4, sin cara), el waffle (nivel 5, sin cara), el ramen (nivel 6, sin cara), la pizza (nivel 7, sin cara), el sushi (nivel 8, sin cara), la torta (nivel 9, sin cara) y la caja de pizza (nivel 10, Pizza Box, una caja de pizza de CAG, sin cara).
 
 Una comida puede tener un solo dibujo, o hasta cuatro caras para que parpadee y se sorprenda. No hace falta que todas tengan cara:
 
@@ -109,9 +109,16 @@ Cuándo aparece cada cara: la comida parpadea sola cada pocos segundos, cada una
 
 Aparte de las caras, todas las comidas del frasco (con dibujo propio o no) se aplastan un poco y rebotan cuando algo las golpea, aparecen con un pequeño salto al nacer de una fusión y tienen una sombra que cae siempre hacia abajo, aunque giren. Es solo visual: lo hace la página y no cambia la partida.
 
-**El borde con el que chocan.** Las comidas redondas chocan como un círculo, y su dibujo se ajusta a ese círculo. Entre dos redondas el choque se calcula como círculo perfecto (no como un polígono de muchas caras), para que una chica no pueda quedarse haciendo equilibrio arriba de una grande: siempre termina rodando hacia un costado. Las que no son redondas (onigiri, lata, Big Order) chocan con el contorno de su propio dibujo, llevado al mismo tamaño que tenían. Por eso, cambiar el dibujo de una comida no redonda cambia un poco cómo rebota y obliga a subir `RULES.VERSION`.
+**El borde con el que chocan.** Las comidas redondas chocan como un círculo, y su dibujo se ajusta a ese círculo. Entre dos redondas el choque se calcula como círculo perfecto (no como un polígono de muchas caras), para que una chica no pueda quedarse haciendo equilibrio arriba de una grande: siempre termina rodando hacia un costado. Las que no son redondas (onigiri, lata, caja de pizza) chocan con el contorno de su propio dibujo, llevado al mismo tamaño que tenían. Por eso, cambiar el dibujo de una comida no redonda cambia un poco cómo rebota y obliga a subir `RULES.VERSION`.
 
 Cambiar el tamaño de una comida o su forma general sí cambia el juego, y obliga a volver a probar la dificultad.
+
+## Pantalla y festejos
+
+- En celulares altos, los botones Shake, Swap y Sweep van sobre el mostrador, debajo del frasco, para que el frasco use todo el ancho. En pantallas más bajas o anchas quedan en una columna al costado.
+- Cada fusión tira chispitas con los colores de la comida y muestra las calorías ganadas, más grandes cuanto más grande es la comida. Las fusiones encadenadas (menos de un segundo entre una y otra) muestran un cartel de combo; es solo un festejo, no suma puntos. Al formarse un ramen o algo más grande, el frasco da un pequeño sacudón.
+- La pantalla de inicio muestra a CAG asomándose y el orden de las comidas. La final muestra el dibujo de la comida más grande y un cartel de "New best!" cuando se supera el récord.
+- Todo esto es solo visual: no cambia ninguna partida.
 
 ## El personaje (CAG)
 

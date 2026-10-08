@@ -106,7 +106,7 @@
       var sim = new Sim({ pub: start.pub, events: true });
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
       run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0 };
-      fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0;
+      fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
       homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true; boardBack = null;
       $('homeMsg').textContent = '';
       cv.focus();
@@ -183,8 +183,10 @@
     $('overTitle').textContent = title;
     $('overKcal').textContent = fmt(kcal);
     $('overUsed').textContent = (res ? res.dropped : sim.dropped) + ' of ' + R.MAX_FOODS + ' foods';
-    var topFood = FOODS[Math.max(0, res ? res.maxLv : sim.maxLv)];
-    $('overTop').textContent = 'Biggest: ' + topFood.e + ' ' + topFood.n;
+    var topFood = FOODS[Math.max(0, res ? res.maxLv : sim.maxLv)], topEl = $('overTop');
+    topEl.textContent = '';
+    topEl.appendChild(icon(topFood, 20, false));
+    topEl.appendChild(document.createTextNode('Biggest: ' + topFood.n));
 
     var ob = $('overBonus'), g = res && res.gold;
     ob.classList.toggle('hot', !!(g && g.merged));
@@ -201,8 +203,10 @@
       : 'The referee score is used.';
 
     $('overWeek').textContent = '';
+    var record = !!(res && res.counted && res.verified && kcal > best && kcal > 0);
+    $('overBest').hidden = !record;
     if (res && res.counted) {
-      if (res.verified && kcal > best) { best = kcal; save('cagnaval.best', best); }
+      if (record) { best = kcal; save('cagnaval.best', best); }
       call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 1).then(function (b) {
         if (run === r && b.you) $('overWeek').textContent = 'Rank ' + b.you.rank + ' this week with ' + fmt(b.you.total) + ' kcal';
       }).catch(function () { /* ranking is optional here */ });
@@ -252,6 +256,10 @@
     var size = ladder.children[0].getBoundingClientRect().width || 28;
     FOODS.forEach(function (f, i) { ladder.children[i].appendChild(icon(f, size, false)); });
     lastMax = -2;
+    // The same order, small, on the start card.
+    var menu = $('homeMenu');
+    menu.textContent = '';
+    FOODS.forEach(function (f) { var li = document.createElement('li'); li.title = f.n; li.appendChild(icon(f, 22, false)); menu.appendChild(li); });
   }
   drawLadder();
   /* The sizes of the small pictures follow the window: make them again when it changes. */
@@ -466,6 +474,95 @@
     c.restore();
   }
 
+  /* ---------- merge party: a ring, sparks in the food's colours, the calories popping up, combos ---------- */
+  var MERGE_STEPS = 52, COMBO_STEPS = 50;
+  function rnd01(seed, i) {                        // a fixed "random" number for spark i of a merge
+    var h = Math.imul(seed ^ (i * 0x9E3779B1), 0x85EBCA6B); h ^= h >>> 13; h = Math.imul(h, 0xC2B2AE35); h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  }
+  function star(c, x, y, r) {
+    c.beginPath();
+    for (var j = 0; j < 8; j++) { var a = j * Math.PI / 4, q = j % 2 ? r * 0.38 : r; c.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); }
+    c.closePath(); c.fill();
+  }
+  /* Draws one merge celebration; returns false once it is over. */
+  function drawMerge(p, step) {
+    var t = step - p.t, life = p.gold ? MERGE_STEPS + 20 : MERGE_STEPS;
+    if (t < 0 || t >= life) return false;
+    var f = FOODS[p.lv], k = t / life, j, n, a, sp, d, x, y, sz, fade;
+    ctx.save();
+    if (!reduced) {
+      // a white flash ring that opens up
+      if (t < 18) {
+        ctx.globalAlpha = 1 - t / 18;
+        ctx.lineWidth = p.gold ? 7 : 4 + p.lv * 0.3; ctx.strokeStyle = p.gold ? GOLD : '#ffffff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1 + (p.gold ? 0.9 : 0.45) * t / 18), 0, TAU); ctx.stroke();
+      }
+      // sparks fly out, slow down and fall a little
+      n = Math.min(10 + p.lv * 2, 28) + (p.gold ? 10 : 0);
+      for (j = 0; j < n; j++) {
+        var r1 = rnd01(p.seed, j), r2 = rnd01(p.seed, j + 97), r3 = rnd01(p.seed, j + 211);
+        var own = 26 + r3 * 18;
+        if (t >= own) continue;
+        a = TAU * j / n + r1 * 0.6;
+        sp = (2.2 + r2 * 2.6) * (0.75 + p.lv * 0.06);
+        d = p.r * 0.55 + sp * 12 * (1 - Math.exp(-t / 12));
+        x = p.x + Math.cos(a) * d; y = p.y + Math.sin(a) * d + 0.035 * t * t;
+        fade = 1 - t / own;
+        ctx.globalAlpha = Math.min(1, fade * 1.6);
+        ctx.fillStyle = p.gold ? (j % 2 ? GOLD : '#FFF6D5') : j % 3 === 0 ? '#ffffff' : j % 3 === 1 ? f.c : CONFETTI[j % CONFETTI.length];
+        sz = (2.6 + r3 * 2.6) * (0.6 + 0.4 * fade);
+        if (j % 3 === 0) star(ctx, x, y, sz * 1.5);
+        else { ctx.beginPath(); ctx.arc(x, y, sz, 0, TAU); ctx.fill(); }
+      }
+    }
+    // the calories pop up, bigger for bigger foods, and float away
+    var pop = reduced ? 1 : t < 5 ? 0.45 + 0.75 * t / 5 : t < 11 ? 1.2 - 0.2 * (t - 5) / 6 : 1;
+    var size = 17 + Math.min(p.lv, 10) * 1.7 + (p.gold ? 4 : 0);
+    var ty = clamp(p.y - p.r - 8 - (reduced ? 0 : 20 * k), 16, H - 12);
+    ctx.globalAlpha = k < 0.65 ? 1 : 1 - (k - 0.65) / 0.35;
+    ctx.font = '700 ' + size.toFixed(1) + 'px Fredoka,"Trebuchet MS",sans-serif';
+    var half = ctx.measureText(p.txt).width / 2 + 4;
+    ctx.translate(clamp(p.x, half, W - half), ty); ctx.scale(pop, pop);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    ctx.lineWidth = 6; ctx.strokeStyle = '#ffffff'; ctx.fillStyle = p.gold ? '#E2A31C' : LANTERN;
+    ctx.strokeText(p.txt, 0, 0); ctx.fillText(p.txt, 0, 0);
+    ctx.restore();
+    return true;
+  }
+  /* Merges that follow each other quickly make a combo: one badge under the line counts them. */
+  var comboFx = { n: 0, t: -999 };
+  function drawCombo(step) {
+    var t = step - comboFx.t;
+    if (comboFx.n < 2 || t < 0 || t > 80) return;
+    var pop = reduced ? 1 : t < 5 ? 0.5 + 0.8 * t / 5 : t < 11 ? 1.3 - 0.3 * (t - 5) / 6 : 1;
+    var txt = 'Combo ×' + comboFx.n + '!';
+    ctx.save();
+    ctx.globalAlpha = t < 60 ? 1 : 1 - (t - 60) / 20;
+    ctx.translate(W / 2, R.LINE_Y + 34); ctx.scale(pop, pop);
+    ctx.font = '700 20px Fredoka,"Trebuchet MS",sans-serif';
+    var w = ctx.measureText(txt).width + 28, h = 32;
+    ctx.fillStyle = 'rgba(27,34,51,0.12)'; roundRect(ctx, -w / 2, -h / 2 + 3, w, h, h / 2); ctx.fill();
+    ctx.fillStyle = '#ffffff'; roundRect(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.fill();
+    ctx.fillStyle = '#1C9FD0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(txt, 0, 1);
+    ctx.restore();
+  }
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath();
+  }
+  /* The jar gives a little jolt when a big food is made. Only for the eye. */
+  var jolt = { at: 0, amp: 0 };
+  function joltJar(lv) { if (!reduced && lv >= 6) { jolt.at = nowMs; jolt.amp = Math.min(7, 2 + (lv - 6) * 1.2); } }
+  function drawJolt() {
+    if (!jolt.amp) return;
+    var t = (nowMs - jolt.at) / 1000;
+    if (t > 0.4) { jolt.amp = 0; jar.style.transform = ''; return; }
+    var e = jolt.amp * Math.exp(-t * 9);
+    jar.style.transform = 'translate(' + (e * Math.sin(t * 74)).toFixed(2) + 'px,' + (e * 0.7 * Math.cos(t * 58)).toFixed(2) + 'px)';
+  }
+
   /* Where the food in hand hangs: above the aim, kept clear of the walls. */
   function holdX(f) {
     var x = clamp(Math.round(clamp(aim, 0, W)), f.hw + R.PAD + 2, W - f.hw - R.PAD - 2);
@@ -505,6 +602,7 @@
     for (i = 0; i < pile.length; i++) { b = pile[i]; at = vis[b.id] || { x: b.position.x, y: b.position.y, a: b.angle }; if (b.food.gold) drawFood(ctx, at.x, at.y, FOODS[b.food.lv], at.a, true, spin, faceOf(b, step), poseOf(b, step, run.live)); }
 
     for (i = fx.length - 1; i >= 0; i--) {
+      if (fx[i].lv !== undefined) { if (!drawMerge(fx[i], step)) fx.splice(i, 1); continue; }
       var p = fx[i], k = (step - p.t) / (p.gold ? 54 : 34);
       if (k >= 1 || k < 0) { fx.splice(i, 1); continue; }
       ctx.save();
@@ -528,6 +626,8 @@
       }
       ctx.restore();
     }
+
+    drawCombo(step);
 
     /* A food is over the line: count down the seconds left for the pile to settle before the run ends. */
     if (run.live && sim.warn) {
@@ -649,11 +749,22 @@
     PUP.css = css; PUP.w = pw; PUP.h = ph; PUP.shown = -1; PUP.moved = '';
     fitIcons();
   }
+  /* Tall phones: the power-ups sit on the counter, under the jar, so the jar can use the whole width.
+     Shorter screens (where height is what is missing) and wide screens: they stand in a column
+     on the right of the jar. */
+  var powersEl = document.querySelector('.powers'), playEl = document.querySelector('.play'), counterEl = document.querySelector('.counter');
+  var tallQ = window.matchMedia('(max-aspect-ratio: 10/19)');
+  function placePowers() {
+    if (!tallQ.matches) { if (powersEl.parentNode !== playEl) playEl.appendChild(powersEl); }
+    else if (powersEl.parentNode !== counterEl) counterEl.insertBefore(powersEl, counterEl.firstChild);
+  }
+  placePowers();
+  if (tallQ.addEventListener) tallQ.addEventListener('change', function () { placePowers(); fit(); });
   if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
   window.addEventListener('resize', fit);
 
   /* ---------- main loop: game time follows real time, never faster ---------- */
-  var last = 0, acc = 0;
+  var last = 0, acc = 0, combo = 0, lastMerge = -999;
   function stepOnce() {
     var sim = run.sim;
     sim.tick();
@@ -662,10 +773,13 @@
       for (var i = 0; i < sim.events.length; i++) {
         var ev = sim.events[i];
         if (ev.type === 'merge') {
-          fx.push({ x: ev.x, y: ev.y, r: FOODS[ev.lv].ext, t: sim.step, txt: '+' + ev.gain, gold: ev.gold });
+          combo = sim.step - lastMerge <= COMBO_STEPS ? combo + 1 : 1; lastMerge = sim.step;
+          fx.push({ x: ev.x, y: ev.y, r: FOODS[ev.lv].ext, t: sim.step, txt: '+' + fmt(ev.gain), gold: ev.gold, lv: ev.lv, seed: (sim.step * 7919 + Math.round(ev.x * 13)) | 0 });
+          if (combo > 1) { comboFx.n = combo; comboFx.t = sim.step; }
+          joltJar(ev.lv);
           if (ev.gold) toast('Golden food merged!');
-          else if (!ev.made) toast('Double Big Order! +' + fmt(ev.gain) + ' kcal');
-          else if (ev.lv === TOP) toast('Big Order! +' + fmt(ev.gain) + ' kcal');
+          else if (!ev.made) toast('Double Pizza Box! +' + fmt(ev.gain) + ' kcal');
+          else if (ev.lv === TOP) toast('Pizza Box! +' + fmt(ev.gain) + ' kcal');
         } else if (ev.type === 'sweep') fx.push({ x: ev.x, y: ev.y, r: FOODS[ev.lv].r, t: sim.step, txt: '', gold: false });
       }
       sim.events.length = 0;
@@ -686,6 +800,7 @@
     }
     refresh();
     draw();
+    drawJolt();
     drawPuppet();
     requestAnimationFrame(frame);
   }

@@ -26,7 +26,7 @@ const FOODS = [
   { e: '🍕', n: 'Pizza',     r: 64, c: '#ff7566', rest: 0.20, fric: 0.12, dens: 0.0010 },
   { e: '🍣', n: 'Sushi',     r: 74, c: '#ff9d6c', rest: 0.08, fric: 0.50, dens: 0.0018 },
   { e: '🎂', n: 'Cake',      r: 85, c: '#8fd0ff', rest: 0.25, fric: 0.40, dens: 0.0009 },
-  { e: '🍱', n: 'Big Order', r: 97, c: '#ff5a4a', rest: 0.08, fric: 0.50, dens: 0.0020, shape: 'box' }
+  { e: '📦', n: 'Pizza Box', r: 97, c: '#ff5a4a', rest: 0.08, fric: 0.50, dens: 0.0020, shape: 'box' }
 ];
 /* About the can: dropped flat, a long food lands dead, like a brick. Dropped leaning (tilt) it lands
    on a corner, hops and rocks before lying down. Its own bounce is 0 on purpose: with any bounce of

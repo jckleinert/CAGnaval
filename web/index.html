@@ -50,8 +50,10 @@
   </div>
 
   <div class="over" id="home">
+    <span class="peek" aria-hidden="true"></span>
     <img class="logo big" src="/web/img/logo.png" alt="CAGnaval" width="840" height="178">
     <p class="over-line">Drop food. Merge two of the same.</p>
+    <ol class="menu" id="homeMenu" aria-label="Food order, smallest to biggest"></ol>
     <label class="field" for="name"><span class="cap">your name</span>
       <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false">
     </label>
@@ -63,6 +65,7 @@
 
   <div class="over" id="over" hidden>
     <p class="over-title" id="overTitle"></p>
+    <p class="ribbon" id="overBest" hidden>New best!</p>
     <p class="over-kcal"><span id="overKcal">0</span> <small>kcal</small></p>
     <div class="chips"><span class="chip" id="overUsed"></span><span class="chip" id="overTop"></span></div>
     <p class="over-line" id="overBonus"></p>
