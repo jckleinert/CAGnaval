@@ -60,6 +60,9 @@
    * same spot for a while goes to rest: it stops dead and holds its place like part of the jar.
    * It gets going again as soon as a food that is moving touches it, and every food gets going
    * when one is taken out of the jar (a merge, Sweep) or the jar is shaken.
+   * So that none is left hanging when what held it creeps away: every time a food really changes
+   * place, the resting foods right next to it are let loose for a moment. If they have nothing to
+   * do they go back to rest; if they were being held, they fall.
    */
   var Sleeping = Matter.Sleeping, Resolver = Matter.Resolver;
   if (!Resolver.cagRest) {
@@ -73,21 +76,45 @@
         var a = p.collision.parentA, b = p.collision.parentB;
         if (!a.food || !b.food || a.isSleeping === b.isSleeping) continue;
         var still = a.isSleeping ? a : b, other = a.isSleeping ? b : a;
-        if (!(other.food.v2 < fast)) { Sleeping.set(still, false); still.food.quiet = 0; }
+        // "moving": fast, and going somewhere. One that only trembles on its spot wakes nobody.
+        if (!(other.food.v2 < fast) && other.food.stay < RULES.REST_CHECK) { Sleeping.set(still, false); still.food.quiet = 0; still.food.stay = 0; still.food.hit = true; }
       }
       solveStart(pairs);
     };
   }
 
+  /*
+   * No bounce for the gentlest touches. A heavy food sitting on a light one would otherwise never
+   * settle: the tiny bounce the engine gives every touch keeps the two hammering each other.
+   * Foods that meet slower than BOUNCE_MIN just stop; anything that really falls bounces as always.
+   */
+  if (!Resolver.cagBounce) {
+    Resolver.cagBounce = true;
+    var solveSpeeds = Resolver.preSolveVelocity;
+    Resolver.preSolveVelocity = function (pairs) {
+      for (var i = 0; i < pairs.length; i++) {
+        var p = pairs[i];
+        if (!p.isActive) continue;
+        var c = p.collision, a = c.parentA, b = c.parentB;
+        var closing = ((a.position.x - a.positionPrev.x) - (b.position.x - b.positionPrev.x)) * c.normal.x +
+                      ((a.position.y - a.positionPrev.y) - (b.position.y - b.positionPrev.y)) * c.normal.y;
+        if (closing > -RULES.BOUNCE_MIN) p.restitution = 0;
+      }
+      solveSpeeds(pairs);
+    };
+  }
+
   var RULES = Object.freeze({
-    VERSION: 9,            // bump whenever anything that changes the outcome of a run changes
+    VERSION: 10,            // bump whenever anything that changes the outcome of a run changes
     W: 360, H: 520,        // jar size in game units
     PAD: 3,                // inner margin of the jar walls
     DROP_Y: 46,            // height the food is dropped from
     LINE_Y: 96,            // the "full" line: a food is over it when its centre is, so half of it may stick out
     WALL: 60,
+    WALL_GIVE: 0.5,        // how far a food may sink into a wall or the floor before it is put back
     STEP_MS: 1000 / 60,
     GRAVITY: 1.5,
+    BOUNCE_MIN: 1.5,       // game units per step; foods that meet slower than this do not bounce (a fall of about 3 units)
     READY_STEPS: 31,       // wait after a drop before the next food is ready (about half a second)
     SETTLE_STEPS: 150,     // wait after the last food before the run ends
     GRACE_STEPS: 72,       // a new food cannot count as "over the line" for this long
@@ -96,6 +123,8 @@
     REST_STEPS: 60,        // a food that stays in the same spot this long goes to rest (1 second)
     REST_ROOM: 1.2,        // "the same spot": it has not moved or turned (measured at its rim) more than this
     REST_SPEED: 0.2,       // game units per step; a food moving faster than this wakes the resting foods it touches
+    REST_LONG: 150,        // a food whose centre has not left its spot for this long rests even if it is still bouncing or spinning there
+    REST_CHECK: 10,        // steps a resting food is let loose when a neighbour changes place
     DROP_STEPS: 900,       // 15 seconds to drop each food
     MAX_FOODS: 200,
     SPAWN_LEVELS: 5,       // dropped foods are levels 0..4
@@ -180,12 +209,38 @@
       if (angle) o.angle = angle;
       b = Body.create(o);
     } else b = Bodies.circle(px, py, f.r, o);
-    // ax, ay, aa: the spot it is being watched at; quiet: steps it has stayed there; v2: its speed, squared
-    b.food = { lv: lv, gold: !!gold, born: this.step, above: 0, gone: false, ax: px, ay: py, aa: angle || 0, quiet: 0, v2: 1 };
+    // ax, ay, aa: the spot and angle it is being watched at; stay: steps its centre has stayed there;
+    // quiet: steps it has neither moved nor turned; v2: its speed, squared
+    b.food = { lv: lv, gold: !!gold, born: this.step, above: 0, gone: false, ax: px, ay: py, aa: angle || 0, quiet: 0, stay: 0, v2: 1, hit: false };
     this._addBody(b);
     this.foods.push(b);
     if (lv > this.maxLv) this.maxLv = lv;
     return b;
+  };
+
+  /*
+   * The walls and the floor are solid. The engine only pushes a food out of a wall little by little,
+   * so a small food squeezed by heavy ones could sink into the glass and even end up outside the jar.
+   * After every step, a food that is more than WALL_GIVE into a wall is put back against it.
+   */
+  Sim.prototype._keepIn = function () {
+    var give = RULES.WALL_GIVE, left = RULES.PAD - give, right = RULES.W - RULES.PAD + give, floor = RULES.H - RULES.PAD + give;
+    for (var i = 0; i < this.foods.length; i++) {
+      var b = this.foods[i], vs = b.vertices, x0 = vs[0].x, x1 = x0, y1 = vs[0].y, mx = 0, my = 0;
+      if (b.isSleeping) continue;
+      for (var k = 1; k < vs.length; k++) {        // its real outline (b.bounds also covers where it is heading)
+        if (vs[k].x < x0) x0 = vs[k].x; else if (vs[k].x > x1) x1 = vs[k].x;
+        if (vs[k].y > y1) y1 = vs[k].y;
+      }
+      if (x0 < left) mx = left - x0; else if (x1 > right) mx = right - x1;
+      if (y1 > floor) my = floor - y1;
+      if (!mx && !my) continue;
+      var vx = b.position.x - b.positionPrev.x, vy = b.position.y - b.positionPrev.y;
+      Body.setPosition(b, { x: b.position.x + mx, y: b.position.y + my });
+      if ((mx > 0 && vx < 0) || (mx < 0 && vx > 0)) vx = 0;        // and it stops pushing into the wall
+      if (my && vy > 0) vy = 0;
+      Body.setVelocity(b, { x: vx, y: vy });
+    }
   };
 
   /* Foods that have settled go to rest (see "Rest" above). */
@@ -197,16 +252,28 @@
       var vx = b.position.x - b.positionPrev.x, vy = b.position.y - b.positionPrev.y, r = FOODS[f.lv].r;
       var turn = (b.angle - b.anglePrev) * r;
       var dx = b.position.x - f.ax, dy = b.position.y - f.ay, da = (b.angle - f.aa) * r;
+      var moved = dx * dx + dy * dy >= room;
       f.v2 = vx * vx + vy * vy;
-      if (dx * dx + dy * dy >= room || da * da >= room) { f.ax = b.position.x; f.ay = b.position.y; f.aa = b.angle; f.quiet = 0; }
-      else if (++f.quiet >= RULES.REST_STEPS && f.v2 + turn * turn < slow) Sleeping.set(b, true);
+      if (moved || f.hit) { f.hit = false; this._stir(b); }
+      if (moved) { f.ax = b.position.x; f.ay = b.position.y; f.aa = b.angle; f.quiet = 0; f.stay = 0; continue; }
+      if (da * da >= room) { f.aa = b.angle; f.quiet = 0; } else f.quiet++;
+      if (++f.stay >= RULES.REST_LONG || (f.quiet >= RULES.REST_STEPS && f.v2 + turn * turn < slow)) Sleeping.set(b, true);
+    }
+  };
+  /* Let loose, for a moment, the resting foods next to one that has changed place. */
+  Sim.prototype._stir = function (b) {
+    var box = b.bounds, near = 2, quiet = RULES.REST_STEPS - RULES.REST_CHECK;
+    for (var i = 0; i < this.foods.length; i++) {
+      var o = this.foods[i], ob = o.bounds;
+      if (!o.isSleeping || ob.min.x > box.max.x + near || ob.max.x < box.min.x - near || ob.min.y > box.max.y + near || ob.max.y < box.min.y - near) continue;
+      Sleeping.set(o, false); o.food.quiet = quiet; o.food.stay = RULES.REST_LONG - RULES.REST_CHECK;
     }
   };
   Sim.prototype._wakeAll = function () {
     for (var i = 0; i < this.foods.length; i++) {
       var b = this.foods[i];
       if (b.isSleeping) Sleeping.set(b, false);
-      b.food.quiet = 0;
+      b.food.quiet = 0; b.food.stay = 0;
     }
   };
 
@@ -352,6 +419,7 @@
   Sim.prototype.tick = function () {
     if (this.over) return;
     Engine.update(this.engine, RULES.STEP_MS);
+    this._keepIn();
     this._rest();
     this.step++;
     this._runMerges();

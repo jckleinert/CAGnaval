@@ -154,3 +154,19 @@ test('a settled pile goes to rest, and wakes when it is hit or a food is taken a
   assert.ok(sim.power('sweep'));
   assert.ok(sim.foods.every((b) => !b.isSleeping), 'taking a food out wakes the rest');
 });
+
+test('no food sinks into the walls or the floor, however hard the pile squeezes it', () => {
+  // Fast random play fills the jar with heavy foods pressing on small ones.
+  for (const seed of [11, 12, 13]) {
+    const rnd = Sim.rng32(seed), sim = new Sim({ pub: seed });
+    const piece = () => ({ lv: Math.floor(rnd() * R.SPAWN_LEVELS), gold: false });
+    sim.setPiece(1, piece()); sim.setPiece(2, piece());
+    let deepest = 0;
+    while (!sim.over) {
+      if (sim.canDrop() && sim.step - sim.turnStart >= 25) { sim.drop(Math.floor(rnd() * (R.W + 1))); if (sim.dropped + 1 <= R.MAX_FOODS) sim.setPiece(sim.dropped + 1, piece()); }
+      sim.tick();
+      for (const b of sim.foods) for (const v of b.vertices) deepest = Math.max(deepest, R.PAD - v.x, v.x - (R.W - R.PAD), v.y - (R.H - R.PAD));
+    }
+    assert.ok(deepest <= R.WALL_GIVE + 1e-9, 'deepest point ' + deepest + ' units into a wall');
+  }
+});
