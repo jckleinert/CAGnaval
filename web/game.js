@@ -139,7 +139,7 @@
   /* Letting go of a food: very soft, and never twice the same (a little higher or lower, a little
      louder or softer; a bit lower for big foods). It plays hundreds of times a run. */
   function soundDrop(lv) {
-    play(sfx.drop, (1.08 - lv * 0.03) * (0.9 + Math.random() * 0.2), 0.08 + Math.random() * 0.03);
+    play(sfx.drop, (1.08 - lv * 0.03) * (0.9 + Math.random() * 0.2), 0.035 + Math.random() * 0.015);
   }
   function soundMerge(lv, gold) {
     var n = sfx.pops.length, i;
