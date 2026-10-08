@@ -125,6 +125,7 @@ Cambiar el tamaño de una comida o su forma general sí cambia el juego, y oblig
 ## Sonido
 
 - Las fusiones suenan con uno de tres "pops" elegido al azar (sin repetir el anterior), más agudo para las comidas chicas y más grave para las grandes. Los pops salen de `art/sounds/pops-original.mp3`, cortados en `web/snd/pop0.mp3`, `pop1.mp3` y `pop2.mp3`.
+- Cuando se fusiona el onigiri dorado, además del pop suena un "polvo de hada" (`web/snd/gold.mp3`, cortado de `art/sounds/fairy-dust-original.mp3`).
 - El botón del parlante, en la punta derecha del toldo, apaga y prende el sonido; el juego lo recuerda.
 - Los navegadores solo dejan sonar una página después de que la persona la toca, así que el sonido arranca con el primer toque o con el botón Play.
 

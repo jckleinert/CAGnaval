@@ -102,7 +102,7 @@
   /* Browsers only let a page make sound after the player touches it, so the sound engine is
      started on the first tap or click. Merges use one of a few pops at random, higher for small
      foods and lower for big ones, so they never sound exactly the same twice in a row. */
-  var sfx = { ctx: null, gain: null, pops: [], last: -1, muted: !!load('cagnaval.muted', false), frame: 0 };
+  var sfx = { ctx: null, gain: null, pops: [], gold: null, last: -1, muted: !!load('cagnaval.muted', false), frame: 0 };
   var muteBtn = $('mute');
   function showMute() { muteBtn.setAttribute('aria-pressed', sfx.muted ? 'true' : 'false'); muteBtn.setAttribute('aria-label', sfx.muted ? 'Sound on' : 'Sound off'); }
   showMute();
@@ -117,12 +117,14 @@
     if (!sfx.ctx) {
       try { sfx.ctx = new AC(); } catch (e) { return; }
       sfx.gain = sfx.ctx.createGain(); sfx.gain.gain.value = sfx.muted ? 0 : 1; sfx.gain.connect(sfx.ctx.destination);
-      ['pop0', 'pop1', 'pop2'].forEach(function (n, i) {
+      var get = function (n, put) {
         fetch('/web/snd/' + n + '.mp3').then(function (r) { return r.arrayBuffer(); })
           .then(function (b) { return new Promise(function (ok, no) { sfx.ctx.decodeAudioData(b, ok, no); }); })
-          .then(function (buf) { sfx.pops[i] = buf; })
+          .then(put)
           .catch(function () { /* the game works without sound */ });
-      });
+      };
+      ['pop0', 'pop1', 'pop2'].forEach(function (n, i) { get(n, function (buf) { sfx.pops[i] = buf; }); });
+      get('gold', function (buf) { sfx.gold = buf; });
     }
     if (sfx.ctx.state === 'suspended') sfx.ctx.resume();
   }
@@ -141,7 +143,7 @@
     sfx.last = i;
     var rate = (1.28 - lv * 0.055) * (0.97 + Math.random() * 0.06);
     play(sfx.pops[i], rate, 0.55 + Math.min(lv, 10) * 0.03);
-    if (gold) play(sfx.pops[(i + 1) % n], rate * 1.5, 0.45);
+    if (gold) play(sfx.gold, 1, 1);                // the golden onigiri: the pop plus fairy dust
   }
   cv.addEventListener('pointerdown', wakeSound);
 
