@@ -172,10 +172,11 @@ body {
    from the page's script at the exact size it is shown (see drawPeek), and blinks. When Play is
    pressed she ducks down behind the card, and comes up again behind the jar. */
 #home { overflow: visible; margin-top: calc(48px * var(--k)); }
-.peekbox { position: absolute; z-index: 0; left: 50%; bottom: calc(100% - 12px); width: 124px; aspect-ratio: 560 / 509; transform: translateX(-50%); overflow: hidden; pointer-events: none; }
-.peek { display: block; width: 100%; height: 100%; transform: translateY(104%); }
+/* The box clips her at the stripe; the room at its top lets her overshoot a little when she pops up. */
+.peekbox { position: absolute; z-index: 0; left: 50%; bottom: calc(100% - 12px); width: 124px; padding-top: 18px; transform: translateX(-50%); overflow: hidden; pointer-events: none; }
+.peek { display: block; width: 100%; height: auto; aspect-ratio: 560 / 509; transform: translateY(120%); }
 #home.ready .peek { transform: none; transition: transform 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.15); }   /* comes up once her picture is in */
-#home.ready.leaving .peek { transform: translateY(104%); transition: transform 0.24s cubic-bezier(0.55, 0, 0.9, 0.45); }
+#home.ready.leaving .peek { transform: translateY(120%); transition: transform 0.24s cubic-bezier(0.55, 0, 0.9, 0.45); }
 #home::before { z-index: 1; }
 .app:has(#home:not([hidden])) .puppet { visibility: hidden; }   /* one CAG at a time */
 /* The order of the foods, on the start card */

@@ -768,7 +768,7 @@
   var peekCv = $('peek'), peekCtx = peekCv.getContext('2d'), peekKey = '';
   function drawPeek() {
     if (homeEl.hidden || !ART_P || !PUP.ok) return;
-    var r = peekCv.parentNode.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 3);
+    var r = peekCv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 3);
     var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
     var face = reduced ? 0 : blink(4242) === FACE_CLOSED ? 1 : 0, key = w + 'x' + h + ':' + face;
     if (key === peekKey) return;
