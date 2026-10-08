@@ -52,16 +52,18 @@
   </div>
 
   <div class="over" id="home">
-    <span class="peek" aria-hidden="true"></span>
+    <span class="peekbox" aria-hidden="true"><canvas class="peek" id="peek"></canvas></span>
     <img class="logo big" src="/web/img/logo.png" alt="CAGnaval" width="840" height="178">
     <p class="over-line">Drop food. Merge two of the same.</p>
     <ol class="menu" id="homeMenu" aria-label="Food order, smallest to biggest"></ol>
-    <label class="field" for="name"><span class="cap">your name</span>
-      <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false">
+    <label class="field" for="name"><span class="sr">Your name</span>
+      <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Your name">
     </label>
-    <button class="primary" id="play" type="button">Play</button>
-    <button class="ghost" id="openBoard" type="button">Ranking</button>
-    <p class="over-line small">Your best: <b id="best">0</b> kcal</p>
+    <button class="primary wide" id="play" type="button">Play</button>
+    <div class="pair">
+      <span class="best">Best <b id="best">0</b> kcal</span>
+      <button class="ghost" id="openBoard" type="button">Ranking</button>
+    </div>
     <p class="over-line small" id="homeMsg"></p>
   </div>
 
@@ -69,11 +71,14 @@
     <p class="over-title" id="overTitle"></p>
     <p class="ribbon" id="overBest" hidden>New best!</p>
     <p class="over-kcal"><span id="overKcal">0</span> <small>kcal</small></p>
-    <div class="chips"><span class="chip" id="overUsed"></span><span class="chip" id="overTop"></span></div>
-    <p class="over-line" id="overBonus"></p>
+    <div class="stats">
+      <div class="stat"><span class="stat-k">Foods</span><span class="stat-v" id="overUsed"></span></div>
+      <div class="stat"><span class="stat-k">Biggest</span><span class="stat-v" id="overTop"></span></div>
+      <div class="stat"><span class="stat-k">This week</span><span class="stat-v" id="overWeek">–</span></div>
+      <div class="stat" id="overGold"><span class="stat-k">Golden food</span><span class="stat-v" id="overBonus"></span></div>
+    </div>
     <p class="over-line small" id="overCheck"></p>
-    <p class="over-line small" id="overWeek"></p>
-    <button class="primary" id="again" type="button">Play again</button>
+    <button class="primary wide" id="again" type="button">Play again</button>
     <button class="ghost" id="openBoard2" type="button">Ranking</button>
   </div>
 

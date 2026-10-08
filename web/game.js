@@ -147,19 +147,27 @@
 
   function startRun() {
     wakeSound();
+    var leaving = !homeEl.hidden, t0 = Date.now();
+    if (leaving && !reduced) homeEl.classList.add('leaving');      // CAG ducks behind the card
     var name = nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
     player.name = name || 'Player'; save('cagnaval.player', player);
     $('play').disabled = true; $('again').disabled = true; $('homeMsg').textContent = 'Starting…';
     call('POST', '/api/runs', { player: player }, 2).then(function (start) {
+      // let her finish ducking before the card goes
+      var wait = leaving && !reduced ? Math.max(0, 250 - (Date.now() - t0)) : 0;
+      return new Promise(function (ok) { setTimeout(function () { ok(start); }, wait); });
+    }).then(function (start) {
       var sim = new Sim({ pub: start.pub, events: true });
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
       run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
       homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true; boardBack = null;
+      homeEl.classList.remove('leaving');
+      PUP.riseAt = nowMs || 1;                                        // and comes up behind the jar
       $('homeMsg').textContent = '';
       cv.focus();
     }).catch(function (e) {
-      homeEl.hidden = false; overEl.hidden = true;
+      homeEl.hidden = false; overEl.hidden = true; homeEl.classList.remove('leaving');
       $('homeMsg').textContent = e.code === 'slow-down' ? 'Too many requests. Wait a moment.' : 'Could not reach the server. Try again.';
     }).then(function () { $('play').disabled = false; $('again').disabled = false; });
   }
@@ -230,16 +238,15 @@
     else title = sim.overReason === 'done' ? 'All ' + R.MAX_FOODS + ' foods dropped!' : 'Jar is full!';
     $('overTitle').textContent = title;
     $('overKcal').textContent = fmt(kcal);
-    $('overUsed').textContent = (res ? res.dropped : sim.dropped) + ' of ' + R.MAX_FOODS + ' foods';
+    $('overUsed').textContent = (res ? res.dropped : sim.dropped) + ' / ' + R.MAX_FOODS;
     var topFood = FOODS[Math.max(0, res ? res.maxLv : sim.maxLv)], topEl = $('overTop');
     topEl.textContent = '';
     topEl.appendChild(icon(topFood, 20, false));
-    topEl.appendChild(document.createTextNode('Biggest: ' + topFood.n));
+    topEl.appendChild(document.createTextNode(topFood.n));
 
-    var ob = $('overBonus'), g = res && res.gold;
-    ob.classList.toggle('hot', !!(g && g.merged));
-    ob.textContent = !g ? '' : g.merged ? 'Golden bonus: ×' + g.mult + ' (practice, no prize)'
-      : g.appeared ? 'Golden food was not merged: no bonus' : 'No golden food this run';
+    var g = res && res.gold;
+    $('overGold').classList.toggle('hot', !!(g && g.merged));
+    $('overBonus').textContent = g && g.merged ? 'Bonus ×' + g.mult : g && g.appeared ? 'Not merged' : 'None';
 
     var oc = $('overCheck'), ok = !!(res && res.verified);
     oc.classList.toggle('bad', !ok); oc.classList.toggle('ok', ok);
@@ -250,13 +257,13 @@
       : res.sync === false ? 'Your screen and the referee disagreed from move ' + res.mismatchAt + '. The referee score is used.'
       : 'The referee score is used.';
 
-    $('overWeek').textContent = '';
+    $('overWeek').textContent = '–';
     var record = !!(res && res.counted && res.verified && kcal > best && kcal > 0);
     $('overBest').hidden = !record;
     if (res && res.counted) {
       if (record) { best = kcal; save('cagnaval.best', best); }
       call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 1).then(function (b) {
-        if (run === r && b.you) $('overWeek').textContent = 'Rank ' + b.you.rank + ' this week with ' + fmt(b.you.total) + ' kcal';
+        if (run === r && b.you) { $('overWeek').textContent = 'Rank #' + b.you.rank; $('overWeek').title = fmt(b.you.total) + ' kcal this week'; }
       }).catch(function () { /* ranking is optional here */ });
     }
     overEl.hidden = false;
@@ -324,7 +331,7 @@
     kcalEl.textContent = fmt(sim ? sim.kcal : 0);
     bestEl.textContent = fmt(best);
     var leftKey = sim && run.live ? sim.left() : -1;
-    if (leftKey !== lastLeft) { lastLeft = leftKey; leftEl.hidden = leftKey < 0; leftEl.textContent = leftKey + (tabsMode ? ' left' : ' foods left'); }
+    if (leftKey !== lastLeft) { lastLeft = leftKey; leftEl.hidden = leftKey < 0; leftEl.textContent = leftKey + ' foods left'; }
 
     var p = sim ? sim.preview() : null, key = p ? p.lv + (p.gold ? 'g' : '') : '';
     if (key !== lastNext) {
@@ -730,19 +737,32 @@
     PUP.body.onload = function () { PUP.ok = true; PUP.shown = -1; };
     PUP.body.src = '/web/img/cag/body.webp';
   }
-  function paintPuppet(face) {
+  /* Paints one of CAG's faces on a canvas, filling it. */
+  function paintCag(canvas, g, face) {
     var B = ART_P.body, src = PUP.body, sx = face * B.w, w = B.w, h = B.h, t;
     // Halve step by step down to the size needed: shrinking a lot in one go looks jagged.
-    while (w / 2 >= puppet.width && w > 8) {
+    while (w / 2 >= canvas.width && w > 8) {
       t = document.createElement('canvas'); t.width = Math.round(w / 2); t.height = Math.round(h / 2);
       t.getContext('2d').drawImage(src, sx, 0, w, h, 0, 0, t.width, t.height);
       src = t; sx = 0; w = t.width; h = t.height;
     }
-    pctx.setTransform(1, 0, 0, 1, 0, 0);
-    pctx.clearRect(0, 0, puppet.width, puppet.height);
-    pctx.imageSmoothingQuality = 'high';
-    pctx.drawImage(src, sx, 0, w, h, 0, 0, puppet.width, puppet.height);
-    PUP.shown = face;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, canvas.width, canvas.height);
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(src, sx, 0, w, h, 0, 0, canvas.width, canvas.height);
+  }
+  function paintPuppet(face) { paintCag(puppet, pctx, face); PUP.shown = face; }
+  /* CAG on the start card: made at the exact number of screen pixels she covers, so she looks sharp. */
+  var peekCv = $('peek'), peekCtx = peekCv.getContext('2d'), peekKey = '';
+  function drawPeek() {
+    if (homeEl.hidden || !ART_P || !PUP.ok) return;
+    var r = peekCv.parentNode.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 3);
+    var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+    var face = reduced ? 0 : blink(4242) === FACE_CLOSED ? 1 : 0, key = w + 'x' + h + ':' + face;
+    if (key === peekKey) return;
+    peekKey = key;
+    if (peekCv.width !== w || peekCv.height !== h) { peekCv.width = w; peekCv.height = h; }
+    paintCag(peekCv, peekCtx, face);
   }
   function drawPuppet() {
     if (!ART_P || !PUP.ok) return;
@@ -768,8 +788,17 @@
     // She breathes a little and nods when she lets go. Never more than what the rim hides.
     var bob = reduced ? 0 : Math.sin(nowMs / 560) * 1.1 + (justDropped ? Math.sin(Math.PI * (step - run.barAt) / 18) * 1.6 : 0);
     bob = clamp(bob * PUP.css, -PUP.TUCK_PX + 1, PUP.TUCK_PX - 1);
-    var move = 'translate3d(' + (PUP.x * PUP.css - PUP.w / 2).toFixed(2) + 'px,' + bob.toFixed(2) + 'px,0)';
-    if (move !== PUP.moved) { PUP.moved = move; puppet.style.transform = move; }
+    // At the start of a run she comes up from behind the rim.
+    var rise = 0;
+    if (PUP.riseAt && !reduced) {
+      var rt = (nowMs - PUP.riseAt) / 380;
+      if (rt < 1) rise = (PUP.h + PUP.TUCK_PX) * Math.pow(1 - rt, 3); else PUP.riseAt = 0;
+    }
+    var move = 'translate3d(' + (PUP.x * PUP.css - PUP.w / 2).toFixed(2) + 'px,' + (bob + rise).toFixed(2) + 'px,0)';
+    if (move !== PUP.moved) {
+      PUP.moved = move; puppet.style.transform = move;
+      puppet.style.clipPath = rise > 0.5 ? 'inset(0 0 ' + rise.toFixed(1) + 'px 0)' : '';   // nothing shows below the rim
+    }
   }
 
   function fit() {
@@ -777,10 +806,7 @@
     // size follows the jar's. The jar never gets smaller than MIN_JAR_H: on a very short screen
     // the page scrolls instead of squashing it.
     var MIN_JAR_H = 300, MAX_JAR_W = 760;
-    // Tabs on the side of the jar (trial layout): on narrow screens make room for them on the left.
-    var room = tabsEl && !wideQ.matches ? tabsEl.offsetWidth + 6 : 0;
-    jar.style.marginLeft = room ? room + 'px' : '';
-    var bw = stage.clientWidth - 18 - room, sh = stage.clientHeight;
+    var bw = stage.clientWidth - 18, sh = stage.clientHeight;
     var guess = Math.min(bw / W, (sh - 66) / H);
     var bh = Math.max(sh - (PUP.bodyH * guess + 16), MIN_JAR_H);
     var s = clamp(Math.min(bw / W, bh / H), 0.3, MAX_JAR_W / W);
@@ -811,20 +837,6 @@
   }
   placePowers();
 
-  /* Trial layout (?layout=tabs, back with ?layout=signs; the choice is remembered): the score and
-     the next food become two tabs stuck to the left side of the jar, close to where the eye is. */
-  var lay = /[?&]layout=(tabs|signs)/.exec(location.search);
-  if (lay) save('cagnaval.layout', lay[1]);
-  var tabsMode = (lay ? lay[1] : load('cagnaval.layout', 'signs')) === 'tabs';
-  var wideQ = window.matchMedia('(min-width: 720px) and (min-aspect-ratio: 11/10)'), tabsEl = null;
-  if (tabsMode) {
-    document.documentElement.classList.add('tabbed');
-    tabsEl = document.createElement('div'); tabsEl.className = 'tabs';
-    tabsEl.appendChild(document.querySelector('.sign.next'));
-    tabsEl.appendChild(document.querySelector('.sign.score'));
-    jar.insertBefore(tabsEl, jar.firstChild);
-    if (wideQ.addEventListener) wideQ.addEventListener('change', fit);
-  }
   if (tallQ.addEventListener) tallQ.addEventListener('change', function () { placePowers(); fit(); });
   if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
   window.addEventListener('resize', fit);
@@ -870,6 +882,7 @@
     draw();
     drawJolt();
     drawPuppet();
+    drawPeek();
     requestAnimationFrame(frame);
   }
 
