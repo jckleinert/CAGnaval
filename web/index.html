@@ -7,6 +7,7 @@
   <title>CAGnaval</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="/web/style.css">
+  <link rel="preload" as="image" href="/web/img/cag/body.webp" type="image/webp">
 </head>
 <body>
 <main class="app">
@@ -69,15 +70,17 @@
 
   <div class="over" id="over" hidden>
     <p class="over-title" id="overTitle"></p>
-    <p class="ribbon" id="overBest" hidden>New best!</p>
-    <p class="over-kcal"><span id="overKcal">0</span> <small>kcal</small></p>
-    <div class="stats">
-      <div class="stat"><span class="stat-k">Foods</span><span class="stat-v" id="overUsed"></span></div>
-      <div class="stat"><span class="stat-k">Biggest</span><span class="stat-v" id="overTop"></span></div>
-      <div class="stat"><span class="stat-k">This week</span><span class="stat-v" id="overWeek">–</span></div>
-      <div class="stat" id="overGold"><span class="stat-k">Golden food</span><span class="stat-v" id="overBonus"></span></div>
+    <div class="hero"><span class="hero-disc" id="overHero"></span><span class="hero-cap" id="overTop"></span></div>
+    <div class="tally">
+      <p class="over-kcal"><span id="overKcal">0</span><small>kcal</small></p>
+      <p class="sticker" id="overBest" hidden>New best!</p>
     </div>
-    <p class="over-line small" id="overCheck"></p>
+    <div class="stats">
+      <div class="stat blue"><span class="stat-k">Foods</span><span class="stat-v" id="overUsed"></span></div>
+      <div class="stat pink"><span class="stat-k">This week</span><span class="stat-v" id="overWeek">–</span></div>
+      <div class="stat yellow" id="overGold"><span class="stat-k">Golden</span><span class="stat-v" id="overBonus"></span></div>
+    </div>
+    <p class="check" id="overCheck"></p>
     <button class="primary wide" id="again" type="button">Play again</button>
     <button class="ghost" id="openBoard2" type="button">Ranking</button>
   </div>

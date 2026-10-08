@@ -229,6 +229,18 @@
       .catch(function () { showResult(r, null, code); });
   }
 
+  /* The score on the result card counts up from zero. */
+  var countTok = 0;
+  function countUp(el, to) {
+    var tok = ++countTok, t0 = performance.now(), dur = reduced ? 0 : 850;
+    (function tick(now) {
+      if (tok !== countTok) return;
+      var k = dur ? Math.min(1, (now - t0) / dur) : 1;
+      el.textContent = fmt(Math.round(to * (1 - Math.pow(1 - k, 3))));
+      if (k < 1) requestAnimationFrame(tick);
+    })(t0);
+  }
+
   function showResult(r, res, problem) {
     if (run !== r) return;
     var sim = r.sim, kcal = res ? res.kcal : sim.kcal, title;
@@ -237,16 +249,16 @@
     else if (problem) title = 'Run stopped';
     else title = sim.overReason === 'done' ? 'All ' + R.MAX_FOODS + ' foods dropped!' : 'Jar is full!';
     $('overTitle').textContent = title;
-    $('overKcal').textContent = fmt(kcal);
+    countUp($('overKcal'), kcal);
     $('overUsed').textContent = (res ? res.dropped : sim.dropped) + ' / ' + R.MAX_FOODS;
     var topFood = FOODS[Math.max(0, res ? res.maxLv : sim.maxLv)], topEl = $('overTop');
-    topEl.textContent = '';
-    topEl.appendChild(icon(topFood, 20, false));
-    topEl.appendChild(document.createTextNode(topFood.n));
+    topEl.textContent = 'Biggest: ';
+    var nm = document.createElement('b'); nm.textContent = topFood.n; topEl.appendChild(nm);
+    var hero = $('overHero'); hero.textContent = ''; hero.appendChild(icon(topFood, 66, false));
 
     var g = res && res.gold;
     $('overGold').classList.toggle('hot', !!(g && g.merged));
-    $('overBonus').textContent = g && g.merged ? 'Bonus ×' + g.mult : g && g.appeared ? 'Not merged' : 'None';
+    $('overBonus').textContent = g && g.merged ? '×' + g.mult : g && g.appeared ? 'Missed' : 'None';
 
     var oc = $('overCheck'), ok = !!(res && res.verified);
     oc.classList.toggle('bad', !ok); oc.classList.toggle('ok', ok);
@@ -263,7 +275,7 @@
     if (res && res.counted) {
       if (record) { best = kcal; save('cagnaval.best', best); }
       call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 1).then(function (b) {
-        if (run === r && b.you) { $('overWeek').textContent = 'Rank #' + b.you.rank; $('overWeek').title = fmt(b.you.total) + ' kcal this week'; }
+        if (run === r && b.you) { $('overWeek').textContent = '#' + b.you.rank; $('overWeek').title = fmt(b.you.total) + ' kcal this week'; }
       }).catch(function () { /* ranking is optional here */ });
     }
     overEl.hidden = false;
@@ -763,6 +775,7 @@
     peekKey = key;
     if (peekCv.width !== w || peekCv.height !== h) { peekCv.width = w; peekCv.height = h; }
     paintCag(peekCv, peekCtx, face);
+    if (!homeEl.classList.contains('ready')) requestAnimationFrame(function () { homeEl.classList.add('ready'); });   // she comes up
   }
   function drawPuppet() {
     if (!ART_P || !PUP.ok) return;

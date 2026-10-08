@@ -118,7 +118,8 @@ Cambiar el tamaño de una comida o su forma general sí cambia el juego, y oblig
 - En celulares altos, los botones Shake, Swap y Sweep van sobre el mostrador, debajo del frasco, para que el frasco use todo el ancho. En pantallas más bajas o anchas quedan en una columna al costado.
 - Cada fusión tira chispitas con los colores de la comida y muestra las calorías ganadas, más grandes cuanto más grande es la comida. Las fusiones encadenadas (menos de un segundo entre una y otra) muestran un cartel de combo; es solo un festejo, no suma puntos. Al formarse un ramen o algo más grande, el frasco da un pequeño sacudón.
 - La pantalla de inicio muestra a CAG asomándose (dibujada al tamaño exacto de la pantalla, para que se vea nítida) y el orden de las comidas. Al apretar Play, CAG se esconde detrás del cartel y aparece subiendo por detrás del frasco.
-- La pantalla final muestra el puntaje, un cartel de "New best!" cuando se supera el récord, y cuatro cuadritos: comidas usadas, la comida más grande (con su dibujo), el puesto de la semana y la comida dorada.
+- En la pantalla de inicio CAG aparece subiendo desde atrás del cartel apenas termina de cargar su dibujo, en vez de aparecer de golpe.
+- La pantalla final muestra la comida más grande en un círculo con papelitos, el puntaje contando desde cero, un sticker de "New best!" cuando se supera el récord, y tres cuadritos de colores: comidas usadas, puesto de la semana y comida dorada.
 - Todo esto es solo visual: no cambia ninguna partida.
 
 ## Sonido
