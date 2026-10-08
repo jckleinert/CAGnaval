@@ -102,7 +102,7 @@
   /* Browsers only let a page make sound after the player touches it, so the sound engine is
      started on the first tap or click. Merges use one of a few pops at random, higher for small
      foods and lower for big ones, so they never sound exactly the same twice in a row. */
-  var sfx = { ctx: null, gain: null, pops: [], gold: null, last: -1, muted: !!load('cagnaval.muted', false), frame: 0 };
+  var sfx = { ctx: null, gain: null, pops: [], gold: null, drop: null, last: -1, muted: !!load('cagnaval.muted', false), frame: 0 };
   var muteBtn = $('mute');
   function showMute() { muteBtn.setAttribute('aria-pressed', sfx.muted ? 'true' : 'false'); muteBtn.setAttribute('aria-label', sfx.muted ? 'Sound on' : 'Sound off'); }
   showMute();
@@ -125,6 +125,7 @@
       };
       ['pop0', 'pop1', 'pop2'].forEach(function (n, i) { get(n, function (buf) { sfx.pops[i] = buf; }); });
       get('gold', function (buf) { sfx.gold = buf; });
+      get('drop', function (buf) { sfx.drop = buf; });
     }
     if (sfx.ctx.state === 'suspended') sfx.ctx.resume();
   }
@@ -134,6 +135,11 @@
     var src = sfx.ctx.createBufferSource(), g = sfx.ctx.createGain();
     src.buffer = buf; src.playbackRate.value = rate; g.gain.value = vol;
     src.connect(g); g.connect(sfx.gain); src.start();
+  }
+  /* Letting go of a food: very soft, and never twice the same (a little higher or lower, a little
+     louder or softer; a bit lower for big foods). It plays hundreds of times a run. */
+  function soundDrop(lv) {
+    play(sfx.drop, (1.08 - lv * 0.03) * (0.9 + Math.random() * 0.2), 0.16 + Math.random() * 0.06);
   }
   function soundMerge(lv, gold) {
     var n = sfx.pops.length, i;
@@ -192,7 +198,9 @@
     if (!sim.canDrop()) return;
     var msg = { seq: run.seq + 1, step: sim.step, x: x, h: sim.hash() };
     var timeLeft = clamp((sim.deadline() - sim.step) / R.DROP_STEPS, 0, 1);
+    var held = sim.current();
     if (!sim.drop(x)) return;
+    soundDrop(held ? held.lv : 0);
     run.seq++;
     run.barFrom = timeLeft; run.barAt = sim.step;   // the time bar refills from here
     post('drop', msg, function (reply) { if (reply.piece) sim.setPiece(reply.k, reply.piece); });
