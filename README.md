@@ -120,6 +120,16 @@ Cambiar el tamaño de una comida o su forma general sí cambia el juego, y oblig
 - La pantalla de inicio muestra a CAG asomándose y el orden de las comidas. La final muestra el dibujo de la comida más grande y un cartel de "New best!" cuando se supera el récord.
 - Todo esto es solo visual: no cambia ninguna partida.
 
+## Sonido
+
+- Las fusiones suenan con uno de tres "pops" elegido al azar (sin repetir el anterior), más agudo para las comidas chicas y más grave para las grandes. Los pops salen de `art/sounds/pops-original.mp3`, cortados en `web/snd/pop0.mp3`, `pop1.mp3` y `pop2.mp3`.
+- El botón del parlante, en la punta derecha del toldo, apaga y prende el sonido; el juego lo recuerda.
+- Los navegadores solo dejan sonar una página después de que la persona la toca, así que el sonido arranca con el primer toque o con el botón Play.
+
+## Prueba: puntaje y próxima comida pegados al frasco
+
+Con `?layout=tabs` al final de la dirección, el puntaje y la próxima comida pasan a ser dos solapas pegadas al lado izquierdo del frasco. Con `?layout=signs` se vuelve a los carteles de arriba. La elección queda guardada en ese navegador.
+
 ## El personaje (CAG)
 
 CAG está asomada arriba del frasco, encima de la comida que va a caer, y sigue la puntería. Respira, parpadea, y abre los ojos al soltar y cuando el frasco está por llenarse. El borde de abajo del busto queda escondido detrás del borde del frasco, así no se ve un hueco cuando se mueve. Es solo visual.

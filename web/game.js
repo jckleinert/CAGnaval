@@ -98,7 +98,55 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.hidden = true; }, 2200);
   }
 
+  /* ---------- sound ---------- */
+  /* Browsers only let a page make sound after the player touches it, so the sound engine is
+     started on the first tap or click. Merges use one of a few pops at random, higher for small
+     foods and lower for big ones, so they never sound exactly the same twice in a row. */
+  var sfx = { ctx: null, gain: null, pops: [], last: -1, muted: !!load('cagnaval.muted', false), frame: 0 };
+  var muteBtn = $('mute');
+  function showMute() { muteBtn.setAttribute('aria-pressed', sfx.muted ? 'true' : 'false'); muteBtn.setAttribute('aria-label', sfx.muted ? 'Sound on' : 'Sound off'); }
+  showMute();
+  muteBtn.addEventListener('click', function () {
+    sfx.muted = !sfx.muted; save('cagnaval.muted', sfx.muted); showMute();
+    if (sfx.gain) sfx.gain.gain.value = sfx.muted ? 0 : 1;
+    wakeSound();
+  });
+  function wakeSound() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!sfx.ctx) {
+      try { sfx.ctx = new AC(); } catch (e) { return; }
+      sfx.gain = sfx.ctx.createGain(); sfx.gain.gain.value = sfx.muted ? 0 : 1; sfx.gain.connect(sfx.ctx.destination);
+      ['pop0', 'pop1', 'pop2'].forEach(function (n, i) {
+        fetch('/web/snd/' + n + '.mp3').then(function (r) { return r.arrayBuffer(); })
+          .then(function (b) { return new Promise(function (ok, no) { sfx.ctx.decodeAudioData(b, ok, no); }); })
+          .then(function (buf) { sfx.pops[i] = buf; })
+          .catch(function () { /* the game works without sound */ });
+      });
+    }
+    if (sfx.ctx.state === 'suspended') sfx.ctx.resume();
+  }
+  function play(buf, rate, vol) {
+    if (!sfx.ctx || !buf || sfx.muted || sfx.frame >= 3) return;      // at most three sounds at once
+    sfx.frame++;
+    var src = sfx.ctx.createBufferSource(), g = sfx.ctx.createGain();
+    src.buffer = buf; src.playbackRate.value = rate; g.gain.value = vol;
+    src.connect(g); g.connect(sfx.gain); src.start();
+  }
+  function soundMerge(lv, gold) {
+    var n = sfx.pops.length, i;
+    if (!n) return;
+    i = Math.floor(Math.random() * n);
+    if (n > 1 && i === sfx.last) i = (i + 1) % n;
+    sfx.last = i;
+    var rate = (1.28 - lv * 0.055) * (0.97 + Math.random() * 0.06);
+    play(sfx.pops[i], rate, 0.55 + Math.min(lv, 10) * 0.03);
+    if (gold) play(sfx.pops[(i + 1) % n], rate * 1.5, 0.45);
+  }
+  cv.addEventListener('pointerdown', wakeSound);
+
   function startRun() {
+    wakeSound();
     var name = nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
     player.name = name || 'Player'; save('cagnaval.player', player);
     $('play').disabled = true; $('again').disabled = true; $('homeMsg').textContent = 'Starting…';
@@ -276,7 +324,7 @@
     kcalEl.textContent = fmt(sim ? sim.kcal : 0);
     bestEl.textContent = fmt(best);
     var leftKey = sim && run.live ? sim.left() : -1;
-    if (leftKey !== lastLeft) { lastLeft = leftKey; leftEl.hidden = leftKey < 0; leftEl.textContent = leftKey + ' foods left'; }
+    if (leftKey !== lastLeft) { lastLeft = leftKey; leftEl.hidden = leftKey < 0; leftEl.textContent = leftKey + (tabsMode ? ' left' : ' foods left'); }
 
     var p = sim ? sim.preview() : null, key = p ? p.lv + (p.gold ? 'g' : '') : '';
     if (key !== lastNext) {
@@ -729,7 +777,10 @@
     // size follows the jar's. The jar never gets smaller than MIN_JAR_H: on a very short screen
     // the page scrolls instead of squashing it.
     var MIN_JAR_H = 300, MAX_JAR_W = 760;
-    var bw = stage.clientWidth - 18, sh = stage.clientHeight;
+    // Tabs on the side of the jar (trial layout): on narrow screens make room for them on the left.
+    var room = tabsEl && !wideQ.matches ? tabsEl.offsetWidth + 6 : 0;
+    jar.style.marginLeft = room ? room + 'px' : '';
+    var bw = stage.clientWidth - 18 - room, sh = stage.clientHeight;
     var guess = Math.min(bw / W, (sh - 66) / H);
     var bh = Math.max(sh - (PUP.bodyH * guess + 16), MIN_JAR_H);
     var s = clamp(Math.min(bw / W, bh / H), 0.3, MAX_JAR_W / W);
@@ -759,6 +810,21 @@
     else if (powersEl.parentNode !== counterEl) counterEl.insertBefore(powersEl, counterEl.firstChild);
   }
   placePowers();
+
+  /* Trial layout (?layout=tabs, back with ?layout=signs; the choice is remembered): the score and
+     the next food become two tabs stuck to the left side of the jar, close to where the eye is. */
+  var lay = /[?&]layout=(tabs|signs)/.exec(location.search);
+  if (lay) save('cagnaval.layout', lay[1]);
+  var tabsMode = (lay ? lay[1] : load('cagnaval.layout', 'signs')) === 'tabs';
+  var wideQ = window.matchMedia('(min-width: 720px) and (min-aspect-ratio: 11/10)'), tabsEl = null;
+  if (tabsMode) {
+    document.documentElement.classList.add('tabbed');
+    tabsEl = document.createElement('div'); tabsEl.className = 'tabs';
+    tabsEl.appendChild(document.querySelector('.sign.next'));
+    tabsEl.appendChild(document.querySelector('.sign.score'));
+    jar.insertBefore(tabsEl, jar.firstChild);
+    if (wideQ.addEventListener) wideQ.addEventListener('change', fit);
+  }
   if (tallQ.addEventListener) tallQ.addEventListener('change', function () { placePowers(); fit(); });
   if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
   window.addEventListener('resize', fit);
@@ -777,6 +843,7 @@
           fx.push({ x: ev.x, y: ev.y, r: FOODS[ev.lv].ext, t: sim.step, txt: '+' + fmt(ev.gain), gold: ev.gold, lv: ev.lv, seed: (sim.step * 7919 + Math.round(ev.x * 13)) | 0 });
           if (combo > 1) { comboFx.n = combo; comboFx.t = sim.step; }
           joltJar(ev.lv);
+          soundMerge(ev.lv, ev.gold);
           if (ev.gold) toast('Golden food merged!');
           else if (!ev.made) toast('Double Pizza Box! +' + fmt(ev.gain) + ' kcal');
           else if (ev.lv === TOP) toast('Pizza Box! +' + fmt(ev.gain) + ' kcal');
@@ -796,6 +863,7 @@
     if (run && run.live) {
       acc += dt;
       var n = 0;
+      sfx.frame = 0;
       while (acc >= R.STEP_MS && n < 240 && run.live) { stepOnce(); acc -= R.STEP_MS; n++; }
     }
     refresh();

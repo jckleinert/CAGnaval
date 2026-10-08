@@ -119,6 +119,14 @@ body {
   border-radius: 999px;
   box-shadow: 0 3px 0 var(--shade);
 }
+/* Sound on/off, at the right end of the awning */
+.mute { position: absolute; z-index: 2; right: max(10px, env(safe-area-inset-right, 0px)); bottom: calc(-10px * var(--k)); width: calc(34px * var(--k)); height: calc(34px * var(--k)); display: grid; place-items: center; padding: 0; background: var(--paper); border: 0; border-radius: 50%; box-shadow: 0 3px 0 var(--shade); cursor: pointer; }
+.mute svg { width: 66%; height: 66%; fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.mute .spk { fill: var(--ink); }
+.mute .off { display: none; stroke: var(--pink); }
+.mute[aria-pressed="true"] .on { display: none; }
+.mute[aria-pressed="true"] .off { display: inline; }
+.mute:focus-visible { outline: 3px solid var(--blue-d); outline-offset: 3px; }
 .logo { display: block; height: calc(27px * var(--k)); width: auto; }
 .logo.big { height: auto; width: 250px; max-width: 92%; margin-bottom: 2px; }
 
@@ -225,6 +233,26 @@ body {
 .pw-n { font-weight: 700; font-size: calc(12.5px * var(--k)); line-height: 1.15; }
 .pw-d { display: none; font-size: calc(11.5px * var(--k)); font-weight: 500; color: var(--dim); line-height: 1.15; }
 .pw:disabled { cursor: default; opacity: 0.45; filter: grayscale(1); }
+
+/* Trial layout: score and next food as tabs stuck to the left side of the jar (see tabsMode in game.js) */
+.tabs { position: absolute; z-index: 1; right: calc(100% + 4px); top: calc(14px * var(--k)); display: flex; flex-direction: column; align-items: flex-end; gap: calc(10px * var(--k)); }
+.tabs .sign { margin: 0; min-height: 0; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: calc(7px * var(--k)) calc(8px * var(--k)) calc(8px * var(--k)) calc(10px * var(--k)); border-radius: calc(14px * var(--k)) 0 0 calc(14px * var(--k)); box-shadow: -2px 4px 0 var(--shade); }
+.tabs .sign::before, .tabs .sign::after { display: none; }
+.tabs .sign { width: calc(66px * var(--k)); }
+.tabs .kcal { display: flex; flex-direction: column; align-items: center; font-size: calc(18px * var(--k)); }
+.tabs .kcal small { margin: 1px 0 0; font-size: calc(11px * var(--k)); }
+.tabs .left { font-size: calc(10.5px * var(--k)); }
+.tabs .cap { font-size: calc(11px * var(--k)); }
+.tabs .disc { width: calc(38px * var(--k)); height: calc(38px * var(--k)); }
+@media (min-width: 720px) and (min-aspect-ratio: 11/10) {
+  .tabs .sign { width: calc(104px * var(--k)); }
+  .tabs .kcal { font-size: calc(26px * var(--k)); }
+  .tabs .kcal small { font-size: calc(13px * var(--k)); }
+  .tabs .left { font-size: calc(12px * var(--k)); }
+  .tabs .disc { width: calc(46px * var(--k)); height: calc(46px * var(--k)); }
+  .tabs .cap { font-size: calc(12px * var(--k)); }
+  .tabbed .powers { margin-top: calc(110px * var(--k)); }   /* the next-food sign above them has moved onto the jar */
+}
 
 /* Power-ups on the counter (phones) */
 .counter .powers { flex-direction: row; justify-content: center; gap: 8px; margin-bottom: 4px; }
