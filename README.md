@@ -72,7 +72,7 @@ El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y ho
 - Las paredes y el piso del frasco son sólidos: ninguna comida puede hundirse en el vidrio ni salirse del frasco, por más que la aprieten las grandes.
 - Comida dorada en 1 de cada 8 partidas. Es siempre el onigiri, en su versión de oro. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).
 - Ventajas Shake, Swap y Sweep, un uso de cada una por partida (en práctica son gratis).
-- Ranking semanal por calorías sumadas.
+- Dos rankings semanales: **Total** (las calorías de todas las partidas de la semana, con la cantidad de partidas jugadas) y **Best run** (la mejor partida de cada jugador; si dos empatan, gana quien llegó primero). En la pantalla de ranking se cambia con dos pestañas.
 
 ## Dibujos de las comidas
 

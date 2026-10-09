@@ -207,9 +207,10 @@ class RunManager {
     return result;
   }
 
-  leaderboard(week, limit, playerId) {
+  leaderboard(week, limit, playerId, by) {
     const w = week || this.store.weekId(this.now());
-    const rows = this.store.leaderboard(w);
+    by = by === 'best' ? 'best' : 'total';
+    const rows = this.store.leaderboard(w, by);
     const me = playerId ? playerKey(playerId) : null;
     let mine = null;
     const top = [];
@@ -220,7 +221,7 @@ class RunManager {
       if (you) mine = row;
       if (i < (limit || 50)) top.push(row);
     }
-    return { week: w, top, you: mine };
+    return { week: w, by, top, you: mine };
   }
 
   /*

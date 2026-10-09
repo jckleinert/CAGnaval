@@ -6,7 +6,7 @@
  *   POST /api/runs/:id/drop        drop a food            { seq, step, x, h }
  *   POST /api/runs/:id/power       use a power-up         { seq, step, power, h }
  *   POST /api/runs/:id/finish      end of the run         { step, kcal, reason }
- *   GET  /api/leaderboard          ranking of the week    ?week=YYYY-MM-DD&player=<id>
+ *   GET  /api/leaderboard          ranking of the week    ?week=YYYY-MM-DD&player=<id>&by=total|best
  *   GET  /api/health
  */
 const http = require('http');
@@ -80,7 +80,7 @@ function createApp(options) {
       const parts = url.pathname.split('/').filter(Boolean); // ['api', ...]
       if (req.method === 'GET' && parts[1] === 'health') return send(res, 200, { ok: true, rulesVersion: Sim.RULES.VERSION, activeRuns: runs.active.size }, cors);
       if (req.method === 'GET' && parts[1] === 'leaderboard') {
-        return send(res, 200, runs.leaderboard(url.searchParams.get('week') || '', 50, url.searchParams.get('player') || ''), cors);
+        return send(res, 200, runs.leaderboard(url.searchParams.get('week') || '', 50, url.searchParams.get('player') || '', url.searchParams.get('by') || ''), cors);
       }
       if (req.method === 'POST' && parts[1] === 'runs') {
         const body = await readJson(req);

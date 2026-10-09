@@ -234,3 +234,19 @@ test('player names are cleaned before they reach the ranking', () => {
   assert.ok(!/[<>\n]/.test(name) && name.length <= 16, name);
   assert.throws(() => env.mgr.create({ id: 'x', name: 'a' }, {}), (e) => e.code === 'bad-player');
 });
+
+test('two rankings: total of all runs (with the number of runs) and best single run', () => {
+  const env = setup();
+  const week = env.store.weekId(env.clock.t);
+  // Ana plays many small runs, Beto one big run, Caro reaches Beto's best later.
+  env.store.addScore(week, 'ana', 'Ana', 3000, 1); env.store.addScore(week, 'ana', 'Ana', 3000, 2); env.store.addScore(week, 'ana', 'Ana', 3000, 3);
+  env.store.addScore(week, 'beto', 'Beto', 8000, 4);
+  env.store.addScore(week, 'caro', 'Caro', 8000, 9); env.store.addScore(week, 'caro', 'Caro', 100, 10);
+  const total = env.mgr.leaderboard(week, 10, '', 'total');
+  assert.strictEqual(total.by, 'total');
+  assert.deepStrictEqual(total.top.map((r) => [r.name, r.total, r.runs]), [['Ana', 9000, 3], ['Caro', 8100, 2], ['Beto', 8000, 1]]);
+  const best = env.mgr.leaderboard(week, 10, '', 'best');
+  assert.strictEqual(best.by, 'best');
+  assert.deepStrictEqual(best.top.map((r) => [r.name, r.best]), [['Beto', 8000], ['Caro', 8000], ['Ana', 3000]], 'a tie goes to whoever got there first');
+  assert.strictEqual(env.mgr.leaderboard(week, 10, '', 'nonsense').by, 'total');
+});

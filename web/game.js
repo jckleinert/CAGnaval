@@ -292,25 +292,42 @@
     $('again').focus();
   }
 
+  /* The ranking of the week, two ways: the total of all runs (with how many runs) or the best single run. */
+  var boardBy = 'total', boardTok = 0;
   function openBoard() {
-    var list = $('rank'), msg = $('rankMsg');
-    list.textContent = ''; msg.textContent = 'Loading…';
     // The ranking takes the place of the card it was opened from, and gives it back on close.
     boardBack = !overEl.hidden ? overEl : !homeEl.hidden ? homeEl : null;
     if (boardBack) boardBack.hidden = true;
     boardEl.hidden = false;
-    call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 2).then(function (b) {
+    loadBoard(boardBy);
+  }
+  function loadBoard(by) {
+    var list = $('rank'), msg = $('rankMsg'), head = $('rankHead'), tok = ++boardTok, total = by === 'total';
+    boardBy = by;
+    $('tabTotal').setAttribute('aria-selected', total ? 'true' : 'false');
+    $('tabBest').setAttribute('aria-selected', total ? 'false' : 'true');
+    list.textContent = ''; head.textContent = ''; msg.textContent = 'Loading…';
+    list.classList.toggle('runs', total); head.classList.toggle('runs', total);
+    call('GET', '/api/leaderboard?by=' + by + '&player=' + encodeURIComponent(player.id), null, 2).then(function (b) {
+      if (tok !== boardTok) return;
       msg.textContent = b.top.length ? '' : 'No runs yet this week. Be the first.';
+      var cells = function (el, texts, classes) {
+        texts.forEach(function (t, i) { var c = document.createElement('span'); c.textContent = t; if (classes[i]) c.className = classes[i]; el.appendChild(c); });
+      };
+      if (b.top.length) cells(head, total ? ['#', 'Player', 'Runs', 'kcal'] : ['#', 'Player', 'kcal'], []);
       var rows = b.top.slice(0, 15);
       if (b.you && b.you.rank > rows.length) rows.push(b.you);
       rows.forEach(function (row) {
-        var li = document.createElement('li'), a = document.createElement('span'), n = document.createElement('span'), k = document.createElement('span');
-        a.className = 'pos'; a.textContent = row.rank; n.className = 'who'; n.textContent = row.name; k.textContent = fmt(row.total);
+        var li = document.createElement('li');
+        if (total) cells(li, [row.rank, row.name, row.runs, fmt(row.total)], ['pos', 'who', 'runs-n', '']);
+        else cells(li, [row.rank, row.name, fmt(row.best)], ['pos', 'who', '']);
         if (row.you) li.className = 'you';
-        li.appendChild(a); li.appendChild(n); li.appendChild(k); list.appendChild(li);
+        list.appendChild(li);
       });
-    }).catch(function () { msg.textContent = 'Could not load the ranking.'; });
+    }).catch(function () { if (tok === boardTok) msg.textContent = 'Could not load the ranking.'; });
   }
+  $('tabTotal').addEventListener('click', function () { loadBoard('total'); });
+  $('tabBest').addEventListener('click', function () { loadBoard('best'); });
 
   /* How much the cards (start, result, ranking) are enlarged on this screen: the --k of the page. */
   function cardScale() { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--k')) || 1; }

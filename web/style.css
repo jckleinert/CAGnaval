@@ -238,8 +238,18 @@ body {
 .ghost:active { transform: translateY(1px); }
 .primary:focus-visible, .ghost:focus-visible, .pw:focus-visible { outline: 3px solid var(--blue-d); outline-offset: 3px; }
 
-.rank { list-style: none; margin: 4px 0; padding: 0; width: 100%; max-width: 290px; display: grid; gap: 5px; font-variant-numeric: tabular-nums; }
-.rank li { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 5px 12px; background: #F1FAFE; border-radius: 12px; text-align: left; font-weight: 600; font-size: 15px; }
+.rank { list-style: none; margin: 2px 0 4px; padding: 0; width: 100%; max-width: 290px; display: grid; gap: 5px; font-variant-numeric: tabular-nums; }
+.rank li, .rank-head { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 5px 12px; background: #F1FAFE; border-radius: 12px; text-align: left; font-weight: 600; font-size: 15px; }
+.rank.runs li, .rank-head.runs { grid-template-columns: 22px minmax(0, 1fr) 40px auto; }
+.rank .runs-n { color: var(--dim); text-align: right; }
+.rank-head { width: 100%; max-width: 290px; margin: 2px 0 0; padding-block: 0; background: none; font-size: 11px; color: var(--dim); }
+.rank-head span:nth-child(n+3) { text-align: right; }
+.rank-head:empty { display: none; }
+/* Ranking card: two tabs */
+.tabs2 { display: flex; gap: 4px; padding: 4px; margin: 2px 0 4px; background: #F1FAFE; border-radius: 999px; }
+.tab2 { padding: 5px 16px; font: 600 14px var(--font); color: var(--dim); background: none; border: 0; border-radius: 999px; cursor: pointer; }
+.tab2[aria-selected="true"] { color: #fff; background: var(--blue-d); box-shadow: 0 2px 0 rgba(27, 34, 51, 0.15); }
+.tab2:focus-visible { outline: 3px solid var(--blue-d); outline-offset: 2px; }
 .rank li.you { background: var(--yellow-l); font-weight: 700; }
 .rank .pos { color: var(--dim); text-align: right; }
 .rank .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

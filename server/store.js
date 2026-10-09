@@ -70,8 +70,9 @@ class Store {
   /* key: a fingerprint of the player id (never the id itself). The file is written a moment later, in one go. */
   addScore(week, key, name, kcal, at) {
     const w = this._week(week, true);
-    const p = w.players[key] || (w.players[key] = { name: name, total: 0, best: 0, runs: 0, last: 0 });
-    p.name = name; p.total += kcal; p.best = Math.max(p.best, kcal); p.runs += 1; p.last = at;
+    const p = w.players[key] || (w.players[key] = { name: name, total: 0, best: 0, bestAt: 0, runs: 0, last: 0 });
+    p.name = name; p.total += kcal; p.runs += 1; p.last = at;
+    if (kcal > p.best) { p.best = kcal; p.bestAt = at; }       // who got there first wins a tie
     this.dirty.add(week);
     if (!this.timer) { this.timer = setTimeout(() => this.flush(), 1500); this.timer.unref(); }
   }
@@ -85,11 +86,14 @@ class Store {
     this.dirty.clear();
   }
 
-  leaderboard(week) {
+  /* Two rankings of the same week: by = 'total' (all the calories of all runs) or 'best' (the best single run). */
+  leaderboard(week, by) {
     const players = this._week(week, false).players;
-    return Object.keys(players)
-      .map((key) => ({ key, name: players[key].name, total: players[key].total, best: players[key].best, runs: players[key].runs }))
-      .sort((a, b) => b.total - a.total || b.best - a.best || (a.key < b.key ? -1 : 1));
+    const rows = Object.keys(players)
+      .map((key) => ({ key, name: players[key].name, total: players[key].total, best: players[key].best, bestAt: players[key].bestAt || 0, runs: players[key].runs }));
+    const tie = (a, b) => (a.key < b.key ? -1 : 1);
+    if (by === 'best') return rows.sort((a, b) => b.best - a.best || a.bestAt - b.bestAt || b.total - a.total || tie(a, b));
+    return rows.sort((a, b) => b.total - a.total || b.best - a.best || tie(a, b));
   }
 }
 
