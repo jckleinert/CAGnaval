@@ -170,3 +170,28 @@ test('no food sinks into the walls or the floor, however hard the pile squeezes 
     assert.ok(deepest <= R.WALL_GIVE + 1e-9, 'deepest point ' + deepest + ' units into a wall');
   }
 });
+
+test('one food over the line gets a few seconds; a second one over the line ends the run at once', () => {
+  const Matter = require('../shared/matter-det.js');
+  function jar(n) {
+    const sim = new Sim({ pub: 'line' + n });
+    const foods = [];
+    for (let i = 0; i < n; i++) {
+      const b = sim._add(80 + i * 200, 60, 0, false);
+      b.food.born = -1000;                    // long past the grace for new foods
+      Matter.Body.setStatic(b, true);         // keep it right there, over the line
+      foods.push(b);
+    }
+    return sim;
+  }
+  const one = jar(1);
+  for (let i = 0; i < R.WARN_STEPS + 5; i++) one._checkFull();
+  assert.strictEqual(one.over, false, 'a single food over the line only starts the countdown');
+  assert.strictEqual(one.warn, true);
+  for (let i = 0; i < R.FULL_STEPS; i++) one._checkFull();
+  assert.strictEqual(one.over, true, 'and ends the run when the countdown runs out');
+  const two = jar(2);
+  for (let i = 0; i < R.WARN_STEPS + 2 && !two.over; i++) two._checkFull();
+  assert.strictEqual(two.over, true, 'two foods over the line end the run right away');
+  assert.strictEqual(two.overReason, 'full');
+});

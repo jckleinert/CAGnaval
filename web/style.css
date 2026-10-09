@@ -168,17 +168,18 @@ body {
 /* Start, result and ranking boards */
 .over { position: fixed; z-index: 20; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(var(--k)); width: min(330px, calc(100% - 32px)); max-height: calc((100% - 24px) / var(--k)); display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 30px 18px 20px; text-align: center; background: var(--paper); border-radius: 24px; box-shadow: 0 6px 0 var(--shade), 0 0 0 200vmax rgba(255, 243, 220, 0.78); overflow-x: hidden; overflow-y: auto; }
 .over::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 12px; background: repeating-linear-gradient(90deg, var(--pink) 0 20px, var(--pink-l) 20px 40px); }
-/* CAG peeks over the start card, her cut edge hidden behind its striped top. Her canvas is painted
-   from the page's script at the exact size it is shown (see drawPeek), and blinks. When Play is
-   pressed she ducks down behind the card, and comes up again behind the jar. */
-#home { overflow: visible; margin-top: calc(48px * var(--k)); }
+/* CAG peeks over the cards (start, result, ranking), her cut edge hidden behind the striped top. Her
+   canvas is painted from the page's script at the exact size it is shown (see drawPeek), and blinks.
+   The loop: on Play she ducks behind the card and comes up behind the jar; when the run ends she
+   ducks behind the jar and comes up over the result card. */
+.over { overflow: visible; margin-top: calc(48px * var(--k)); }
 /* The box clips her at the stripe; the room at its top lets her overshoot a little when she pops up. */
 .peekbox { position: absolute; z-index: 0; left: 50%; bottom: calc(100% - 12px); width: 124px; padding-top: 18px; transform: translateX(-50%); overflow: hidden; pointer-events: none; }
 .peek { display: block; width: 100%; height: auto; aspect-ratio: 560 / 509; transform: translateY(120%); }
-#home.ready .peek { transform: none; transition: transform 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.15); }   /* comes up once her picture is in */
-#home.ready.leaving .peek { transform: translateY(120%); transition: transform 0.24s cubic-bezier(0.55, 0, 0.9, 0.45); }
-#home::before { z-index: 1; }
-.app:has(#home:not([hidden])) .puppet { visibility: hidden; }   /* one CAG at a time */
+.over.ready .peek { transform: none; transition: transform 0.42s cubic-bezier(0.2, 0.9, 0.3, 1.15); }   /* comes up once her picture is in */
+.over.ready.leaving .peek { transform: translateY(120%); transition: transform 0.24s cubic-bezier(0.55, 0, 0.9, 0.45); }
+.over::before { z-index: 1; }
+.app:has(.over:not([hidden])) .puppet { visibility: hidden; }   /* one CAG at a time */
 /* The order of the foods, on the start card */
 .menu { list-style: none; margin: 4px 0 2px; padding: 6px 10px; display: grid; grid-template-columns: repeat(11, 20px); gap: 3px; justify-content: center; background: #FFF7E8; border-radius: 14px; }
 .menu li { width: 20px; height: 20px; }
@@ -297,7 +298,7 @@ body {
 .note { margin: 0; font-size: calc(11.5px * var(--k)); font-weight: 500; color: #9A7A3F; text-align: center; }
 .fail { margin: 8px 0; padding: 12px; background: var(--paper); border-radius: 14px; }
 
-@media (prefers-reduced-motion: reduce) { .disc.gold, .toast, .sticker { animation: none; } #home .peek { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .disc.gold, .toast, .sticker { animation: none; } .over .peek { transition: none !important; } }
 
 /* Tablets held upright: same layout, more room, everything a bit bigger */
 @media (min-width: 620px) { .app { max-width: 600px; } }

@@ -105,7 +105,7 @@
   }
 
   var RULES = Object.freeze({
-    VERSION: 10,            // bump whenever anything that changes the outcome of a run changes
+    VERSION: 11,            // bump whenever anything that changes the outcome of a run changes
     W: 360, H: 520,        // jar size in game units
     PAD: 3,                // inner margin of the jar walls
     DROP_Y: 46,            // height the food is dropped from
@@ -120,6 +120,7 @@
     GRACE_STEPS: 72,       // a new food cannot count as "over the line" for this long
     WARN_STEPS: 18,        // over the line for this long: the warning starts
     FULL_STEPS: 180,       // over the line for this long, without a break: the run ends (3 seconds, time for the pile to settle)
+                           // ...or at once, when a second food also stays over the line (past WARN_STEPS) while the first is there
     REST_STEPS: 60,        // a food that stays in the same spot this long goes to rest (1 second)
     REST_ROOM: 1.2,        // "the same spot": it has not moved or turned (measured at its rim) more than this
     REST_SPEED: 0.2,       // game units per step; a food moving faster than this wakes the resting foods it touches
@@ -314,17 +315,18 @@
   };
 
   Sim.prototype._checkFull = function () {
-    var warn = false, full = false, most = 0;
+    var warn = false, full = false, most = 0, over = 0;
     for (var i = 0; i < this.foods.length; i++) {
       var b = this.foods[i], f = b.food;
       if (this.step - f.born < RULES.GRACE_STEPS) { f.above = 0; continue; }
       if (b.position.y < RULES.LINE_Y) {
         f.above++;
         if (f.above > most) most = f.above;
-        if (f.above > RULES.WARN_STEPS) warn = true;
+        if (f.above > RULES.WARN_STEPS) { warn = true; over++; }
         if (f.above > RULES.FULL_STEPS) full = true;
       } else f.above = 0;
     }
+    if (over >= 2) full = true;      // two foods over the line at once: no more waiting
     this.warn = warn;
     this.danger = most;      // steps the worst food has been over the line; the run ends past FULL_STEPS
     if (full) this._end('full');

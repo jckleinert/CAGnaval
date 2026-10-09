@@ -155,8 +155,8 @@
 
   function startRun() {
     wakeSound();
-    var leaving = !homeEl.hidden, t0 = Date.now();
-    if (leaving && !reduced) homeEl.classList.add('leaving');      // CAG ducks behind the card
+    var card = !homeEl.hidden ? homeEl : !overEl.hidden ? overEl : null, leaving = !!card, t0 = Date.now();
+    if (leaving && !reduced) card.classList.add('leaving');        // CAG ducks behind the card
     var name = nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
     player.name = name || 'Player'; save('cagnaval.player', player);
     $('play').disabled = true; $('again').disabled = true; $('homeMsg').textContent = 'Starting…';
@@ -170,12 +170,12 @@
       run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
       homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true; boardBack = null;
-      homeEl.classList.remove('leaving');
-      PUP.riseAt = nowMs || 1;                                        // and comes up behind the jar
+      if (card) card.classList.remove('leaving');
+      PUP.riseAt = nowMs || 1; PUP.sinkAt = 0;                                        // and comes up behind the jar
       $('homeMsg').textContent = '';
       cv.focus();
     }).catch(function (e) {
-      homeEl.hidden = false; overEl.hidden = true; homeEl.classList.remove('leaving');
+      if (card) { card.classList.remove('leaving'); card.hidden = false; }
       $('homeMsg').textContent = e.code === 'slow-down' ? 'Too many requests. Wait a moment.' : 'Could not reach the server. Try again.';
     }).then(function () { $('play').disabled = false; $('again').disabled = false; });
   }
@@ -224,6 +224,7 @@
   function endRun() {
     var r = run, sim = r.sim;
     r.live = false; r.ending = true;
+    PUP.sinkAt = nowMs || 1;                         // CAG ducks behind the jar; she comes up over the result card
     r.chain = r.chain.then(function () {
       return call('POST', '/api/runs/' + r.id + '/finish', { step: sim.overStep, kcal: sim.kcal, reason: 'over' }, 3);
     }).then(function (res) { showResult(r, res, null); }).catch(function (e) { stopRun(r, e.code); });
@@ -233,6 +234,7 @@
   function stopRun(r, code) {
     if (r.stopped) return;
     r.stopped = true; r.live = false; r.ending = false;
+    if (!PUP.sinkAt) PUP.sinkAt = nowMs || 1;
     var sim = r.sim;
     call('POST', '/api/runs/' + r.id + '/finish', { step: sim.over ? sim.overStep : sim.step, kcal: sim.kcal, reason: sim.over ? 'over' : 'quit' }, 2)
       .then(function (res) { showResult(r, res, code); })
@@ -259,7 +261,7 @@
     else if (problem) title = 'Run stopped';
     else title = sim.overReason === 'done' ? 'All ' + R.MAX_FOODS + ' foods dropped!' : 'Jar is full!';
     $('overTitle').textContent = title;
-    countUp($('overKcal'), kcal);
+    $('overKcal').textContent = '0';
     $('overUsed').textContent = (res ? res.dropped : sim.dropped) + ' / ' + R.MAX_FOODS;
     var topFood = FOODS[Math.max(0, res ? res.maxLv : sim.maxLv)], topEl = $('overTop');
     topEl.textContent = 'Biggest: ';
@@ -288,8 +290,14 @@
         if (run === r && b.you) { $('overWeek').textContent = '#' + b.you.rank; $('overWeek').title = fmt(b.you.total) + ' kcal this week'; }
       }).catch(function () { /* ranking is optional here */ });
     }
-    overEl.hidden = false;
-    $('again').focus();
+    // Show the card once CAG has ducked behind the jar.
+    var wait = PUP.sinkAt && !reduced ? Math.max(0, PUP.sinkAt + 300 - nowMs) : 0;
+    setTimeout(function () {
+      if (run !== r) return;
+      overEl.hidden = false;
+      countUp($('overKcal'), kcal);
+      $('again').focus();
+    }, wait);
   }
 
   /* The ranking of the week, two ways: the total of all runs (with how many runs) or the best single run. */
@@ -796,18 +804,24 @@
     g.drawImage(src, sx, 0, w, h, 0, 0, canvas.width, canvas.height);
   }
   function paintPuppet(face) { paintCag(puppet, pctx, face); PUP.shown = face; }
-  /* CAG on the start card: made at the exact number of screen pixels she covers, so she looks sharp. */
-  var peekCv = $('peek'), peekCtx = peekCv.getContext('2d'), peekKey = '';
+  /* CAG over the cards: made at the exact number of screen pixels she covers, so she looks sharp.
+     A card that is hidden forgets she was up, so she comes up again the next time it shows. */
+  var cards = [homeEl, overEl, boardEl];
   function drawPeek() {
-    if (homeEl.hidden || !ART_P || !PUP.ok) return;
-    var r = peekCv.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 3);
-    var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
-    var face = reduced ? 0 : blink(4242) === FACE_CLOSED ? 1 : 0, key = w + 'x' + h + ':' + face;
-    if (key === peekKey) return;
-    peekKey = key;
-    if (peekCv.width !== w || peekCv.height !== h) { peekCv.width = w; peekCv.height = h; }
-    paintCag(peekCv, peekCtx, face);
-    if (!homeEl.classList.contains('ready')) requestAnimationFrame(function () { homeEl.classList.add('ready'); });   // she comes up
+    if (!ART_P || !PUP.ok) return;
+    for (var i = 0; i < cards.length; i++) {
+      var card = cards[i];
+      if (card.hidden) { if (card.classList.contains('ready')) card.classList.remove('ready', 'leaving'); continue; }
+      var cv2 = card.querySelector('.peek'), r = cv2.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 3);
+      var w = Math.max(1, Math.round(r.width * dpr)), h = Math.max(1, Math.round(r.height * dpr));
+      var face = reduced ? 0 : blink(4242) === FACE_CLOSED ? 1 : 0, key = w + 'x' + h + ':' + face;
+      if (key !== cv2.cagKey) {
+        cv2.cagKey = key;
+        if (cv2.width !== w || cv2.height !== h) { cv2.width = w; cv2.height = h; }
+        paintCag(cv2, cv2.getContext('2d'), face);
+      }
+      if (!card.classList.contains('ready')) (function (c) { requestAnimationFrame(function () { if (!c.hidden) c.classList.add('ready'); }); })(card);
+    }
   }
   function drawPuppet() {
     if (!ART_P || !PUP.ok) return;
@@ -839,6 +853,8 @@
       var rt = (nowMs - PUP.riseAt) / 380;
       if (rt < 1) rise = (PUP.h + PUP.TUCK_PX) * Math.pow(1 - rt, 3); else PUP.riseAt = 0;
     }
+    // ...and when the run is over she ducks back down.
+    if (PUP.sinkAt && !reduced) rise = (PUP.h + PUP.TUCK_PX) * Math.pow(Math.min(1, (nowMs - PUP.sinkAt) / 260), 2);
     var move = 'translate3d(' + (PUP.x * PUP.css - PUP.w / 2).toFixed(2) + 'px,' + (bob + rise).toFixed(2) + 'px,0)';
     if (move !== PUP.moved) {
       PUP.moved = move; puppet.style.transform = move;
