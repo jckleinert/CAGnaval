@@ -315,12 +315,13 @@
         texts.forEach(function (t, i) { var c = document.createElement('span'); c.textContent = t; if (classes[i]) c.className = classes[i]; el.appendChild(c); });
       };
       if (b.top.length) cells(head, total ? ['#', 'Player', 'Runs', 'kcal'] : ['#', 'Player', 'kcal'], []);
-      var rows = b.top.slice(0, 15);
+      var rows = b.top.slice(0, 20);
       if (b.you && b.you.rank > rows.length) rows.push(b.you);
       rows.forEach(function (row) {
         var li = document.createElement('li');
-        if (total) cells(li, [row.rank, row.name, row.runs, fmt(row.total)], ['pos', 'who', 'runs-n', '']);
-        else cells(li, [row.rank, row.name, fmt(row.best)], ['pos', 'who', '']);
+        var pos = 'pos' + (row.rank <= 3 ? ' p' + row.rank : '');     // gold, silver and bronze for the top three
+        if (total) cells(li, [row.rank, row.name, row.runs, fmt(row.total)], [pos, 'who', 'runs-n', 'kc']);
+        else cells(li, [row.rank, row.name, fmt(row.best)], [pos, 'who', 'kc']);
         if (row.you) li.className = 'you';
         list.appendChild(li);
       });

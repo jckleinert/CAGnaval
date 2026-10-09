@@ -238,12 +238,23 @@ body {
 .ghost:active { transform: translateY(1px); }
 .primary:focus-visible, .ghost:focus-visible, .pw:focus-visible { outline: 3px solid var(--blue-d); outline-offset: 3px; }
 
-.rank { list-style: none; margin: 2px 0 4px; padding: 0; width: 100%; max-width: 290px; display: grid; gap: 5px; font-variant-numeric: tabular-nums; }
-.rank li, .rank-head { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 5px 12px; background: #F1FAFE; border-radius: 12px; text-align: left; font-weight: 600; font-size: 15px; }
-.rank.runs li, .rank-head.runs { grid-template-columns: 22px minmax(0, 1fr) 40px auto; }
-.rank .runs-n { color: var(--dim); text-align: right; }
-.rank-head { width: 100%; max-width: 290px; margin: 2px 0 0; padding-block: 0; background: none; font-size: 11px; color: var(--dim); }
-.rank-head span:nth-child(n+3) { text-align: right; }
+.rank, .rank-head { --cols: 30px minmax(0, 1fr) 76px; }
+.rank.runs, .rank-head.runs { --cols: 30px minmax(0, 1fr) 46px 76px; }
+.rank { list-style: none; margin: 2px 0 6px; padding: 0; width: 100%; max-width: 300px; max-height: calc(54vh / var(--k)); overflow-y: auto; border: 1.5px solid #E3F3FA; border-radius: 14px; font-variant-numeric: tabular-nums; }
+.rank li, .rank-head { display: grid; grid-template-columns: var(--cols); gap: 6px; align-items: center; text-align: left; }
+.rank li { padding: 6px 12px; font-weight: 500; font-size: 13.5px; line-height: 1.25; border-top: 1px solid #EEF7FB; }
+.rank li:first-child { border-top: 0; }
+.rank li:nth-child(even) { background: #F8FCFE; }
+.rank li.you { background: var(--yellow-l); font-weight: 700; }
+.rank li > :nth-child(n+3), .rank-head > :nth-child(n+3) { text-align: right; }
+.rank .pos { justify-self: start; min-width: 20px; height: 20px; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--dim); border-radius: 50%; }
+.rank .pos.p1 { color: #7A5300; background: #FFD45C; }
+.rank .pos.p2 { color: #4B5566; background: #DDE3EA; }
+.rank .pos.p3 { color: #6E3B12; background: #F2B98A; }
+.rank .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank .runs-n { color: var(--dim); }
+.rank .kc { font-weight: 600; }
+.rank-head { width: 100%; max-width: 300px; margin: 2px 0 0; padding: 0 13.5px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--dim); }
 .rank-head:empty { display: none; }
 /* Ranking card: two tabs */
 .tabs2 { display: flex; gap: 4px; padding: 4px; margin: 2px 0 4px; background: #F1FAFE; border-radius: 999px; }
