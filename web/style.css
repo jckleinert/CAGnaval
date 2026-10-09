@@ -161,6 +161,7 @@ body {
 .left { font-size: calc(12px * var(--k)); font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
 /* CAG on top of the jar. Her canvas goes under the rim (z-index 3 above), which hides the bottom edge of her bust. Placed and sized from the page's script. */
 .puppet { position: absolute; z-index: 2; left: 0; pointer-events: none; will-change: transform; }
+@media (min-resolution: 2dppx) { .puppet { will-change: auto; } }   /* see drawPuppet: on phones she moves by whole screen pixels */
 
 .toast { position: absolute; z-index: 4; top: 22%; left: 50%; transform: translateX(-50%); width: max-content; max-width: 90%; padding: 5px 16px; border-radius: 999px; background: var(--paper); box-shadow: 0 4px 0 var(--shade); color: var(--ink); font-weight: 700; font-size: calc(15px * var(--k)); text-align: center; pointer-events: none; animation: pop 0.25s ease-out; }
 @keyframes pop { from { transform: translateX(-50%) scale(0.7); opacity: 0; } }

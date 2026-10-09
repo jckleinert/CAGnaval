@@ -855,7 +855,11 @@
     }
     // ...and when the run is over she ducks back down.
     if (PUP.sinkAt && !reduced) rise = (PUP.h + PUP.TUCK_PX) * Math.pow(Math.min(1, (nowMs - PUP.sinkAt) / 260), 2);
-    var move = 'translate3d(' + (PUP.x * PUP.css - PUP.w / 2).toFixed(2) + 'px,' + (bob + rise).toFixed(2) + 'px,0)';
+    var mx = PUP.x * PUP.css - PUP.w / 2, my = bob + rise, dp = window.devicePixelRatio || 1, move;
+    // Sharp screens (phones): land on whole screen pixels and skip the 3D layer, which iPhones
+    // otherwise redraw at a lower resolution. Plain screens: smooth sub-pixel movement.
+    if (dp >= 2) move = 'translate(' + (Math.round(mx * dp) / dp) + 'px,' + (Math.round(my * dp) / dp) + 'px)';
+    else move = 'translate3d(' + mx.toFixed(2) + 'px,' + my.toFixed(2) + 'px,0)';
     if (move !== PUP.moved) {
       PUP.moved = move; puppet.style.transform = move;
       puppet.style.clipPath = rise > 0.5 ? 'inset(0 0 ' + rise.toFixed(1) + 'px 0)' : '';   // nothing shows below the rim
