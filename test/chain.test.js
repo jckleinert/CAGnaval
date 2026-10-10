@@ -145,7 +145,17 @@ test('paid run over HTTP: sign in, start from the tickets transaction, never twi
     const token = login.body.token;
     const tx1 = '0x' + 'a'.repeat(63) + '1', tx2 = '0x' + 'a'.repeat(63) + '2';
     assert.strictEqual((await request(port, 'POST', '/api/runs', { txHash: tx1, player: { name: 'X' } })).status, 401, 'needs sign-in');
-    const ok = await request(port, 'POST', '/api/runs', { txHash: tx1, player: { name: 'Payer' } }, token);
+    assert.strictEqual((await request(port, 'POST', '/api/runs', { txHash: tx1 }, token)).status, 409, 'a wallet needs a name first');
+    assert.strictEqual((await request(port, 'GET', '/api/me', null, token)).body.name, null);
+    assert.strictEqual((await request(port, 'POST', '/api/me', { name: 'P' }, token)).status, 400);
+    assert.strictEqual((await request(port, 'POST', '/api/me', { name: '  Payer  ' }, token)).body.name, 'Payer');
+    assert.strictEqual((await request(port, 'POST', '/api/me', { name: 'Other' }, token)).status, 409, 'the name stays');
+    // another wallet cannot take the same name
+    const w2 = ethers.Wallet.createRandom();
+    const n2 = await request(port, 'POST', '/api/auth/nonce', { address: w2.address });
+    const t2 = (await request(port, 'POST', '/api/auth', { address: w2.address, signature: await w2.signMessage(n2.body.message) })).body.token;
+    assert.strictEqual((await request(port, 'POST', '/api/me', { name: 'PAYER' }, t2)).status, 409);
+    const ok = await request(port, 'POST', '/api/runs', { txHash: tx1, player: { name: 'Ignored' } }, token);
     assert.strictEqual(ok.status, 200);
     assert.strictEqual(ok.body.tickets, 2);
     assert.strictEqual(ok.body.chainRun, '11');
@@ -156,5 +166,8 @@ test('paid run over HTTP: sign in, start from the tickets transaction, never twi
     const quit = await request(port, 'POST', '/api/runs/' + ok.body.runId + '/finish', { step: 0, kcal: 0, reason: 'quit' });
     assert.strictEqual(quit.status, 200);
     assert.deepStrictEqual(fake.settledCalls, [['11', '0']], 'the run is closed on the chain even when the player leaves');
+    const board = await request(port, 'GET', '/api/leaderboard');
+    assert.strictEqual(board.body.tickets, 2);
+    assert.strictEqual(board.body.pool, ethers.parseEther('7.25').toString(), '2 tickets x 5 RON x 72.5%');
   } finally { app.server.close(); }
 });

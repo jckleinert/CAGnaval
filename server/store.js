@@ -46,6 +46,7 @@ class Store {
     try {
       const raw = JSON.parse(fs.readFileSync(path.join(this.dir, 'weeks', week + '.json'), 'utf8'));
       if (raw && raw.players && typeof raw.players === 'object') { Object.assign(data.players, raw.players); found = true; }
+      if (raw && Number.isInteger(raw.tickets)) data.tickets = raw.tickets;
     } catch (e) { /* no file yet */ }
     if (found || create) {
       if (this.weeks.size >= MAX_CACHED_WEEKS) {
@@ -85,6 +86,34 @@ class Store {
       try { this._write(path.join(this.dir, 'weeks', week + '.json'), this.weeks.get(week)); } catch (e) { console.error('could not save week', week, e.message); }
     }
     this.dirty.clear();
+  }
+
+  /* Tickets spent in paid runs of a week: the base of the weekly prize estimate. */
+  addTickets(week, n) {
+    const w = this._week(week, true);
+    w.tickets = (w.tickets || 0) + n;
+    this.dirty.add(week);
+    if (!this.timer) { this.timer = setTimeout(() => this.flush(), 1500); this.timer.unref(); }
+  }
+  weekTickets(week) { return this._week(week, false).tickets || 0; }
+  /* The total of one player in a week (key = playerKey), or 0. */
+  weekTotal(week, key) { const p = this._week(week, false).players[key]; return p ? p.total : 0; }
+
+  /* Player names tied to wallets: chosen once, unique (ignoring upper/lower case). */
+  _profiles() {
+    if (!this.profiles) {
+      try { this.profiles = JSON.parse(fs.readFileSync(path.join(this.dir, 'profiles.json'), 'utf8')); } catch (e) { this.profiles = {}; }
+    }
+    return this.profiles;
+  }
+  profile(addr) { const p = this._profiles(); return Object.prototype.hasOwnProperty.call(p, addr) ? p[addr] : null; }
+  nameTaken(name, addr) {
+    const p = this._profiles(), low = name.toLowerCase();
+    return Object.keys(p).some((a) => a !== addr && p[a].name.toLowerCase() === low);
+  }
+  setProfile(addr, name, at) {
+    this._profiles()[addr] = { name, at };
+    this._write(path.join(this.dir, 'profiles.json'), this.profiles);
   }
 
   /* Paid runs already used for a game session, so a run is never played twice. */

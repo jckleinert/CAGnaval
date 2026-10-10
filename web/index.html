@@ -57,7 +57,8 @@
     <img class="logo big" src="/web/img/logo.png" alt="CAGnaval" width="840" height="178">
     <p class="over-line">Drop food. Merge two of the same.</p>
     <ol class="menu" id="homeMenu" aria-label="Food order, smallest to biggest"></ol>
-    <label class="field" for="name"><span class="sr">Your name</span>
+    <p class="welcome" id="welcome" hidden>Welcome, <b id="welcomeName"></b>!</p>
+    <label class="field" id="nameField" for="name"><span class="sr">Your name</span>
       <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Your name">
     </label>
     <div class="wallet" id="walletBox" hidden>
@@ -112,6 +113,11 @@
       <span class="prize-v" id="goldAmt">0 RON</span>
       <button class="primary" id="claimGold" type="button" disabled>Claim</button>
       <span class="prize-note" id="goldNote"></span>
+    </div>
+    <div class="prize now">
+      <span class="prize-k">This week so far</span>
+      <span class="prize-v" id="nowAmt">≈ 0 RON</span>
+      <span class="prize-note" id="nowNote"></span>
     </div>
     <div class="prize week">
       <span class="prize-k" id="weekLabel">Weekly prize</span>

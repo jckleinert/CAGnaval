@@ -75,7 +75,9 @@ Todo se cambia con variables de entorno. Ninguna es obligatoria.
 2. Elige de 1 a 5 tickets. El máximo baja si la caja de la dorada no alcanza (105 RON libres por ticket, o lo que diga `capPerTicket`).
 3. Su billetera manda los tickets al contrato; el árbitro lee esa transacción y recién ahí arranca la partida. Si la página se cierra en el medio, el botón ofrece retomar esa misma partida.
 4. Al terminar, el árbitro cierra la partida en el contrato con el premio de la dorada: multiplicador × tickets × valor del ticket (el valor es `capPerTicket` / 21). El jugador lo cobra desde "Prizes".
-5. Las calorías × tickets suman al ranking Total. Después del cierre del lunes el árbitro publica el reparto del pozo de esa semana, proporcional a las calorías, y pasa a la semana abierta lo que sobre por redondeo, lo de semanas sin jugadores y lo que nadie cobró a tiempo.
+5. La primera vez que firma, el jugador elige su nombre: queda atado a su billetera, no se repite entre jugadores y es el que aparece siempre en el ranking. Después la pantalla de inicio lo saluda por su nombre.
+6. Mientras dura la semana, el ranking Total y la tarjeta "Prizes" muestran cuánto le tocaría a cada uno: tickets jugados en la semana × precio del ticket (`TICKET_PRICE`, 5 RON) × la parte del pozo (72,5%), repartido por calorías. Es una estimación: lo que se paga es lo que esté cargado en el contrato al cierre.
+7. Las calorías × tickets suman al ranking Total. Después del cierre del lunes el árbitro publica el reparto del pozo de esa semana, proporcional a las calorías, y pasa a la semana abierta lo que sobre por redondeo, lo de semanas sin jugadores y lo que nadie cobró a tiempo.
 
 Cada semana empieza con el ranking vacío; las semanas anteriores quedan guardadas para pagar los premios y poder revisarlas. La pantalla de ranking muestra cuánto falta para el cierre. El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y hora de CAGlorie con `WEEK_START_DOW` y `WEEK_START_HOUR`.
 

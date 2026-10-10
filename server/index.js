@@ -24,7 +24,8 @@ const fs = require('fs');
 const path = require('path');
 const cfg = require('./config.js');
 const Store = require('./store.js');
-const { RunManager, RunError } = require('./runs.js');
+const { RunManager, RunError, cleanName, playerKey } = require('./runs.js');
+const { ethers } = require('ethers');
 const { Chain } = require('./chain.js');
 const { Auth } = require('./auth.js');
 const crypto = require('crypto');
@@ -51,6 +52,13 @@ function createApp(options) {
     return a;
   }
 
+  /* Weekly prize estimate: tickets played this week x ticket price x the pool's share. */
+  function estimatePool(tickets) {
+    const bps = chain.cache && chain.cache.v && chain.cache.v.poolBps ? chain.cache.v.poolBps : 7250;
+    return BigInt(tickets) * ethers.parseEther(String(config.TICKET_PRICE)) * BigInt(bps) / 10000n;
+  }
+  function shareOf(pool, total, sum) { return sum > 0 && total > 0 ? (pool * BigInt(total) / BigInt(sum)).toString() : '0'; }
+
   /* A paid run: the tickets were sent in `txHash`; checks it on the chain before the game starts. */
   async function paidRun(req, body, ip) {
     if (!chain.enabled) throw new RunError(400, 'practice-only');
@@ -64,8 +72,10 @@ function createApp(options) {
     const seen = store.chainRun(found.runId);
     // A run can be played once. Only a run cut by a server restart may start again.
     if (seen && !(seen.status === 'playing' && seen.at < bootAt && !runs.active.has(seen.run))) throw new RunError(409, 'run-finished');
-    const name = body.player && typeof body.player.name === 'string' ? body.player.name : '';
-    const out = runs.create({ id: addr, name }, { ua: req.headers['user-agent'], ip, chain: { runId: found.runId, tickets: cr.tickets, cap: cr.cap } });
+    const prof = store.profile(addr);
+    if (!prof) throw new RunError(409, 'need-name');
+    const out = runs.create({ id: addr, name: prof.name }, { ua: req.headers['user-agent'], ip, chain: { runId: found.runId, tickets: cr.tickets, cap: cr.cap } });
+    store.addTickets(store.weekId(Date.now()), cr.tickets);
     out.chainRun = found.runId;
     if (chain.forget) chain.forget(addr);
     return out;
@@ -146,7 +156,27 @@ function createApp(options) {
       if (req.method === 'GET' && parts[1] === 'wallet') {
         if (!chain.enabled) throw new RunError(400, 'practice-only');
         const addr = who(req);
-        return send(res, 200, Object.assign({ address: addr }, await chain.wallet_(addr)), cors);
+        const info = await chain.wallet_(addr);
+        const w = store.weekId(Date.now()), board = runs.leaderboard(w, 1, '', 'total');
+        const pool = estimatePool(board.tickets), mine = store.weekTotal(w, playerKey(addr));
+        const prof = store.profile(addr);
+        return send(res, 200, Object.assign({ address: addr, name: prof ? prof.name : null,
+          estimate: { pool: pool.toString(), mine: shareOf(pool, mine, board.sum), kcal: mine, endsAt: board.endsAt } }, info), cors);
+      }
+      if (parts[1] === 'me' && (req.method === 'GET' || req.method === 'POST')) {
+        if (!chain.enabled) throw new RunError(400, 'practice-only');
+        const addr = who(req);
+        if (req.method === 'POST') {
+          const body = await readJson(req);
+          const name = cleanName(body.name);
+          if (name.length < 2) throw new RunError(400, 'name-too-short');
+          const prof = store.profile(addr);
+          if (prof && prof.name !== name) throw new RunError(409, 'name-set');
+          if (store.nameTaken(name, addr)) throw new RunError(409, 'name-taken');
+          if (!prof) store.setProfile(addr, name, Date.now());
+        }
+        const prof = store.profile(addr);
+        return send(res, 200, { address: addr, name: prof ? prof.name : null }, cors);
       }
       if (req.method === 'POST' && parts[1] === 'tx') {
         if (!chain.enabled) throw new RunError(400, 'practice-only');
@@ -165,7 +195,13 @@ function createApp(options) {
         }
       }
       if (req.method === 'GET' && parts[1] === 'leaderboard') {
-        return send(res, 200, runs.leaderboard(url.searchParams.get('week') || '', 50, url.searchParams.get('player') || '', url.searchParams.get('by') || ''), cors);
+        const b = runs.leaderboard(url.searchParams.get('week') || '', 50, url.searchParams.get('player') || '', url.searchParams.get('by') || '');
+        if (chain.enabled) {
+          const pool = estimatePool(b.tickets);
+          b.pool = pool.toString();
+          for (const row of b.top.concat(b.you ? [b.you] : [])) row.prize = row.paid ? shareOf(pool, row.total, b.sum) : '0';
+        }
+        return send(res, 200, b, cors);
       }
       if (req.method === 'POST' && parts[1] === 'runs') {
         const body = await readJson(req);

@@ -32,6 +32,8 @@ module.exports = {
   REFEREE_KEY: process.env.REFEREE_KEY || '',   // private key of the referee wallet: only as a Railway variable, never in the code
   CHAIN_RPC: process.env.CHAIN_RPC || 'https://api.roninchain.com/rpc',
   CHAIN_ID: num(process.env.CHAIN_ID, 2020),
+  // Price of one ticket in RON: the base of the weekly prize estimate shown to players.
+  TICKET_PRICE: process.env.TICKET_PRICE || '5',
   // How often the weekly close is checked (ms).
   CLOSE_EVERY_MS: num(process.env.CLOSE_EVERY_MS, 10 * 60000)
 };

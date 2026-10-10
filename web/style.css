@@ -358,3 +358,9 @@ body {
 .prize .primary { grid-area: btn; margin: 0 0 4px; padding: 8px 18px 9px; font-size: 16px; }
 .prize-note { grid-area: note; font-size: 12px; font-weight: 600; color: var(--dim); }
 .prize-note:empty { display: none; }
+
+.welcome { margin: 4px 0 2px; font-size: 19px; font-weight: 600; }
+.welcome b { color: var(--pink); }
+.prize.now { background: #EAF8FE; grid-template-areas: "k k" "v v" "note note"; }
+.rank.prize, .rank-head.prize { --cols: 24px minmax(0, 1fr) 30px 62px 56px; }
+.rank .ron { color: var(--green); font-weight: 600; }

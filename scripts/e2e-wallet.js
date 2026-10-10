@@ -67,7 +67,12 @@ const { createApp } = require('../server/index.js');
   await page.waitForFunction(() => document.getElementById('play').textContent.includes('Connect'), null, { timeout: 5000 });
   if (shot) await page.screenshot({ path: path.join(shot, 'w1-home.png') });
   await page.click('#play');                                                    // connect + sign in
+  await page.waitForFunction(() => document.getElementById('play').textContent === 'Save my name', null, { timeout: 8000 });
+  if (shot) await page.screenshot({ path: path.join(shot, 'w1b-name.png') });
+  await page.fill('#name', 'Wallet bot');
+  await page.click('#play');                                                    // the name now belongs to the wallet
   await page.waitForFunction(() => document.getElementById('play').textContent.includes('ticket'), null, { timeout: 8000 });
+  const welcome = await text('welcome');
   await page.click('#tPlus'); await page.click('#tPlus');
   const capped = await page.evaluate(() => document.getElementById('tPlus').disabled);   // 3 is the most the box allows
   const label = await text('play');
@@ -91,10 +96,14 @@ const { createApp } = require('../server/index.js');
   await page.click('#claimWeek');
   await page.waitForTimeout(500);
 
-  const out = { label, capped, note, gold, week, sent, settled, problems };
+  await page.click('#closePrizes');
+  await page.click('#openBoard');
+  await page.waitForTimeout(800);
+  if (shot) await page.screenshot({ path: path.join(shot, 'w4-rank.png') });
+  const out = { welcome, label, capped, note, gold, week, sent, settled, problems };
   console.log(JSON.stringify(out, null, 1));
   await browser.close(); app.server.close();
-  const ok = label === 'Play with 3 tickets' && capped && /3 tickets/.test(note) && sent.map((s) => s.kind).join() === 'play,claimGold,claim' && sent[0].n === 3
+  const ok = welcome === 'Welcome, Wallet bot!' && label === 'Play with 3 tickets' && capped && /3 tickets/.test(note) && sent.map((s) => s.kind).join() === 'play,claimGold,claim' && sent[0].n === 3
     && settled.length === 1 && gold === '2.5 RON' && week === '12.34 RON' && !problems.length;
   console.log(ok ? 'E2E WALLET OK' : 'E2E WALLET FAILED');
   process.exit(ok ? 0 : 1);

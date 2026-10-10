@@ -40,7 +40,7 @@
   var statusEl = $('status'), toastEl = $('toast');
   var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name'), prizesEl = $('prizes');
   var CW = window.CAGW || { enabled: false };
-  var paid = { tickets: 1, info: null, lastMode: 'practice', busy: false };
+  var paid = { tickets: 1, info: null, lastMode: 'practice', busy: false, name: undefined };   // name: undefined = not asked yet, null = none chosen
   var btn = { shake: $('pwShake'), swap: $('pwSwap'), sweep: $('pwSweep') };
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var css = getComputedStyle(document.documentElement);
@@ -167,6 +167,9 @@
     if (c === 'tx-failed') return 'The transaction failed. Your tickets were not used.';
     if (c === 'tx-not-found') return 'The transaction is taking long. Tap Play again in a moment to resume.';
     if (c === 'run-finished') return 'That paid run was already played.';
+    if (c === 'name-taken') return 'That name is taken. Pick another one.';
+    if (c === 'name-too-short') return 'Use at least 2 letters.';
+    if (c === 'need-name') return 'Pick your name first.';
     if (c === 'sign-in') return 'Sign in again with your wallet.';
     if (c === 'wallet') return 'The wallet said: ' + String(e.message).slice(0, 90);
     return 'Could not reach the server. Try again.';
@@ -177,10 +180,12 @@
     wakeSound();
     if (typeof mode !== 'string') mode = CW.enabled ? 'paid' : 'practice';
     if (mode === 'paid' && !CW.address) { connectWallet(); return; }
+    if (mode === 'paid' && paid.name === null) { saveName(); return; }
+    if (mode === 'paid' && paid.name === undefined) { loadMe(); return; }
     paid.lastMode = mode;
     var card = !homeEl.hidden ? homeEl : !overEl.hidden ? overEl : null;
-    var name = nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
-    player.name = name || 'Player'; save('cagnaval.player', player);
+    var name = CW.address && paid.name ? paid.name : nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
+    player.name = name || 'Player'; if (!(CW.address && paid.name)) save('cagnaval.player', player);
     $('play').disabled = true; $('again').disabled = true; $('practice').disabled = true;
     var msgEl = card === overEl ? $('overCheck') : $('homeMsg');
     // Paid runs talk to the wallet, so they happen on the start card where the wallet is shown.
@@ -246,7 +251,7 @@
     $('play').disabled = true;
     CW.connect().then(function () {
       $('homeMsg').textContent = '';
-      loadWallet();
+      loadMe(); loadWallet();
     }).catch(function (e) { $('homeMsg').textContent = errText(e); })
       .then(function () { $('play').disabled = false; renderWallet(); });
   }
@@ -255,6 +260,25 @@
     return CW.info().then(function (info) { paid.info = info; renderWallet(); renderPrizes(); })
       .catch(function (e) { if (e.code === 'sign-in') renderWallet(); });
   }
+  /* The name tied to the wallet: asked once, then always the one in the ranking. */
+  function loadMe() {
+    if (!CW.enabled || !CW.address) return;
+    CW.api('GET', '/api/me').then(function (m) {
+      paid.name = m.name;
+      if (m.name === null && nameEl.value.trim().length < 2 && player.name && player.name !== 'Player') nameEl.value = player.name;
+      renderWallet();
+    }).catch(function () { /* tried again on the next refresh */ });
+  }
+  function saveName() {
+    var name = nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
+    if (name.length < 2) { $('homeMsg').textContent = 'Type the name you want in the ranking (2 letters or more).'; nameEl.focus(); return; }
+    $('play').disabled = true;
+    CW.api('POST', '/api/me', { name: name }).then(function (m) {
+      paid.name = m.name; $('homeMsg').textContent = '';
+    }).catch(function (e) { $('homeMsg').textContent = errText(e); })
+      .then(function () { $('play').disabled = false; renderWallet(); });
+  }
+
   function maxTickets() {
     var i = paid.info;
     return i ? Math.max(0, Math.min(i.tickets, i.maxTicketsNow, i.maxTickets)) : 0;
@@ -267,9 +291,15 @@
     $('connect').hidden = true;
     $('walletWho').hidden = !signed;
     $('ticketPick').hidden = !signed || !info || pendingTx() !== null;
-    var note = '';
+    var note = '', named = signed && !!paid.name, asking = signed && paid.name === null;
+    $('welcome').hidden = !named;
+    $('welcomeName').textContent = named ? paid.name : '';
+    $('nameField').hidden = named;
+    nameEl.placeholder = asking ? 'Your name in the ranking' : 'Your name';
+    if (asking) $('ticketPick').hidden = true;
     if (!on) { play.textContent = 'Play'; }
     else if (!signed) { play.textContent = 'Connect Ronin Wallet'; note = 'Play for prizes with tickets. Practice is free.'; }
+    else if (asking) { play.textContent = 'Save my name'; note = 'This is how you will appear in the ranking. It stays with your wallet.'; }
     else if (pendingTx()) { play.textContent = 'Resume your paid run'; note = 'Your tickets were sent. Tap to play that run.'; }
     else if (!info) { play.textContent = 'Play'; note = 'Loading your wallet…'; }
     else {
@@ -292,16 +322,22 @@
       $('prizeDot').hidden = !((g && g.won !== '0' && g.payableNow) || (wk && wk.claimable !== '0'));
     }
     $('pickNote').textContent = note;
+    if (on && !run) $('counterNote').textContent = 'Paid runs: tickets multiply calories and the golden prize.';
   }
   $('tMinus').addEventListener('click', function () { paid.tickets = Math.max(1, paid.tickets - 1); renderWallet(); });
   $('tPlus').addEventListener('click', function () { paid.tickets = Math.min(maxTickets(), paid.tickets + 1); renderWallet(); });
-  $('signOut').addEventListener('click', function () { CW.signOut(); paid.info = null; renderWallet(); });
+  $('signOut').addEventListener('click', function () { CW.signOut(); paid.info = null; paid.name = undefined; renderWallet(); });
 
   /* ---------- prizes ---------- */
   function renderPrizes() {
     var i = paid.info;
     if (!i) return;
-    var g = i.gold, wk = i.weekly, won = g.won !== '0';
+    var g = i.gold, wk = i.weekly, won = g.won !== '0', est = i.estimate;
+    if (est) {
+      $('nowAmt').textContent = '≈ ' + CW.ron(est.mine) + ' RON';
+      $('nowNote').textContent = est.kcal ? 'Your ' + fmt(est.kcal) + ' kcal of a pool of ≈ ' + CW.ron(est.pool) + ' RON. It moves as everyone plays; final after the Monday close.'
+        : 'Play with tickets this week to get a share of the pool (≈ ' + CW.ron(est.pool) + ' RON so far).';
+    }
     $('goldAmt').textContent = CW.ron(g.won) + ' RON';
     $('claimGold').disabled = !(won && g.payableNow);
     $('goldNote').textContent = won && !g.payableNow ? 'Pending: the prize box is being refilled. You can claim it in full as soon as it is.'
@@ -475,18 +511,21 @@
     list.classList.toggle('runs', total); head.classList.toggle('runs', total);
     call('GET', '/api/leaderboard?by=' + by + '&player=' + encodeURIComponent(me()), null, 2).then(function (b) {
       if (tok !== boardTok) return;
-      $('rankEnds').textContent = b.endsAt ? 'Prizes and a new week in ' + timeLeft(b.endsAt - Date.now()) : '';
+      $('rankEnds').textContent = (b.pool !== undefined && b.pool !== '0' ? 'Pool ≈ ' + CW.ron(b.pool) + ' RON · ' : '') + (b.endsAt ? 'Prizes and a new week in ' + timeLeft(b.endsAt - Date.now()) : '');
       msg.textContent = b.top.length ? '' : 'No runs yet this week. Be the first.';
       var cells = function (el, texts, classes) {
         texts.forEach(function (t, i) { var c = document.createElement('span'); c.textContent = t; if (classes[i]) c.className = classes[i]; el.appendChild(c); });
       };
-      if (b.top.length) cells(head, total ? ['#', 'Player', 'Runs', 'kcal'] : ['#', 'Player', 'kcal'], []);
+      var money = total && b.pool !== undefined;           // with tickets: what each one would get now
+      list.classList.toggle('prize', money); head.classList.toggle('prize', money);
+      if (b.top.length) cells(head, money ? ['#', 'Player', 'Runs', 'kcal', '≈ RON'] : total ? ['#', 'Player', 'Runs', 'kcal'] : ['#', 'Player', 'kcal'], []);
       var rows = b.top.slice(0, 20);
       if (b.you && b.you.rank > rows.length) rows.push(b.you);
       rows.forEach(function (row) {
         var li = document.createElement('li');
         var pos = 'pos' + (row.rank <= 3 ? ' p' + row.rank : '');     // gold, silver and bronze for the top three
-        if (total) cells(li, [row.rank, row.name, row.runs, fmt(row.total)], [pos, 'who', 'runs-n', 'kc']);
+        if (money) cells(li, [row.rank, row.name, row.runs, fmt(row.total), row.prize && row.prize !== '0' ? CW.ron(row.prize) : '–'], [pos, 'who', 'runs-n', 'kc', 'ron']);
+        else if (total) cells(li, [row.rank, row.name, row.runs, fmt(row.total)], [pos, 'who', 'runs-n', 'kc']);
         else cells(li, [row.rank, row.name, fmt(row.best)], [pos, 'who', 'kc']);
         if (row.you) li.className = 'you';
         list.appendChild(li);
@@ -1142,7 +1181,7 @@
 
   nameEl.value = player.name || '';
   renderWallet();
-  if (CW.init) CW.init().then(function () { renderWallet(); loadWallet(); });
+  if (CW.init) CW.init().then(function () { renderWallet(); loadMe(); loadWallet(); });
   setInterval(function () { if (!homeEl.hidden && CW.address) loadWallet(); }, 60000);
   fit();
   requestAnimationFrame(frame);

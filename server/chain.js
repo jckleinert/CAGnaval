@@ -22,6 +22,7 @@ const GAME_ABI = [
   'function runCount() view returns (uint256)',
   'function currentWeek() view returns (uint256)',
   'function capPerTicket() view returns (uint256)',
+  'function poolBps() view returns (uint256)',
   'function maxTickets() view returns (uint256)',
   'function bonusFree() view returns (uint256)',
   'function ticket() view returns (address)',
@@ -125,9 +126,10 @@ class Chain {
     this._infoP = (async () => {
       const ticket = await rd(() => g.ticket()), ticketId = await rd(() => g.ticketId()), cap = await rd(() => g.capPerTicket());
       const maxTickets = await rd(() => g.maxTickets()), paused = await rd(() => g.paused());
+      const poolBps = await rd(() => g.poolBps()).catch(() => 7250n);
       const week = Math.floor((Date.now() / 1000 - MONDAY0_S) / WEEK_S);
       const v = { contract: this.cfg.GAME_CONTRACT, chainId: this.cfg.CHAIN_ID, ticket, ticketId: ticketId.toString(),
-        cap: cap.toString(), maxTickets: Number(maxTickets), week, paused };
+        cap: cap.toString(), maxTickets: Number(maxTickets), week, paused, poolBps: Number(poolBps) };
       this.cache = { at: Date.now(), v };
       return v;
     })().finally(() => { this._infoP = null; });

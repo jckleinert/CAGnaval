@@ -27,12 +27,13 @@ class RunError extends Error {
   constructor(status, code) { super(code); this.status = status; this.code = code; }
 }
 
+function cleanName(n) {
+  // eslint-disable-next-line no-control-regex
+  return (typeof n === 'string' ? n : '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
+}
 function cleanPlayer(p) {
   if (!p || typeof p.id !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(p.id)) throw new RunError(400, 'bad-player');
-  let name = typeof p.name === 'string' ? p.name : '';
-  // eslint-disable-next-line no-control-regex
-  name = name.replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16);
-  return { id: p.id, name: name || 'Player' };
+  return { id: p.id, name: cleanName(p.name) || 'Player' };
 }
 /* Fingerprint of a player id: what rankings are keyed by, so ids are never stored there or published. */
 function playerKey(id) { return crypto.createHash('sha256').update(String(id)).digest('hex').slice(0, 32); }
@@ -242,13 +243,15 @@ class RunManager {
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i], you = r.key === me;
       if (i >= (limit || 50) && !you) continue;
-      const row = { rank: i + 1, name: r.name, total: r.total, best: r.best, runs: r.runs, you };
+      const row = { rank: i + 1, name: r.name, total: r.total, best: r.best, runs: r.runs, you, paid: !!r.addr };
       if (you) mine = row;
       if (i < (limit || 50)) top.push(row);
     }
     // When this week's ranking closes (its prizes are paid out and a new, empty week starts).
     const endsAt = Date.parse(w + 'T00:00:00Z') + (7 * 24 + this.cfg.WEEK_START_HOUR) * 3600000;
-    return { week: w, by, endsAt, top, you: mine };
+    // For the prize estimate: calories of everyone and tickets played this week.
+    const sum = rows.reduce((a, r) => a + (r.addr ? r.total : 0), 0);
+    return { week: w, by, endsAt, top, you: mine, sum, tickets: this.store.weekTickets(w) };
   }
 
   /*
@@ -270,4 +273,4 @@ class RunManager {
   }
 }
 
-module.exports = { RunManager, RunError, cleanPlayer, playerKey, steadyNow };
+module.exports = { RunManager, RunError, cleanPlayer, cleanName, playerKey, steadyNow };
