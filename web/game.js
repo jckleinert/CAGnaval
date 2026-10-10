@@ -38,7 +38,9 @@
   var cv = $('game'), ctx = cv.getContext('2d'), stage = $('stage'), jar = $('jar');
   var kcalEl = $('kcal'), bestEl = $('best'), nextDisc = $('nextDisc'), ladder = $('ladder');
   var statusEl = $('status'), toastEl = $('toast');
-  var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name');
+  var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name'), prizesEl = $('prizes');
+  var CW = window.CAGW || { enabled: false };
+  var paid = { tickets: 1, info: null, lastMode: 'practice', busy: false };
   var btn = { shake: $('pwShake'), swap: $('pwSwap'), sweep: $('pwSweep') };
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var css = getComputedStyle(document.documentElement);
@@ -153,32 +155,180 @@
   }
   cv.addEventListener('pointerdown', wakeSound);
 
-  function startRun() {
+  /* Who the player is for the ranking: the wallet when signed in, else this browser's id. */
+  function me() { return CW.enabled && CW.address ? CW.address : player.id; }
+
+  function errText(e) {
+    var c = e && e.code;
+    if (c === 'rejected') return 'Cancelled in the wallet.';
+    if (c === 'no-wallet') return 'Install the Ronin Wallet to play for prizes.';
+    if (c === 'other-account') return e.message + '.';
+    if (c === 'slow-down') return 'Too many requests. Wait a moment.';
+    if (c === 'tx-failed') return 'The transaction failed. Your tickets were not used.';
+    if (c === 'tx-not-found') return 'The transaction is taking long. Tap Play again in a moment to resume.';
+    if (c === 'run-finished') return 'That paid run was already played.';
+    if (c === 'sign-in') return 'Sign in again with your wallet.';
+    if (c === 'wallet') return 'The wallet said: ' + String(e.message).slice(0, 90);
+    return 'Could not reach the server. Try again.';
+  }
+
+  /* mode: 'paid' (tickets on the chain) or 'practice' (free). Without a mode, the main button decides. */
+  function startRun(mode) {
     wakeSound();
-    var card = !homeEl.hidden ? homeEl : !overEl.hidden ? overEl : null, leaving = !!card, t0 = Date.now();
-    if (leaving && !reduced) card.classList.add('leaving');        // CAG ducks behind the card
+    if (typeof mode !== 'string') mode = CW.enabled ? 'paid' : 'practice';
+    if (mode === 'paid' && !CW.address) { connectWallet(); return; }
+    paid.lastMode = mode;
+    var card = !homeEl.hidden ? homeEl : !overEl.hidden ? overEl : null;
     var name = nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
     player.name = name || 'Player'; save('cagnaval.player', player);
-    $('play').disabled = true; $('again').disabled = true; $('homeMsg').textContent = 'Starting…';
-    call('POST', '/api/runs', { player: player }, 2).then(function (start) {
-      // let her finish ducking before the card goes
-      var wait = leaving && !reduced ? Math.max(0, 250 - (Date.now() - t0)) : 0;
-      return new Promise(function (ok) { setTimeout(function () { ok(start); }, wait); });
+    $('play').disabled = true; $('again').disabled = true; $('practice').disabled = true;
+    var msgEl = card === overEl ? $('overCheck') : $('homeMsg');
+    // Paid runs talk to the wallet, so they happen on the start card where the wallet is shown.
+    var say = function (t) {
+      if (mode === 'paid' && card === overEl) { overEl.hidden = true; homeEl.hidden = false; card = homeEl; msgEl = $('homeMsg'); }
+      msgEl.textContent = t;
+    };
+    if (mode !== 'paid' && card === homeEl) say('Starting…');
+    var getStart = mode === 'paid' ? paidStart(say) : call('POST', '/api/runs', { player: player }, 2);
+    getStart.then(function (start) {
+      if (card && !reduced) card.classList.add('leaving');           // CAG ducks behind the card
+      return new Promise(function (ok) { setTimeout(function () { ok(start); }, card && !reduced ? 250 : 0); });
     }).then(function (start) {
       var sim = new Sim({ pub: start.pub, events: true });
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
-      run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0 };
+      run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0, tickets: start.tickets || 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
-      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; toastEl.hidden = true; boardBack = null;
+      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; toastEl.hidden = true; boardBack = null;
       if (card) card.classList.remove('leaving');
       PUP.riseAt = nowMs || 1; PUP.sinkAt = 0;                                        // and comes up behind the jar
       $('homeMsg').textContent = '';
+      $('counterNote').textContent = run.tickets ? 'Playing for prizes with ' + run.tickets + ' ticket' + (run.tickets > 1 ? 's' : '') + ': calories ×' + run.tickets + '.'
+        : CW.enabled ? 'Practice run. Free, not ranked.' : 'Practice mode. No tickets, no prizes.';
       cv.focus();
     }).catch(function (e) {
       if (card) { card.classList.remove('leaving'); card.hidden = false; }
-      $('homeMsg').textContent = e.code === 'slow-down' ? 'Too many requests. Wait a moment.' : 'Could not reach the server. Try again.';
-    }).then(function () { $('play').disabled = false; $('again').disabled = false; });
+      say(errText(e));
+      if (mode === 'paid') loadWallet();
+    }).then(function () { $('play').disabled = false; $('again').disabled = false; $('practice').disabled = false; renderWallet(); });
   }
+
+  /* A paid run: send the tickets to the contract (the wallet asks to confirm), then the referee
+     checks the transaction and starts the game. A run whose tickets were sent but never started
+     (page closed, lost connection) is resumed with the same transaction. */
+  function pendingTx() { var p = load('cagnaval.paidTx', null); return p && p.addr === CW.address ? p.h : null; }
+  function paidStart(say) {
+    var resume = pendingTx();
+    var hashP;
+    if (resume) { say('Resuming your paid run…'); hashP = Promise.resolve(resume); }
+    else {
+      var n = paid.tickets;
+      say('Confirm in your wallet (' + n + ' ticket' + (n > 1 ? 's' : '') + ')…');
+      hashP = CW.api('POST', '/api/tx/play', { n: n }).then(CW.send).then(function (h) {
+        save('cagnaval.paidTx', { h: h, addr: CW.address });
+        return h;
+      });
+    }
+    return hashP.then(function (h) {
+      say('Waiting for the transaction… a few seconds.');
+      return CW.api('POST', '/api/runs', { txHash: h, player: { name: player.name } }, 80000);
+    }).then(function (start) {
+      save('cagnaval.paidTx', null);
+      return start;
+    }, function (e) {
+      if (['run-finished', 'not-your-run', 'no-run-in-tx', 'tx-failed', 'bad-tx'].indexOf(e.code) >= 0) save('cagnaval.paidTx', null);
+      throw e;
+    });
+  }
+
+  /* ---------- wallet on the start card ---------- */
+  function connectWallet() {
+    $('homeMsg').textContent = 'Check your wallet…';
+    $('play').disabled = true;
+    CW.connect().then(function () {
+      $('homeMsg').textContent = '';
+      loadWallet();
+    }).catch(function (e) { $('homeMsg').textContent = errText(e); })
+      .then(function () { $('play').disabled = false; renderWallet(); });
+  }
+  function loadWallet() {
+    if (!CW.enabled || !CW.address) { renderWallet(); return Promise.resolve(); }
+    return CW.info().then(function (info) { paid.info = info; renderWallet(); renderPrizes(); })
+      .catch(function (e) { if (e.code === 'sign-in') renderWallet(); });
+  }
+  function maxTickets() {
+    var i = paid.info;
+    return i ? Math.max(0, Math.min(i.tickets, i.maxTicketsNow, i.maxTickets)) : 0;
+  }
+  function renderWallet() {
+    var on = !!CW.enabled, signed = on && !!CW.address, info = paid.info, play = $('play');
+    $('walletBox').hidden = !on;
+    $('practice').hidden = !on;
+    $('openPrizes').hidden = !signed;
+    $('connect').hidden = true;
+    $('walletWho').hidden = !signed;
+    $('ticketPick').hidden = !signed || !info || pendingTx() !== null;
+    var note = '';
+    if (!on) { play.textContent = 'Play'; }
+    else if (!signed) { play.textContent = 'Connect Ronin Wallet'; note = 'Play for prizes with tickets. Practice is free.'; }
+    else if (pendingTx()) { play.textContent = 'Resume your paid run'; note = 'Your tickets were sent. Tap to play that run.'; }
+    else if (!info) { play.textContent = 'Play'; note = 'Loading your wallet…'; }
+    else {
+      var max = maxTickets();
+      paid.tickets = clamp(paid.tickets, 1, Math.max(1, max));
+      $('tCount').textContent = paid.tickets;
+      $('tMinus').disabled = paid.tickets <= 1;
+      $('tPlus').disabled = paid.tickets >= max;
+      play.textContent = max ? 'Play with ' + paid.tickets + ' ticket' + (paid.tickets > 1 ? 's' : '') : info.tickets ? 'Prize box refilling' : 'No tickets';
+      note = !info.tickets ? 'You need tickets to play for prizes.'
+        : !info.maxTicketsNow ? 'The golden prize box is being refilled. Try again soon.'
+        : info.maxTicketsNow < Math.min(info.tickets, info.maxTickets) ? 'Up to ' + info.maxTicketsNow + ' tickets per run right now.'
+        : 'Tickets multiply your calories and the golden prize.';
+      if (!max) play.disabled = true;
+    }
+    if (signed) {
+      $('walletAddr').textContent = CW.short(CW.address);
+      $('walletTix').textContent = info ? info.tickets : '…';
+      var g = info && info.gold, wk = info && info.weekly;
+      $('prizeDot').hidden = !((g && g.won !== '0' && g.payableNow) || (wk && wk.claimable !== '0'));
+    }
+    $('pickNote').textContent = note;
+  }
+  $('tMinus').addEventListener('click', function () { paid.tickets = Math.max(1, paid.tickets - 1); renderWallet(); });
+  $('tPlus').addEventListener('click', function () { paid.tickets = Math.min(maxTickets(), paid.tickets + 1); renderWallet(); });
+  $('signOut').addEventListener('click', function () { CW.signOut(); paid.info = null; renderWallet(); });
+
+  /* ---------- prizes ---------- */
+  function renderPrizes() {
+    var i = paid.info;
+    if (!i) return;
+    var g = i.gold, wk = i.weekly, won = g.won !== '0';
+    $('goldAmt').textContent = CW.ron(g.won) + ' RON';
+    $('claimGold').disabled = !(won && g.payableNow);
+    $('goldNote').textContent = won && !g.payableNow ? 'Pending: the prize box is being refilled. You can claim it in full as soon as it is.'
+      : won ? '' : 'Merge the golden onigiri in a paid run to win.';
+    var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], d = wk.weekId.split('-');
+    $('weekLabel').textContent = 'Weekly prize · week of ' + MON[Number(d[1]) - 1] + ' ' + Number(d[2]);
+    $('weekAmt').textContent = CW.ron(wk.prize) + ' RON';
+    $('claimWeek').disabled = wk.claimable === '0';
+    $('weekNote').textContent = wk.claimed ? 'Claimed ✓'
+      : wk.prize !== '0' && wk.claimable === '0' ? 'Opens one hour after the Monday close, for one week.'
+      : wk.prize === '0' ? 'Your share of the pool by calories, ready after each Monday close.' : '';
+  }
+  function openPrizes() {
+    homeEl.hidden = true; prizesEl.hidden = false; $('prizeMsg').textContent = 'Loading…';
+    loadWallet().then(function () { $('prizeMsg').textContent = ''; });
+  }
+  function claim(path, body, button) {
+    button.disabled = true; $('prizeMsg').textContent = 'Confirm in your wallet…';
+    CW.api('POST', path, body).then(CW.send).then(function () {
+      $('prizeMsg').textContent = 'Sent! The RON reaches your wallet in a few seconds.';
+      setTimeout(loadWallet, 6000);
+    }).catch(function (e) { $('prizeMsg').textContent = errText(e); button.disabled = false; });
+  }
+  $('openPrizes').addEventListener('click', openPrizes);
+  $('closePrizes').addEventListener('click', function () { prizesEl.hidden = true; homeEl.hidden = false; renderWallet(); });
+  $('claimGold').addEventListener('click', function () { claim('/api/tx/claim-gold', {}, $('claimGold')); });
+  $('claimWeek').addEventListener('click', function () { claim('/api/tx/claim', { week: paid.info.weekly.week }, $('claimWeek')); });
 
   /* Messages of a run go out one at a time, in order. */
   function post(kind, msg, onReply) {
@@ -255,7 +405,7 @@
 
   function showResult(r, res, problem) {
     if (run !== r) return;
-    var sim = r.sim, kcal = res ? res.kcal : sim.kcal, title;
+    var sim = r.sim, kcal = res ? res.kcal : sim.kcal, score = res && res.tickets ? res.score : kcal, title;
     if (problem === 'run-expired' || (res && res.status === 'expired')) title = 'Run expired';
     else if (problem === 'network') title = 'Connection lost';
     else if (problem) title = 'Run stopped';
@@ -271,6 +421,13 @@
     var g = res && res.gold;
     $('overGold').classList.toggle('hot', !!(g && g.merged));
     $('overBonus').textContent = g && g.merged ? '×' + g.mult : g && g.appeared ? 'Missed' : 'None';
+    var paidLine = '';
+    if (res && res.tickets) {
+      paidLine = fmt(kcal) + ' kcal × ' + res.tickets + ' ticket' + (res.tickets > 1 ? 's' : '') + '.';
+      if (res.goldWei && res.goldWei !== '0') paidLine += ' Golden prize: ' + CW.ron(res.goldWei) + ' RON. Claim it in Prizes.';
+      setTimeout(loadWallet, 8000);       // tickets and prizes changed
+    }
+    $('overPaid').textContent = paidLine; $('overPaid').hidden = !paidLine;
 
     var oc = $('overCheck'), ok = !!(res && res.verified);
     oc.classList.toggle('bad', !ok); oc.classList.toggle('ok', ok);
@@ -286,7 +443,7 @@
     $('overBest').hidden = !record;
     if (res && res.counted) {
       if (record) { best = kcal; save('cagnaval.best', best); }
-      call('GET', '/api/leaderboard?player=' + encodeURIComponent(player.id), null, 1).then(function (b) {
+      call('GET', '/api/leaderboard?player=' + encodeURIComponent(me()), null, 1).then(function (b) {
         if (run === r && b.you) { $('overWeek').textContent = '#' + b.you.rank; $('overWeek').title = fmt(b.you.total) + ' kcal this week'; }
       }).catch(function () { /* ranking is optional here */ });
     }
@@ -295,7 +452,7 @@
     setTimeout(function () {
       if (run !== r) return;
       overEl.hidden = false;
-      countUp($('overKcal'), kcal);
+      countUp($('overKcal'), score);
       $('again').focus();
     }, wait);
   }
@@ -316,7 +473,7 @@
     $('tabBest').setAttribute('aria-selected', total ? 'false' : 'true');
     list.textContent = ''; head.textContent = ''; msg.textContent = 'Loading…';
     list.classList.toggle('runs', total); head.classList.toggle('runs', total);
-    call('GET', '/api/leaderboard?by=' + by + '&player=' + encodeURIComponent(player.id), null, 2).then(function (b) {
+    call('GET', '/api/leaderboard?by=' + by + '&player=' + encodeURIComponent(me()), null, 2).then(function (b) {
       if (tok !== boardTok) return;
       $('rankEnds').textContent = b.endsAt ? 'Prizes and a new week in ' + timeLeft(b.endsAt - Date.now()) : '';
       msg.textContent = b.top.length ? '' : 'No runs yet this week. Be the first.';
@@ -811,7 +968,7 @@
   function paintPuppet(face) { paintCag(puppet, pctx, face); PUP.shown = face; }
   /* CAG over the cards: made at the exact number of screen pixels she covers, so she looks sharp.
      A card that is hidden forgets she was up, so she comes up again the next time it shows. */
-  var cards = [homeEl, overEl, boardEl];
+  var cards = [homeEl, overEl, boardEl, prizesEl];
   function drawPeek() {
     if (!ART_P || !PUP.ok) return;
     for (var i = 0; i < cards.length; i++) {
@@ -974,14 +1131,19 @@
     else if (e.key === ' ' || e.key === 'Enter') { doDrop(); e.preventDefault(); }
   });
   Object.keys(btn).forEach(function (k) { btn[k].addEventListener('click', function () { usePower(k); }); });
-  $('play').addEventListener('click', startRun);
-  $('again').addEventListener('click', startRun);
+  $('play').addEventListener('click', function () { startRun(); });
+  $('practice').addEventListener('click', function () { startRun('practice'); });
+  // Play again repeats the kind of run just played, with the same number of tickets.
+  $('again').addEventListener('click', function () { startRun(paid.lastMode); });
   nameEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') startRun(); });
   $('openBoard').addEventListener('click', openBoard);
   $('openBoard2').addEventListener('click', openBoard);
   $('closeBoard').addEventListener('click', function () { boardEl.hidden = true; if (boardBack) boardBack.hidden = false; boardBack = null; });
 
   nameEl.value = player.name || '';
+  renderWallet();
+  if (CW.init) CW.init().then(function () { renderWallet(); loadWallet(); });
+  setInterval(function () { if (!homeEl.hidden && CW.address) loadWallet(); }, 60000);
   fit();
   requestAnimationFrame(frame);
 })();

@@ -26,5 +26,12 @@ module.exports = {
   ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN || '',
   // Set to 1 behind one proxy (Railway) so the visitor address is taken from the entry that proxy adds to X-Forwarded-For.
   TRUST_PROXY: process.env.TRUST_PROXY === '1',
-  RATE_LIMIT_PER_MIN: num(process.env.RATE_LIMIT_PER_MIN, 600)
+  RATE_LIMIT_PER_MIN: num(process.env.RATE_LIMIT_PER_MIN, 600),
+  // Blockchain (Ronin). Without GAME_CONTRACT and REFEREE_KEY the game runs in practice mode only.
+  GAME_CONTRACT: process.env.GAME_CONTRACT || '',
+  REFEREE_KEY: process.env.REFEREE_KEY || '',   // private key of the referee wallet: only as a Railway variable, never in the code
+  CHAIN_RPC: process.env.CHAIN_RPC || 'https://api.roninchain.com/rpc',
+  CHAIN_ID: num(process.env.CHAIN_ID, 2020),
+  // How often the weekly close is checked (ms).
+  CLOSE_EVERY_MS: num(process.env.CLOSE_EVERY_MS, 10 * 60000)
 };

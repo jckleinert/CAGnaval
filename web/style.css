@@ -333,3 +333,28 @@ body {
 @media (min-width: 1000px) and (min-height: 760px) and (min-aspect-ratio: 11/10) { :root { --k: 1.2; } }
 @media (min-width: 1200px) and (min-height: 900px) and (min-aspect-ratio: 11/10) { :root { --k: 1.4; } }
 @media (min-width: 1500px) and (min-height: 1080px) and (min-aspect-ratio: 11/10) { :root { --k: 1.65; } }
+
+/* ---------- wallet, tickets and prizes ---------- */
+.wallet { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 294px; }
+.ghost.wide { width: 220px; max-width: 100%; padding-top: 7px; padding-bottom: 7px; }
+.who { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; font-size: 13px; font-weight: 600; }
+.who .addr { padding: 3px 10px; border-radius: 999px; background: #EAF8FE; font-variant-numeric: tabular-nums; }
+.who .tix b { color: var(--pink); }
+.link { padding: 0; border: 0; background: none; color: var(--dim); font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.pick { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 6px 10px; border-radius: 14px; background: #FFF6DB; }
+.pick-k { flex: 1; text-align: left; font-size: 13px; font-weight: 600; }
+.pick-n { min-width: 22px; font-size: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.step { width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: var(--paper); box-shadow: 0 3px 0 var(--shade); color: var(--ink); font: 700 20px/1 Fredoka, system-ui, sans-serif; cursor: pointer; }
+.step:disabled { opacity: 0.4; cursor: default; }
+.pick-note { margin: 0; font-size: 12px; font-weight: 600; color: var(--dim); }
+.pick-note:empty { display: none; }
+#openPrizes { position: relative; }
+.dot { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border-radius: 50%; background: var(--pink); box-shadow: 0 0 0 2px var(--paper); }
+.prize { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "k btn" "v btn" "note note"; align-items: center; column-gap: 10px; width: 100%; max-width: 294px; padding: 9px 12px; border-radius: 16px; text-align: left; }
+.prize.gold { background: #FFF6DB; }
+.prize.week { background: #FFEFF4; }
+.prize-k { grid-area: k; font-size: 12px; font-weight: 600; color: var(--dim); }
+.prize-v { grid-area: v; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.prize .primary { grid-area: btn; margin: 0 0 4px; padding: 8px 18px 9px; font-size: 16px; }
+.prize-note { grid-area: note; font-size: 12px; font-weight: 600; color: var(--dim); }
+.prize-note:empty { display: none; }

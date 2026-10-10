@@ -2,7 +2,9 @@
 
 Juego web de soltar y combinar comidas, con un árbitro (servidor) que reparte las fichas y valida cada partida.
 
-**Estado: etapa 1, modo práctica.** Se juega gratis, sin wallet, sin tickets y sin premios. Sirve para probar el juego real y el árbitro antes de conectar plata.
+**Estado: etapa 2, prueba en Ronin.** Con la Ronin Wallet conectada se juega gastando tickets (por ahora la CAG Energy Drink, ítem #1 de las bebidas de CAG): cada ticket multiplica las calorías y el premio de la dorada, y los premios se cobran desde el juego. La práctica sigue siendo gratis y no entra al ranking. Sin las variables del contrato, el juego vuelve a ser solo práctica.
+
+El contrato y su manual están en `contracts/` (`contracts/MANUAL.md`).
 
 El diseño completo (reparto 70/23/7, dorada, tickets, seguridad) está en el documento "CAG Food Merge: diseño del juego".
 
@@ -11,7 +13,8 @@ El diseño completo (reparto 70/23/7, dorada, tickets, seguridad) está en el do
 | Carpeta | Qué contiene |
 | --- | --- |
 | `shared/` | El motor del juego. Es el mismo archivo para la página y para el árbitro, y da exactamente el mismo resultado en los dos. |
-| `server/` | El árbitro: inicia partidas, entrega las fichas de a una, valida cada jugada y lleva el ranking semanal. |
+| `server/` | El árbitro: inicia partidas, entrega las fichas de a una, valida cada jugada, lleva el ranking semanal y habla con el contrato (`chain.js`) y con la billetera del jugador (`auth.js`). |
+| `contracts/` | El contrato de Ronin (`CAGnaval.sol`), su manual y sus pruebas en una cadena simulada. |
 | `web/` | La página del juego. |
 | `test/` | Pruebas automáticas del motor y del árbitro. |
 | `scripts/` | Herramientas: regenerar archivos de `shared/` y la prueba de punta a punta en navegador. |
@@ -37,6 +40,8 @@ Para correr las pruebas automáticas: `npm test`.
 | --- | --- | --- |
 | `DATA_DIR` | `/data` | Que el ranking y las partidas guardadas sobrevivan a un reinicio |
 | `TRUST_PROXY` | `1` | Que el límite de pedidos por visitante funcione detrás de Railway |
+| `GAME_CONTRACT` | dirección del contrato | Activa las partidas con tickets y los premios |
+| `REFEREE_KEY` | clave privada de la billetera del árbitro | Para firmar el cierre de partidas y el reparto semanal. Solo como variable de Railway, nunca en el código |
 
 4. Generá un dominio público para el servicio y abrilo.
 
@@ -59,6 +64,18 @@ Todo se cambia con variables de entorno. Ninguna es obligatoria.
 | `ALLOWED_ORIGIN` | vacío | Dirección del sitio, si la página se aloja en otro lado que el árbitro |
 | `TRUST_PROXY` | apagado | Poner `1` detrás de un proxy como Railway |
 | `RATE_LIMIT_PER_MIN` | `600` | Pedidos por minuto permitidos por visitante |
+| `GAME_CONTRACT` / `REFEREE_KEY` | vacío | Contrato y clave del árbitro. Sin las dos, solo práctica |
+| `CHAIN_RPC` | `https://api.roninchain.com/rpc` | Nodo de Ronin que usa el árbitro |
+| `CHAIN_ID` | `2020` | Red de Ronin (2020 = la real) |
+| `CLOSE_EVERY_MS` | `600000` | Cada cuánto revisa si hay que hacer el reparto semanal |
+
+## Partidas con tickets (etapa 2)
+
+1. El jugador conecta la Ronin Wallet y firma un mensaje (no cuesta nada): así el árbitro sabe que la billetera es suya.
+2. Elige de 1 a 5 tickets. El máximo baja si la caja de la dorada no alcanza (105 RON libres por ticket, o lo que diga `capPerTicket`).
+3. Su billetera manda los tickets al contrato; el árbitro lee esa transacción y recién ahí arranca la partida. Si la página se cierra en el medio, el botón ofrece retomar esa misma partida.
+4. Al terminar, el árbitro cierra la partida en el contrato con el premio de la dorada: multiplicador × tickets × valor del ticket (el valor es `capPerTicket` / 21). El jugador lo cobra desde "Prizes".
+5. Las calorías × tickets suman al ranking Total. Después del cierre del lunes el árbitro publica el reparto del pozo de esa semana, proporcional a las calorías, y pasa a la semana abierta lo que sobre por redondeo, lo de semanas sin jugadores y lo que nadie cobró a tiempo.
 
 Cada semana empieza con el ranking vacío; las semanas anteriores quedan guardadas para pagar los premios y poder revisarlas. La pantalla de ranking muestra cuánto falta para el cierre. El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y hora de CAGlorie con `WEEK_START_DOW` y `WEEK_START_HOUR`.
 
@@ -167,10 +184,10 @@ Se arman con `npm run build:cag` (Python con Pillow y numpy), que escribe `web/i
 
 ## Qué falta para las próximas etapas
 
-1. Contratos en la red de prueba de Ronin: ticket NFT, caja del bonus y cobro semanal.
-2. Conectar la Ronin Wallet, pedir ticket para jugar, partidas de 1 a 5 tickets y pago del bonus al instante.
-3. Playtest cerrado.
-4. Lanzamiento en la red real.
+1. Probar todo en Ronin con la Energy Drink y poca plata.
+2. Comprar tickets desde el juego (Ronin Market).
+3. Colección propia de tickets de CAGnaval y cobro de las ventajas en $CAG.
+4. Playtest cerrado y lanzamiento en cuentas nuevas de GitHub y Railway.
 
 ## Para quien toque el código
 
@@ -181,4 +198,4 @@ Se arman con `npm run build:cag` (Python con Pillow y numpy), que escribe `web/i
 - `shared/sim.js` es la única fuente de verdad de las reglas. Si cambia algo que altera el resultado de una partida, hay que subir `RULES.VERSION`.
 - Dentro de la simulación no se puede usar `Math.sin`, `Math.pow`, `Math.random` ni nada parecido: no dan el mismo resultado en todos los navegadores. `shared/detmath.js` los reemplaza o los bloquea.
 - `shared/matter-det.js`, `shared/foods.js`, `scripts/art.json` y `web/img/foods/*.webp` son archivos generados. Se rehacen con `npm run build:matter`, `npm run build:foods` y `npm run build:art`.
-- Prueba de punta a punta en navegador (necesita Playwright): `node scripts/e2e.js`.
+- Prueba de punta a punta en navegador (necesita Playwright): `node scripts/e2e.js`. La de billetera y tickets, con una billetera y una cadena de mentira: `node scripts/e2e-wallet.js`.

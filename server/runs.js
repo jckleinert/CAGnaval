@@ -14,6 +14,7 @@
 const crypto = require('crypto');
 const Sim = require('../shared/sim.js');
 const pieces = require('./pieces.js');
+const { goldPrize } = require('./chain.js');
 
 const R = Sim.RULES;
 const isInt = (v) => typeof v === 'number' && Number.isInteger(v);
@@ -44,10 +45,17 @@ class RunManager {
     this.active = new Map();     // runId -> live run
     this.byPlayer = new Map();   // player id -> runId of the run in progress
     this.done = new Map();       // runId -> final result (recent runs, for repeated finish calls)
+    this.goldPrize = goldPrize;
+    this.onPaid = null;          // set by the server when the blockchain is on
   }
 
+  /*
+   * meta.chain (paid run): { runId, tickets, cap } read from the contract. The
+   * calories count x tickets, and at the end onPaid(run, result) settles it.
+   */
   create(playerIn, meta) {
     const player = cleanPlayer(playerIn);
+    const chain = meta && meta.chain ? meta.chain : null;
     const ip = String((meta && meta.ip) || '');
     if (this.active.size >= this.cfg.MAX_ACTIVE_RUNS) throw new RunError(503, 'busy');
     if (ip) {
@@ -66,17 +74,19 @@ class RunManager {
       secret, commit: pieces.commitOf(secret),
       pub: crypto.randomBytes(4).readUInt32BE(0),
       gold: pieces.goldPlan(secret, this.cfg),
-      events: [], lastReply: null, mismatchAt: 0, ip,
+      events: [], lastReply: null, mismatchAt: 0, ip, chain,
       ua: String((meta && meta.ua) || '').slice(0, 200)
     };
     run.sim = new Sim({ pub: run.pub });
     for (let k = 1; k <= R.MAX_FOODS; k++) run.sim.setPiece(k, pieces.pieceAt(secret, run.gold, k));
     this.active.set(run.id, run);
     this.byPlayer.set(player.id, run.id);
+    if (chain) this.store.setChainRun(chain.runId, { status: 'playing', run: run.id, at: t });
     return {
       runId: run.id, pub: run.pub, commit: run.commit,
       pieces: [this._reveal(run, 1), this._reveal(run, 2)],
-      rulesVersion: R.VERSION
+      rulesVersion: R.VERSION,
+      tickets: chain ? chain.tickets : 0
     };
   }
 
@@ -189,8 +199,15 @@ class RunManager {
       counted,
       gold: { appeared: sim.gold !== 'none', merged: goldMerged, mult: goldMerged && run.gold ? run.gold.mult : null },
       commit: run.commit, secret: run.secret,
-      week: this.store.weekId(t)   // a run counts for the week in which it ends
+      week: this.store.weekId(t),  // a run counts for the week in which it ends
+      tickets: run.chain ? run.chain.tickets : 0,
+      score: run.chain ? sim.kcal * run.chain.tickets : sim.kcal
     };
+    if (run.chain) {
+      // Golden prize only for a clean run in which it was merged.
+      result.goldWei = (goldMerged && counted && run.gold) ? this.goldPrize(run.gold.mult, run.chain.tickets, run.chain.cap).toString() : '0';
+      result.chainRun = run.chain.runId;
+    }
     this.active.delete(run.id);
     if (this.byPlayer.get(run.player.id) === run.id) this.byPlayer.delete(run.player.id);
     this.done.set(run.id, result);
@@ -199,10 +216,18 @@ class RunManager {
       if (run.events.length) this.store.saveRun({
         id: run.id, week: result.week, player: run.player, createdAt: run.createdAt, endedAt: t,
         rulesVersion: R.VERSION, pub: run.pub, secret: run.secret, commit: run.commit, goldPlan: run.gold,
-        events: run.events, clientKcal: extra ? extra.clientKcal : null, ua: run.ua, result
+        events: run.events, clientKcal: extra ? extra.clientKcal : null, ua: run.ua, chain: run.chain, result
       });
-      if (counted && sim.kcal > 0) this.store.addScore(result.week, playerKey(run.player.id), run.player.name, sim.kcal, t);
+      // With the blockchain on, only paid runs enter the ranking (practice is just practice).
+      const ranked = run.chain || !this.cfg.PAID_ONLY;
+      if (ranked && counted && sim.kcal > 0) {
+        this.store.addScore(result.week, playerKey(run.player.id), run.player.name, result.score, t, run.chain ? run.player.id : null);
+      }
     } catch (e) { console.error('could not save run', run.id, e.message); }
+    if (run.chain) {
+      try { this.store.setChainRun(run.chain.runId, { status: 'done', run: run.id, at: t, gold: result.goldWei }); } catch (e) { console.error(e.message); }
+      try { if (this.onPaid) this.onPaid(run, result); } catch (e) { console.error('could not settle', run.chain.runId, e.message); }
+    }
     run.sim = null;
     return result;
   }

@@ -4,7 +4,9 @@
   "private": true,
   "description": "CAGnaval: drop-and-merge food game with a referee server (stage 1, practice mode)",
   "license": "UNLICENSED",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server/index.js",
     "test": "node --test",
@@ -12,5 +14,8 @@
     "build:foods": "node scripts/gen-foods.js",
     "build:art": "python3 scripts/gen-art.py && node scripts/gen-foods.js",
     "build:cag": "python3 scripts/gen-cag.py"
+  },
+  "dependencies": {
+    "ethers": "6.13.4"
   }
 }
