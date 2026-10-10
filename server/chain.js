@@ -80,7 +80,10 @@ class Chain {
     this.cache = null;
     if (!this.enabled) return;
     fs.mkdirSync(this.dir, { recursive: true });
-    this.provider = new ethers.JsonRpcProvider(cfg.CHAIN_RPC, cfg.CHAIN_ID, { staticNetwork: true });
+    // One request at a time and no batches: the public Ronin node refuses bursts ("Too many requests").
+    const req = new ethers.FetchRequest(cfg.CHAIN_RPC);
+    req.timeout = 15000;                       // a node that hangs must not block the reads behind it
+    this.provider = new ethers.JsonRpcProvider(req, cfg.CHAIN_ID, { staticNetwork: true, batchMaxCount: 1 });
     this.wallet = new ethers.Wallet(cfg.REFEREE_KEY, this.provider);
     this.game = new ethers.Contract(cfg.GAME_CONTRACT, GAME_ABI, this.wallet);
     this.iface = new ethers.Interface(GAME_ABI);
@@ -91,6 +94,23 @@ class Chain {
 
   get referee() { return this.wallet ? this.wallet.address : null; }
 
+  /* Reads go out one after another and are retried when the node says it is busy. */
+  async _read(fn) {
+    const prev = this._queue || Promise.resolve();
+    let release;
+    this._queue = new Promise((r) => { release = r; });
+    await prev;
+    try {
+      for (let i = 0; ; i++) {
+        try { return await fn(); } catch (e) {
+          const busy = /too many requests|rate limit|429|timeout/i.test(String((e && (e.info && e.info.responseBody)) || '') + ' ' + String(e && e.message));
+          if (!busy || i >= 4) throw e;
+          await new Promise((r) => setTimeout(r, 800 * Math.pow(2, i)));
+        }
+      }
+    } finally { setTimeout(release, 120); }   // a small gap between requests
+  }
+
   _save() {
     const f = path.join(this.dir, 'jobs.json');
     fs.writeFileSync(f + '.tmp', JSON.stringify(this.jobs));
@@ -99,14 +119,19 @@ class Chain {
 
   /* Settings read from the contract, refreshed every minute. */
   async info() {
-    if (this.cache && Date.now() - this.cache.at < 60000) return this.cache.v;
-    const [ticket, ticketId, cap, maxTickets, week, paused] = await Promise.all([
-      this.game.ticket(), this.game.ticketId(), this.game.capPerTicket(), this.game.maxTickets(), this.game.currentWeek(), this.game.paused()
-    ]);
-    const v = { contract: this.cfg.GAME_CONTRACT, chainId: this.cfg.CHAIN_ID, ticket, ticketId: ticketId.toString(),
-      cap: cap.toString(), maxTickets: Number(maxTickets), week: Number(week), paused };
-    this.cache = { at: Date.now(), v };
-    return v;
+    if (this.cache && Date.now() - this.cache.at < 120000) return this.cache.v;
+    if (this._infoP) return this._infoP;
+    const g = this.game, rd = (f) => this._read(f);
+    this._infoP = (async () => {
+      const ticket = await rd(() => g.ticket()), ticketId = await rd(() => g.ticketId()), cap = await rd(() => g.capPerTicket());
+      const maxTickets = await rd(() => g.maxTickets()), paused = await rd(() => g.paused());
+      const week = Math.floor((Date.now() / 1000 - MONDAY0_S) / WEEK_S);
+      const v = { contract: this.cfg.GAME_CONTRACT, chainId: this.cfg.CHAIN_ID, ticket, ticketId: ticketId.toString(),
+        cap: cap.toString(), maxTickets: Number(maxTickets), week, paused };
+      this.cache = { at: Date.now(), v };
+      return v;
+    })().finally(() => { this._infoP = null; });
+    return this._infoP;
   }
 
   /* Finds the RunStarted of a transaction. Waits for it to be mined (up to `waitMs`). */
@@ -114,9 +139,9 @@ class Chain {
     const end = Date.now() + (waitMs || 60000);
     let rc = null;
     while (Date.now() < end) {
-      rc = await this.provider.getTransactionReceipt(txHash).catch(() => null);
+      rc = await this._read(() => this.provider.getTransactionReceipt(txHash)).catch(() => null);
       if (rc) break;
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 2500));
     }
     if (!rc) return { error: 'tx-not-found' };
     if (rc.status !== 1) return { error: 'tx-failed' };
@@ -130,27 +155,36 @@ class Chain {
   }
 
   async getRun(runId) {
-    const r = await this.game.getRun(BigInt(runId));
+    const r = await this._read(() => this.game.getRun(BigInt(runId)));
     return { player: r.player.toLowerCase(), tickets: Number(r.tickets), week: Number(r.week), settled: r.settled, cap: r.cap.toString() };
   }
 
   /* What a wallet holds and can claim. */
   async wallet_(addr) {
+    this._walletCache = this._walletCache || new Map();
+    const hit = this._walletCache.get(addr);
+    if (hit && Date.now() - hit.at < 8000) return hit.v;
     const info = await this.info();
     const ticket = new ethers.Contract(info.ticket, TICKET_ABI, this.provider);
-    const w = info.week;
-    const [tickets, gold, free, lastPrize, lastClaimable, lastClaimed] = await Promise.all([
-      ticket.balanceOf(addr, BigInt(info.ticketId)), this.game.goldClaimable(addr), this.game.bonusFree(),
-      this.game.prize(w - 1, addr), this.game.claimable(addr, w - 1), this.game.claimed(w - 1, addr)
-    ]);
-    return {
+    const w = info.week, g = this.game, rd = (f) => this._read(f);
+    const tickets = await rd(() => ticket.balanceOf(addr, BigInt(info.ticketId)));
+    const gold = await rd(() => g.goldClaimable(addr));
+    const free = await rd(() => g.bonusFree());
+    const lastPrize = await rd(() => g.prize(w - 1, addr));
+    const lastClaimable = lastPrize > 0n ? await rd(() => g.claimable(addr, w - 1)) : 0n;
+    const lastClaimed = lastPrize > 0n ? await rd(() => g.claimed(w - 1, addr)) : false;
+    const v = {
       tickets: Number(tickets),
       gold: { won: gold.won.toString(), payableNow: gold.payableNow },
       weekly: { week: w - 1, weekId: weekIdOf(w - 1), prize: lastPrize.toString(), claimable: lastClaimable.toString(), claimed: lastClaimed },
       maxTicketsNow: info.cap === '0' ? 0 : Math.min(info.maxTickets, Number(BigInt(free.toString()) / BigInt(info.cap))),
       cap: info.cap, maxTickets: info.maxTickets, paused: info.paused
     };
+    this._walletCache.set(addr, { at: Date.now(), v });
+    if (this._walletCache.size > 2000) this._walletCache.clear();
+    return v;
   }
+  forget(addr) { if (this._walletCache) this._walletCache.delete(addr); }
 
   /* Data of the player's own transactions. */
   async txPlay(from, n) {
@@ -206,13 +240,14 @@ class Chain {
    * a week nobody played, prizes nobody claimed in time) to the open week.
    */
   async closeWeeks(store) {
-    const now = Number(await this.game.currentWeek());
+    const rd = (f) => this._read(f);
+    const now = Number(await rd(() => this.game.currentWeek()));
     const doneFile = path.join(this.dir, 'weeks.json');
     let done = {};
     try { done = JSON.parse(fs.readFileSync(doneFile, 'utf8')); } catch (e) { done = {}; }
     const w = now - 1;
-    if (!done[w] && Number(await this.game.postedAt(w)) === 0 && !this.jobs.some((j) => j.kind === 'post' && j.week === w)) {
-      const pool = (await this.game.weekPool(w)) - (await this.game.weekRolled(w));
+    if (!done[w] && Number(await rd(() => this.game.postedAt(w))) === 0 && !this.jobs.some((j) => j.kind === 'post' && j.week === w)) {
+      const pool = (await rd(() => this.game.weekPool(w))) - (await rd(() => this.game.weekRolled(w)));
       const rows = store.leaderboard(weekIdOf(w), 'total').map((r) => ({ addr: r.addr, total: r.total }));
       const shares = splitPool(pool, rows);
       if (!shares.length) this.post(w, [], []);
@@ -227,7 +262,7 @@ class Chain {
     if (this.jobs.length) return; // let postings land before moving leftovers
     for (const from of [w, w - 1]) {
       if (from < 0) continue;
-      const left = await this.game.leftover(from).catch(() => 0n);
+      const left = await rd(() => this.game.leftover(from)).catch(() => 0n);
       if (left > 0n && !this.jobs.some((j) => j.kind === 'roll' && j.from === from)) this.roll(from, now);
     }
   }

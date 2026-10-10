@@ -38,8 +38,13 @@
       }, function () { clearTimeout(timer); throw err('network'); });
   };
 
-  W.init = function () {
-    return W.api('GET', '/api/chain').then(function (c) {
+  /* Asks the server for the contract settings; retried a few times if the Ronin node is busy. */
+  W.init = function (tries) {
+    tries = tries === undefined ? 4 : tries;
+    return W.api('GET', '/api/chain').catch(function (e) {
+      if (tries <= 1 || e.code === 'network') throw e;
+      return new Promise(function (ok) { setTimeout(ok, 2500); }).then(function () { return W.api('GET', '/api/chain'); });
+    }).then(function (c) {
       W.enabled = !!c.enabled; W.cfg = c;
       var s = load();
       if (W.enabled && s && s.token && s.exp > Date.now() + 3600000 && s.contract === c.contract) { W.address = s.address; W.token = s.token; }

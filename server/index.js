@@ -67,6 +67,7 @@ function createApp(options) {
     const name = body.player && typeof body.player.name === 'string' ? body.player.name : '';
     const out = runs.create({ id: addr, name }, { ua: req.headers['user-agent'], ip, chain: { runId: found.runId, tickets: cr.tickets, cap: cr.cap } });
     out.chainRun = found.runId;
+    if (chain.forget) chain.forget(addr);
     return out;
   }
   const hits = new Map();
@@ -179,6 +180,10 @@ function createApp(options) {
       throw new RunError(404, 'not-found');
     } catch (e) {
       if (e instanceof RunError) return send(res, e.status, { error: e.code }, cors);
+      if (e && e.code && /SERVER_ERROR|TIMEOUT|NETWORK_ERROR|CALL_EXCEPTION|BAD_DATA/.test(e.code)) {
+        console.error('chain read failed:', url.pathname, e.shortMessage || e.message);
+        return send(res, 503, { error: 'chain-busy' }, cors);
+      }
       console.error(e);
       return send(res, 500, { error: 'server-error' }, cors);
     }
