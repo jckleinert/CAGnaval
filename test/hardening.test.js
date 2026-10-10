@@ -139,3 +139,10 @@ test('behind a proxy, the rate limit uses the address the proxy adds', async () 
   assert.deepStrictEqual(codes, [200, 200, 200, 429, 429, 429]);
   await new Promise((r) => app.server.close(r));
 });
+
+test('the ranking says when the week closes: 7 days after it started, at the configured hour', () => {
+  const env = setup({ WEEK_START_DOW: 1, WEEK_START_HOUR: 3 });
+  const b = env.mgr.leaderboard('', 10);
+  assert.strictEqual(b.endsAt, Date.parse(b.week + 'T03:00:00Z') + 7 * 24 * 3600000);
+  assert.ok(b.endsAt > env.clock.t && b.endsAt - env.clock.t <= 7 * 24 * 3600000);
+});

@@ -221,7 +221,9 @@ class RunManager {
       if (you) mine = row;
       if (i < (limit || 50)) top.push(row);
     }
-    return { week: w, by, top, you: mine };
+    // When this week's ranking closes (its prizes are paid out and a new, empty week starts).
+    const endsAt = Date.parse(w + 'T00:00:00Z') + (7 * 24 + this.cfg.WEEK_START_HOUR) * 3600000;
+    return { week: w, by, endsAt, top, you: mine };
   }
 
   /*

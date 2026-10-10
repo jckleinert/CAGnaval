@@ -318,6 +318,7 @@
     list.classList.toggle('runs', total); head.classList.toggle('runs', total);
     call('GET', '/api/leaderboard?by=' + by + '&player=' + encodeURIComponent(player.id), null, 2).then(function (b) {
       if (tok !== boardTok) return;
+      $('rankEnds').textContent = b.endsAt ? 'Prizes and a new week in ' + timeLeft(b.endsAt - Date.now()) : '';
       msg.textContent = b.top.length ? '' : 'No runs yet this week. Be the first.';
       var cells = function (el, texts, classes) {
         texts.forEach(function (t, i) { var c = document.createElement('span'); c.textContent = t; if (classes[i]) c.className = classes[i]; el.appendChild(c); });
@@ -334,6 +335,10 @@
         list.appendChild(li);
       });
     }).catch(function () { if (tok === boardTok) msg.textContent = 'Could not load the ranking.'; });
+  }
+  function timeLeft(ms) {
+    var m = Math.max(0, Math.floor(ms / 60000)), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60);
+    return d ? d + 'd ' + h + 'h' : h ? h + 'h ' + (m % 60) + 'm' : (m % 60) + 'm';
   }
   $('tabTotal').addEventListener('click', function () { loadBoard('total'); });
   $('tabBest').addEventListener('click', function () { loadBoard('best'); });

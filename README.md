@@ -60,7 +60,7 @@ Todo se cambia con variables de entorno. Ninguna es obligatoria.
 | `TRUST_PROXY` | apagado | Poner `1` detrás de un proxy como Railway |
 | `RATE_LIMIT_PER_MIN` | `600` | Pedidos por minuto permitidos por visitante |
 
-El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y hora de CAGlorie con `WEEK_START_DOW` y `WEEK_START_HOUR`.
+Cada semana empieza con el ranking vacío; las semanas anteriores quedan guardadas para pagar los premios y poder revisarlas. La pantalla de ranking muestra cuánto falta para el cierre. El cierre semanal por defecto es lunes 00:00 UTC. Hay que ajustarlo al día y hora de CAGlorie con `WEEK_START_DOW` y `WEEK_START_HOUR`.
 
 ## Reglas del juego que ya están implementadas
 
