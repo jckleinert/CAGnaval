@@ -118,20 +118,19 @@ async function fails(p, msg) {
   });
   await ok('first claims get paid, the rest shows pending until refilled', async () => {
     const [won, now_] = await game.goldClaimable(A(p3));
-    assert.equal(won, RON(210)); assert.equal(now_, RON(210));
+    assert.equal(won, RON(210)); assert.equal(now_, true);
     await claimGold(p2);
     const [won2, now2] = await game.goldClaimable(A(p3));
-    assert.equal(won2, RON(210)); assert.equal(now2, 0n);
+    assert.equal(won2, RON(210)); assert.equal(now2, false);
     await fails(game.connect(p3).claimGold(), 'box being refilled');
   });
-  await ok('after refills the pending prize is paid, partly and then the rest', async () => {
+  await ok('never paid in part: still pending while the box holds less than the full prize', async () => {
     await (await game.fundBonus({ value: RON(100) })).wait();
-    const b0 = await bal(A(p3));
-    let gas = await claimGold(p3);
-    assert.equal(await bal(A(p3)) - b0 + gas, RON(100));
-    assert.equal(await game.goldOwed(A(p3)), RON(110));
+    await fails(game.connect(p3).claimGold(), 'box being refilled');
+    assert.equal(await game.goldOwed(A(p3)), RON(210));
     await (await game.fundBonus({ value: RON(200) })).wait();
-    gas += await claimGold(p3);
+    const b0 = await bal(A(p3));
+    const gas = await claimGold(p3);
     assert.equal(await bal(A(p3)) - b0 + gas, RON(210));
     assert.equal(await game.goldPending(), 0n);
     assert.equal(await game.bonusFree(), RON(90));

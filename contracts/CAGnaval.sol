@@ -17,8 +17,8 @@ pragma solidity ^0.8.24;
     took, goes to the treasury wallet. fundBonus / fundPool load either alone.
   - Golden onigiri: when a run ends, the referee (the game server) settles it
     and the prize is written down for the player, who claims it from the game
-    (claimGold). If the box cannot cover it yet, it shows as pending and is
-    paid when the box is refilled. A run can only start if the box, after
+    (claimGold), always in full. If the box cannot cover the whole amount yet,
+    it shows as pending until the box is refilled. A run can only start if the box, after
     every pending prize, still holds capPerTicket RON per ticket (one 21x
     prize). Nothing is held back while runs are open, so any number of people
     can play at once.
@@ -99,7 +99,7 @@ contract CAGnaval {
     event Claimed(uint256 indexed week, address indexed player, uint256 amount);
     event Rolled(uint256 indexed fromWeek, uint256 indexed toWeek, uint256 amount);
     event GoldWon(uint256 indexed runId, address indexed player, uint256 amount);
-    event GoldClaimed(address indexed player, uint256 amount, uint256 stillPending);
+    event GoldClaimed(address indexed player, uint256 amount);
     event Deposited(address indexed from, uint256 amount, uint256 week, uint256 pool, uint256 bonus, uint256 team);
     event Split(uint256 poolBps, uint256 bonusBps, uint256 feeBps, address treasury);
     event TicketSet(address ticket, uint256 ticketId);
@@ -195,25 +195,24 @@ contract CAGnaval {
         return bonusBox > goldPending ? bonusBox - goldPending : 0;
     }
 
-    /// What a player won, and how much of it the box can pay right now.
-    function goldClaimable(address player) external view returns (uint256 won, uint256 payableNow) {
+    /// What a player won, and whether the box can pay all of it right now.
+    function goldClaimable(address player) external view returns (uint256 won, bool payableNow) {
         won = goldOwed[player];
-        payableNow = paused ? 0 : (won < bonusBox ? won : bonusBox);
+        payableNow = won > 0 && !paused && bonusBox >= won;
     }
 
-    /// Player takes the golden prizes won. If the box is short, takes what there is;
-    /// the rest stays pending until the box is refilled.
+    /// Player takes the golden prizes won, always in full. If the box cannot
+    /// cover the whole amount, it stays pending until the box is refilled.
     function claimGold() external nonReentrant {
         require(!paused, "paused");
         uint256 won = goldOwed[msg.sender];
         require(won > 0, "nothing to claim");
-        uint256 a = won < bonusBox ? won : bonusBox;
-        require(a > 0, "box being refilled");
-        goldOwed[msg.sender] = won - a;
-        goldPending -= a;
-        bonusBox -= a;
-        _send(msg.sender, a);
-        emit GoldClaimed(msg.sender, a, won - a);
+        require(bonusBox >= won, "box being refilled");
+        goldOwed[msg.sender] = 0;
+        goldPending -= won;
+        bonusBox -= won;
+        _send(msg.sender, won);
+        emit GoldClaimed(msg.sender, won);
     }
 
     function withdrawBonus(uint256 amount, address to) external onlyOwner nonReentrant {

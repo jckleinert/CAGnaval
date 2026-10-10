@@ -171,12 +171,6 @@
     "internalType": "uint256",
     "name": "amount",
     "type": "uint256"
-   },
-   {
-    "indexed": false,
-    "internalType": "uint256",
-    "name": "stillPending",
-    "type": "uint256"
    }
   ],
   "name": "GoldClaimed",
@@ -818,9 +812,9 @@
     "type": "uint256"
    },
    {
-    "internalType": "uint256",
+    "internalType": "bool",
     "name": "payableNow",
-    "type": "uint256"
+    "type": "bool"
    }
   ],
   "stateMutability": "view",
