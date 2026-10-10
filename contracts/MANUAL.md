@@ -27,7 +27,7 @@ Descripción de funciones: `build/CAGnaval.abi.json`.
 3. Constructor:
    - `_ticket` = dirección de la colección ERC-1155 de los tickets (para la prueba, las bebidas de CAG: `0xb170845fccd48c7c055235e8435312568ff93f09`)
    - `_ticketId` = número del ítem dentro de la colección (para la prueba, `1` = CAG Energy Drink)
-   - `_referee` = billetera del árbitro (el servidor; te la paso yo)
+   - `_referee` = billetera del árbitro (el servidor): `0x7161ed75cE7fe248E46FBd20f9f0741D08C3fd61`
 4. Anotar la dirección del contrato.
 
 ## Operación de cada semana
