@@ -172,7 +172,11 @@
     if (c === 'need-name') return 'Pick your name first.';
     if (c === 'sign-in') return 'Sign in again with your wallet.';
     if (c === 'wallet') return 'The wallet said: ' + String(e.message).slice(0, 90);
-    return 'Could not reach the server. Try again.';
+    if (c === 'chain-busy') return 'The Ronin network is busy. Tap the button again in a few seconds.';
+    if (c === 'not-your-run') return 'That transaction belongs to another wallet.';
+    if (c === 'no-run-in-tx') return 'That transaction did not start a run.';
+    if (c === 'network') return 'Could not reach the server. Check your connection and try again.';
+    return 'Something went wrong (' + c + '). Try again.';
   }
 
   /* mode: 'paid' (tickets on the chain) or 'practice' (free). Without a mode, the main button decides. */
@@ -234,9 +238,19 @@
       });
     }
     return hashP.then(function (h) {
-      say('Waiting for the transaction… a few seconds.');
-      return CW.api('POST', '/api/runs', { txHash: h, player: { name: player.name } }, 80000);
+      say('Waiting for Ronin to confirm your tickets…');
+      var ask = function () { return CW.api('POST', '/api/runs', { txHash: h, player: { name: player.name } }, 90000); };
+      // a busy network or a dropped connection gets two more tries before giving up
+      return ask().catch(function (e) {
+        if (e.code !== 'chain-busy' && e.code !== 'network' && e.code !== 'tx-not-found') throw e;
+        say('Still waiting for Ronin…');
+        return new Promise(function (ok) { setTimeout(ok, 4000); }).then(ask);
+      }).catch(function (e) {
+        if (e.code !== 'chain-busy' && e.code !== 'network' && e.code !== 'tx-not-found') throw e;
+        return new Promise(function (ok) { setTimeout(ok, 6000); }).then(ask);
+      });
     }).then(function (start) {
+      say('Confirmed! Starting your run…');
       save('cagnaval.paidTx', null);
       return start;
     }, function (e) {

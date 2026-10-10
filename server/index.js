@@ -205,7 +205,15 @@ function createApp(options) {
       }
       if (req.method === 'POST' && parts[1] === 'runs') {
         const body = await readJson(req);
-        if (parts.length === 2 && body.txHash) return send(res, 200, await paidRun(req, body, ip), cors);
+        if (parts.length === 2 && body.txHash) {
+          let out;
+          try { out = await paidRun(req, body, ip); } catch (e) {
+            console.error('paid run refused:', body.txHash, e.code || '', e.shortMessage || e.message);
+            throw e;
+          }
+          console.log('paid run', out.chainRun, 'started for', who(req), out.tickets, 'tickets');
+          return send(res, 200, out, cors);
+        }
         if (parts.length === 2) return send(res, 200, runs.create(body.player, { ua: req.headers['user-agent'], ip }), cors);
         const id = parts[2], action = parts[3];
         if (!/^[a-f0-9]{24}$/.test(id)) throw new RunError(404, 'run-not-found');

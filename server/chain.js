@@ -141,7 +141,7 @@ class Chain {
     const end = Date.now() + (waitMs || 60000);
     let rc = null;
     while (Date.now() < end) {
-      rc = await this._read(() => this.provider.getTransactionReceipt(txHash)).catch(() => null);
+      rc = await this._read(() => this.provider.getTransactionReceipt(txHash)).catch((e) => { console.error('receipt read failed:', e.shortMessage || e.message); return null; });
       if (rc) break;
       await new Promise((r) => setTimeout(r, 2500));
     }
