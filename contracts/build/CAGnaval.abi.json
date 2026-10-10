@@ -171,14 +171,26 @@
     "internalType": "uint256",
     "name": "amount",
     "type": "uint256"
+   },
+   {
+    "indexed": false,
+    "internalType": "uint256",
+    "name": "stillPending",
+    "type": "uint256"
    }
   ],
-  "name": "IouAdded",
+  "name": "GoldClaimed",
   "type": "event"
  },
  {
   "anonymous": false,
   "inputs": [
+   {
+    "indexed": true,
+    "internalType": "uint256",
+    "name": "runId",
+    "type": "uint256"
+   },
    {
     "indexed": true,
     "internalType": "address",
@@ -192,7 +204,7 @@
     "type": "uint256"
    }
   ],
-  "name": "IouPaid",
+  "name": "GoldWon",
   "type": "event"
  },
  {
@@ -224,25 +236,6 @@
    }
   ],
   "name": "ItemsWithdrawn",
-  "type": "event"
- },
- {
-  "anonymous": false,
-  "inputs": [
-   {
-    "indexed": true,
-    "internalType": "address",
-    "name": "player",
-    "type": "address"
-   },
-   {
-    "indexed": false,
-    "internalType": "uint256",
-    "name": "amount",
-    "type": "uint256"
-   }
-  ],
-  "name": "Owed",
   "type": "event"
  },
  {
@@ -457,6 +450,12 @@
    },
    {
     "indexed": false,
+    "internalType": "uint256",
+    "name": "feeBps",
+    "type": "uint256"
+   },
+   {
+    "indexed": false,
     "internalType": "address",
     "name": "treasury",
     "type": "address"
@@ -526,6 +525,19 @@
  {
   "inputs": [],
   "name": "bonusBps",
+  "outputs": [
+   {
+    "internalType": "uint256",
+    "name": "",
+    "type": "uint256"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [],
+  "name": "bonusFree",
   "outputs": [
    {
     "internalType": "uint256",
@@ -609,6 +621,13 @@
  },
  {
   "inputs": [],
+  "name": "claimGold",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+ },
+ {
+  "inputs": [],
   "name": "claimWeeks",
   "outputs": [
    {
@@ -682,19 +701,6 @@
   "type": "function"
  },
  {
-  "inputs": [],
-  "name": "debt",
-  "outputs": [
-   {
-    "internalType": "uint256",
-    "name": "",
-    "type": "uint256"
-   }
-  ],
-  "stateMutability": "view",
-  "type": "function"
- },
- {
   "inputs": [
    {
     "internalType": "uint256",
@@ -705,6 +711,19 @@
   "name": "deposit",
   "outputs": [],
   "stateMutability": "payable",
+  "type": "function"
+ },
+ {
+  "inputs": [],
+  "name": "feeBps",
+  "outputs": [
+   {
+    "internalType": "uint256",
+    "name": "",
+    "type": "uint256"
+   }
+  ],
+  "stateMutability": "view",
   "type": "function"
  },
  {
@@ -725,37 +744,6 @@
   "name": "fundPool",
   "outputs": [],
   "stateMutability": "payable",
-  "type": "function"
- },
- {
-  "inputs": [
-   {
-    "internalType": "uint256",
-    "name": "i",
-    "type": "uint256"
-   }
-  ],
-  "name": "getIou",
-  "outputs": [
-   {
-    "components": [
-     {
-      "internalType": "address",
-      "name": "player",
-      "type": "address"
-     },
-     {
-      "internalType": "uint256",
-      "name": "amount",
-      "type": "uint256"
-     }
-    ],
-    "internalType": "struct CAGnaval.IOU",
-    "name": "",
-    "type": "tuple"
-   }
-  ],
-  "stateMutability": "view",
   "type": "function"
  },
  {
@@ -815,8 +803,38 @@
   "type": "function"
  },
  {
-  "inputs": [],
-  "name": "iouCount",
+  "inputs": [
+   {
+    "internalType": "address",
+    "name": "player",
+    "type": "address"
+   }
+  ],
+  "name": "goldClaimable",
+  "outputs": [
+   {
+    "internalType": "uint256",
+    "name": "won",
+    "type": "uint256"
+   },
+   {
+    "internalType": "uint256",
+    "name": "payableNow",
+    "type": "uint256"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "address",
+    "name": "",
+    "type": "address"
+   }
+  ],
+  "name": "goldOwed",
   "outputs": [
    {
     "internalType": "uint256",
@@ -829,7 +847,7 @@
  },
  {
   "inputs": [],
-  "name": "iouHead",
+  "name": "goldPending",
   "outputs": [
    {
     "internalType": "uint256",
@@ -964,25 +982,6 @@
   "type": "function"
  },
  {
-  "inputs": [
-   {
-    "internalType": "address",
-    "name": "",
-    "type": "address"
-   }
-  ],
-  "name": "owed",
-  "outputs": [
-   {
-    "internalType": "uint256",
-    "name": "",
-    "type": "uint256"
-   }
-  ],
-  "stateMutability": "view",
-  "type": "function"
- },
- {
   "inputs": [],
   "name": "owner",
   "outputs": [
@@ -1006,19 +1005,6 @@
    }
   ],
   "stateMutability": "view",
-  "type": "function"
- },
- {
-  "inputs": [
-   {
-    "internalType": "uint256",
-    "name": "max",
-    "type": "uint256"
-   }
-  ],
-  "name": "payIous",
-  "outputs": [],
-  "stateMutability": "nonpayable",
   "type": "function"
  },
  {
@@ -1208,6 +1194,11 @@
    {
     "internalType": "uint256",
     "name": "_bonusBps",
+    "type": "uint256"
+   },
+   {
+    "internalType": "uint256",
+    "name": "_feeBps",
     "type": "uint256"
    },
    {
@@ -1515,13 +1506,6 @@
    }
   ],
   "name": "withdrawItems",
-  "outputs": [],
-  "stateMutability": "nonpayable",
-  "type": "function"
- },
- {
-  "inputs": [],
-  "name": "withdrawOwed",
   "outputs": [],
   "stateMutability": "nonpayable",
   "type": "function"

@@ -25,7 +25,7 @@ function compile() {
   for (const e of out.errors || []) console.log(e.formattedMessage);
   if (errs.length) process.exit(1);
   const pick = (f, c) => ({ abi: out.contracts[f][c].abi, bytecode: '0x' + out.contracts[f][c].evm.bytecode.object });
-  return { game: pick('CAGnaval.sol', 'CAGnaval'), mock: pick('MockTicket.sol', 'MockTicket'), rej: pick('MockTicket.sol', 'RejectingPlayer') };
+  return { game: pick('CAGnaval.sol', 'CAGnaval'), mock: pick('MockTicket.sol', 'MockTicket') };
 }
 
 const RON = n => ethers.parseEther(String(n));
@@ -87,72 +87,60 @@ async function fails(p, msg) {
   await ok('plain RON sent to the contract is refused', () => fails(p2.sendTransaction({ to: G, value: RON(1) }), 'use deposit'));
   await ok('only the referee settles', () => fails(game.connect(p1).settleRun(0, RON(105)), 'not referee'));
   await ok('golden prize above 21x per ticket refused', () => fails(game.connect(referee).settleRun(0, RON(211)), 'over the cap'));
-  await ok('settle pays the golden prize on the spot', async () => {
+  const claimGold = async p => { const rc = await (await game.connect(p).claimGold()).wait(); return rc.gasUsed * rc.gasPrice; };
+  await ok('golden prize is written down, not sent', async () => {
     const b0 = await bal(A(p1));
     await (await game.connect(referee).settleRun(0, RON(50))).wait();
-    assert.equal(await bal(A(p1)) - b0, RON(50));
-    assert.equal(await game.bonusBox(), RON(1250));
+    assert.equal(await bal(A(p1)), b0);
+    assert.equal(await game.goldOwed(A(p1)), RON(50));
+    assert.equal(await game.goldPending(), RON(50));
+    assert.equal(await game.bonusFree(), RON(1250));
     assert.equal((await game.getRun(0)).gold, RON(50));
   });
   await ok('a run pays only once', () => fails(game.connect(referee).settleRun(0, RON(1)), 'already settled'));
-  await ok('box runs dry: pays what it has, the rest becomes an IOU', async () => {
+  await ok('player claims the golden prize', async () => {
+    const b0 = await bal(A(p1));
+    const gas = await claimGold(p1);
+    assert.equal(await bal(A(p1)) - b0 + gas, RON(50));
+    assert.equal(await game.goldOwed(A(p1)), 0n);
+    assert.equal(await game.bonusBox(), RON(1250));
+    await fails(game.connect(p1).claimGold(), 'nothing to claim');
+  });
+  await ok('box short: prizes stay pending, no new runs, owner cannot take owed RON', async () => {
     await (await game.connect(referee).settleRun(1, RON(210))).wait();
-    await (await game.withdrawBonus(RON(900), A(owner))).wait();
-    assert.equal(await game.bonusBox(), RON(140));
-    const b0 = await bal(A(p3));
+    await (await game.withdrawBonus(RON(1040), A(owner))).wait();
     await (await game.connect(referee).settleRun(2, RON(210))).wait();
-    assert.equal(await bal(A(p3)) - b0, RON(140));
-    assert.equal(await game.debt(), RON(70));
-    assert.equal(await game.iouCount(), 1n);
-    assert.equal((await game.getIou(0)).player, A(p3));
-  });
-  await ok('with IOUs waiting: no new runs and the owner cannot take box RON', async () => {
+    assert.equal(await game.bonusBox(), RON(210));
+    assert.equal(await game.goldPending(), RON(420));
+    assert.equal(await game.bonusFree(), 0n);
     await fails(play(p1, 1), 'bonus box too low');
-    await fails(game.withdrawBonus(0, A(owner)), 'pay the IOUs first');
+    await fails(game.withdrawBonus(1, A(owner)), 'owed to players');
   });
-  await ok('next RON into the box pays the IOU first', async () => {
-    const b0 = await bal(A(p3));
+  await ok('first claims get paid, the rest shows pending until refilled', async () => {
+    const [won, now_] = await game.goldClaimable(A(p3));
+    assert.equal(won, RON(210)); assert.equal(now_, RON(210));
+    await claimGold(p2);
+    const [won2, now2] = await game.goldClaimable(A(p3));
+    assert.equal(won2, RON(210)); assert.equal(now2, 0n);
+    await fails(game.connect(p3).claimGold(), 'box being refilled');
+  });
+  await ok('after refills the pending prize is paid, partly and then the rest', async () => {
     await (await game.fundBonus({ value: RON(100) })).wait();
-    assert.equal(await bal(A(p3)) - b0, RON(70));
-    assert.equal(await game.debt(), 0n); assert.equal(await game.iouCount(), 0n);
-    assert.equal(await game.bonusBox(), RON(30));
+    const b0 = await bal(A(p3));
+    let gas = await claimGold(p3);
+    assert.equal(await bal(A(p3)) - b0 + gas, RON(100));
+    assert.equal(await game.goldOwed(A(p3)), RON(110));
+    await (await game.fundBonus({ value: RON(200) })).wait();
+    gas += await claimGold(p3);
+    assert.equal(await bal(A(p3)) - b0 + gas, RON(210));
+    assert.equal(await game.goldPending(), 0n);
+    assert.equal(await game.bonusFree(), RON(90));
   });
-  await ok('IOUs are paid in order, partly if needed', async () => {
-    await (await game.fundBonus({ value: RON(180) })).wait();           // box 210
-    const ra = runIdOf(await (await play(p1, 1)).wait());
-    const rb = runIdOf(await (await play(p2, 1)).wait());
-    const rc = runIdOf(await (await play(p3, 1)).wait());
-    const rd = runIdOf(await (await play(p1, 1)).wait());
-    await (await game.connect(referee).settleRun(ra, RON(105))).wait();
-    await (await game.connect(referee).settleRun(rb, RON(105))).wait(); // box 0
-    await (await game.connect(referee).settleRun(rc, RON(105))).wait(); // IOU p3 105
-    await (await game.connect(referee).settleRun(rd, RON(105))).wait(); // IOU p1 105
-    assert.equal(await game.debt(), RON(210)); assert.equal(await game.iouCount(), 2n);
-    const p3a = await bal(A(p3)), p1a = await bal(A(p1));
-    await (await game.connect(p2).fundBonus({ value: RON(150) })).wait();
-    assert.equal(await bal(A(p3)) - p3a, RON(105));
-    assert.equal(await bal(A(p1)) - p1a, RON(45));
-    assert.equal(await game.debt(), RON(60)); assert.equal(await game.iouCount(), 1n);
-    await (await game.connect(p2).fundBonus({ value: RON(100) })).wait();
-    assert.equal(await bal(A(p1)) - p1a, RON(105));
-    assert.equal(await game.debt(), 0n); assert.equal(await game.bonusBox(), RON(40));
-  });
-  await ok('settle with no gold pays nothing', async () => {
+  await ok('settle with no gold leaves nothing to claim', async () => {
     await (await game.fundBonus({ value: RON(300) })).wait();
     const r = runIdOf(await (await play(p2, 2)).wait());
-    const b0 = await bal(A(p2));
     await (await game.connect(referee).settleRun(r, 0)).wait();
-    assert.equal(await bal(A(p2)), b0);
-  });
-  await ok('a wallet that refuses RON keeps the prize as owed, run still closes', async () => {
-    const rej = await (await new ethers.ContractFactory(art.rej.abi, art.rej.bytecode, owner).deploy()).waitForDeployment();
-    const R = await rej.getAddress();
-    await (await mock.mint(R, ID, 1)).wait();
-    await (await rej.play(await mock.getAddress(), G, ID, 1)).wait();
-    const id = (await game.runCount()) - 1n;
-    await (await game.connect(referee).settleRun(id, RON(10))).wait();
-    assert.equal(await game.owed(R), RON(10));
-    assert.equal((await game.getRun(id)).settled, true);
+    assert.equal(await game.goldOwed(A(p2)), 0n);
   });
   await ok('cap can change with runs open; each run keeps the cap it started with', async () => {
     const r = runIdOf(await (await play(p3, 1)).wait());
@@ -176,12 +164,13 @@ async function fails(p, msg) {
     await (await game.withdrawTickets(held, A(owner))).wait();
     assert.equal(await mock.balanceOf(A(owner), ID), held);
   });
-  await ok('owner withdraws free bonus RON; strangers cannot', async () => {
+  await ok('owner withdraws free bonus RON only; strangers cannot', async () => {
     await fails(game.connect(stranger).withdrawBonus(RON(1), A(stranger)), 'not owner');
-    const box = await game.bonusBox();
-    await fails(game.withdrawBonus(box + 1n, A(owner)), 'more than the box');
-    await (await game.withdrawBonus(box - RON(105), A(owner))).wait();
-    assert.equal(await game.bonusBox(), RON(105));
+    const free = await game.bonusFree();
+    assert.equal(await game.goldPending(), RON(105));
+    await fails(game.withdrawBonus(free + 1n, A(owner)), 'owed to players');
+    await (await game.withdrawBonus(free - RON(105), A(owner))).wait();
+    assert.equal(await game.bonusFree(), RON(105));
   });
   await ok('switch to another ticket collection (test drinks -> CAGnaval tickets)', async () => {
     const r = runIdOf(await (await play(p1, 1)).wait());
@@ -195,31 +184,42 @@ async function fails(p, msg) {
     await (await game.withdrawItems(await mock.getAddress(), 99, 1, A(owner))).wait();
     assert.equal(await mock.balanceOf(A(owner), 99), 1n);
   });
-  await ok('paused game refuses runs', async () => {
+  await ok('paused game refuses runs and golden claims', async () => {
     await (await game.setPaused(true)).wait();
     await fails(play(p1, 1), 'paused');
+    await fails(game.connect(p3).claimGold(), 'paused');
     await (await game.setPaused(false)).wait();
+    await claimGold(p3);
+    assert.equal(await game.goldPending(), 0n);
   });
 
   console.log('Sales split');
   const far = (await game.currentWeek()) + 50n;
-  await ok('deposit splits 70 / 23 / 7 by default', async () => {
-    await (await game.setSplit(7000, 2300, A(stranger))).wait();
+  await ok('deposit of net sales: 72.5% pool, 20% box, 5% team (7.5% minus the 2.5% market fee)', async () => {
+    await (await game.setSplit(7250, 2000, 250, A(stranger))).wait();
     const box0 = await game.bonusBox(), t0 = await bal(A(stranger));
-    await (await game.connect(p1).deposit(far, { value: RON(1000) })).wait();
-    assert.equal(await game.weekPool(far), RON(700));
-    assert.equal(await game.bonusBox() - box0, RON(230));
-    assert.equal(await bal(A(stranger)) - t0, RON(70));
+    await (await game.connect(p1).deposit(far, { value: RON(975) })).wait(); // 1000 RON of sales minus 2.5%
+    assert.equal(await game.weekPool(far), RON(725));
+    assert.equal(await game.bonusBox() - box0, RON(200));
+    assert.equal(await bal(A(stranger)) - t0, RON(50));
+  });
+  await ok('one ticket: 5 RON sale, 4.875 deposited -> 3.625 pool, 1 box, 0.25 team', async () => {
+    const box0 = await game.bonusBox(), p0 = await game.weekPool(far), t0 = await bal(A(stranger));
+    await (await game.deposit(far, { value: RON('4.875') })).wait();
+    assert.equal(await game.weekPool(far) - p0, RON('3.625'));
+    assert.equal(await game.bonusBox() - box0, RON(1));
+    assert.equal(await bal(A(stranger)) - t0, RON('0.25'));
   });
   await ok('percentages are adjustable, never over 100%', async () => {
-    await fails(game.setSplit(8000, 2001, A(stranger)), 'over 100%');
-    await fails(game.connect(p1).setSplit(5000, 4000, A(p1)), 'not owner');
-    await (await game.setSplit(5000, 4000, A(stranger))).wait();
-    const box0 = await game.bonusBox(), t0 = await bal(A(stranger));
-    await (await game.deposit(far, { value: RON(100) })).wait();
-    assert.equal(await game.weekPool(far), RON(750));
+    await fails(game.setSplit(8000, 1800, 250, A(stranger)), 'over 100%');
+    await fails(game.setSplit(5000, 1000, 2500, A(stranger)), 'fee too high');
+    await fails(game.connect(p1).setSplit(5000, 4000, 250, A(p1)), 'not owner');
+    await (await game.setSplit(5000, 4000, 250, A(stranger))).wait();
+    const box0 = await game.bonusBox(), p0 = await game.weekPool(far), t0 = await bal(A(stranger));
+    await (await game.deposit(far, { value: RON('97.5') })).wait();
+    assert.equal(await game.weekPool(far) - p0, RON(50));
     assert.equal(await game.bonusBox() - box0, RON(40));
-    assert.equal(await bal(A(stranger)) - t0, RON(10));
+    assert.equal(await bal(A(stranger)) - t0, RON('7.5'));
   });
   await ok('deposit to a closed week refused', () => fails(game.deposit(0, { value: RON(1) }), 'week already closed'));
 
@@ -301,7 +301,7 @@ async function fails(p, msg) {
   await ok('contract RON adds up', async () => {
     const box = await game.bonusBox();
     // pools still held: w3 (50) ; everything else paid or moved
-    assert.equal(await bal(G), box + RON(50) + RON(750) + RON(10)); // pools still held + the owed prize
+    assert.equal(await bal(G), box + RON(50) + await game.weekPool(far)); // box + pools still held
   });
 
   console.log('Owner');

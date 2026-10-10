@@ -38,9 +38,3 @@ contract MockTicket {
     }
 }
 
-// A "player" that refuses RON, to check the golden prize is kept as owed instead of blocking the run.
-interface ITicket { function safeTransferFrom(address, address, uint256, uint256, bytes calldata) external; }
-contract RejectingPlayer {
-    function play(address t, address game, uint256 id, uint256 n) external { ITicket(t).safeTransferFrom(address(this), game, id, n, ""); }
-    receive() external payable { revert("no thanks"); }
-}
