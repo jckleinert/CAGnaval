@@ -1,0 +1,13 @@
+{
+  "name": "cagnaval-contracts",
+  "private": true,
+  "description": "CAGnaval on-chain contract and its local checks (not used by the game server)",
+  "scripts": {
+    "check": "node check.js"
+  },
+  "devDependencies": {
+    "ethers": "^6.13.4",
+    "ganache": "^7.9.2",
+    "solc": "^0.8.24"
+  }
+}
