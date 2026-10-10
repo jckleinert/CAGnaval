@@ -9,12 +9,17 @@ pragma solidity ^0.8.24;
   - Tickets are an ERC-1155 item. To start a run the player sends 1..maxTickets
     tickets to this contract (one safeTransferFrom, no approval needed).
     The tickets stay here; the owner withdraws them and lists them again.
-  - Ticket sales reach the owner's wallet on Ronin Market. The owner then loads
-    the bonus box (fundBonus) and the weekly pool (fundPool) with RON.
+  - Ticket sales reach the owner's wallet on Ronin Market. The owner sends
+    them with deposit(): the contract splits them by the adjustable
+    percentages (poolBps to the weekly pool, bonusBps to the golden box, the
+    rest to the treasury wallet). fundBonus / fundPool load either one alone.
   - Golden onigiri: when a run ends, the referee (the game server) settles it
-    and the prize is paid on the spot from the bonus box. Every open run keeps
-    capPerTicket RON per ticket reserved, so the box can always pay what it
-    promised, even with many players at the same time.
+    and the prize is paid on the spot from the bonus box. A run can only start
+    if the box holds capPerTicket RON per ticket (one 21x prize). Nothing is
+    held back while runs are open, so any number of people can play at once.
+    In the rare case several big prizes land together and the box runs dry,
+    the missing part is written down as an IOU and paid, in order, from the
+    next RON that enters the box.
   - Weekly pool: after the week closes (Monday 00:00 UTC) the referee posts
     what each wallet won. Claims open claimDelay later (a safety window in
     which the owner can void a wrong posting) and close at the end of the
@@ -45,6 +50,9 @@ contract CAGnaval {
     uint256 public capPerTicket = 105 ether; // max golden prize per ticket (21 x 5 RON)
     uint256 public claimDelay = 1 hours;    // posting -> claims open
     uint256 public claimWeeks = 1;          // weeks to claim after the close
+    uint256 public poolBps = 7000;          // share of deposits to the weekly pool (70.00%)
+    uint256 public bonusBps = 2300;         // share of deposits to the golden box (23.00%)
+    address public treasury;                // receives the rest of each deposit
     bool public paused;
 
     uint256 public constant WEEK = 7 days;
@@ -57,13 +65,18 @@ contract CAGnaval {
         uint32 week;
         uint64 startedAt;
         bool settled;
-        uint128 gold;   // RON paid for the golden onigiri
+        uint128 gold;   // golden onigiri prize won
+        uint128 cap;    // capPerTicket when the run started
     }
     Run[] internal _runs;
-    uint256 public bonusBox;   // RON in the golden box (includes reserved)
-    uint256 public reserved;   // part of bonusBox promised to open runs
+    uint256 public bonusBox;   // RON in the golden box, free to pay prizes
     uint256 public openRuns;
-    mapping(address => uint256) public owed; // payments that could not be pushed
+    mapping(address => uint256) public owed; // funded payments a wallet refused; taken with withdrawOwed
+
+    struct IOU { address player; uint256 amount; }
+    IOU[] internal _ious;      // golden prizes the box could not cover yet, oldest first
+    uint256 public iouHead;    // first unpaid IOU
+    uint256 public debt;       // RON still owed through IOUs
 
     // ---------------------------------------------------------------- weeks
     mapping(uint256 => uint256) public weekPool;     // RON loaded for that week
@@ -85,7 +98,12 @@ contract CAGnaval {
     event Claimed(uint256 indexed week, address indexed player, uint256 amount);
     event Rolled(uint256 indexed fromWeek, uint256 indexed toWeek, uint256 amount);
     event Owed(address indexed player, uint256 amount);
-    event TicketsWithdrawn(address indexed to, uint256 amount);
+    event IouAdded(address indexed player, uint256 amount);
+    event IouPaid(address indexed player, uint256 amount);
+    event Deposited(address indexed from, uint256 amount, uint256 week, uint256 pool, uint256 bonus, uint256 team);
+    event Split(uint256 poolBps, uint256 bonusBps, address treasury);
+    event TicketSet(address ticket, uint256 ticketId);
+    event ItemsWithdrawn(address indexed token, uint256 id, address indexed to, uint256 amount);
     event Config(uint256 maxTickets, uint256 capPerTicket, uint256 claimDelay, uint256 claimWeeks);
     event RefereeSet(address referee);
     event OwnerSet(address owner);
@@ -99,6 +117,7 @@ contract CAGnaval {
 
     constructor(address _ticket, uint256 _ticketId, address _referee) {
         owner = msg.sender;
+        treasury = msg.sender;
         ticket = IERC1155(_ticket);
         ticketId = _ticketId;
         referee = _referee;
@@ -124,14 +143,12 @@ contract CAGnaval {
         require(!paused, "paused");
         require(value >= 1 && value <= maxTickets, "1 to maxTickets tickets");
         require(from != address(0), "no player");
-        uint256 need = value * capPerTicket;
-        require(bonusBox - reserved >= need, "bonus box too low");
-        reserved += need;
+        require(bonusBox >= value * capPerTicket, "bonus box too low");
         openRuns += 1;
 
         uint256 runId = _runs.length;
         uint256 w = currentWeek();
-        _runs.push(Run(from, uint32(value), uint32(w), uint64(block.timestamp), false, 0));
+        _runs.push(Run(from, uint32(value), uint32(w), uint64(block.timestamp), false, 0, uint128(capPerTicket)));
         emit RunStarted(runId, from, value, w);
         return this.onERC1155Received.selector;
     }
@@ -151,15 +168,19 @@ contract CAGnaval {
     function settleRun(uint256 runId, uint256 gold) external onlyReferee nonReentrant {
         Run storage r = _runs[runId];
         require(!r.settled, "already settled");
-        uint256 hold = uint256(r.tickets) * capPerTicket; // cap cannot change while runs are open
-        require(gold <= hold, "over the cap");
+        require(gold <= uint256(r.tickets) * r.cap, "over the cap");
         r.settled = true;
         r.gold = uint128(gold);
-        reserved -= hold;
         openRuns -= 1;
         if (gold > 0) {
-            bonusBox -= gold;
-            _pay(r.player, gold);
+            // earlier IOUs are paid first, so whatever comes next queues behind them
+            uint256 now_ = debt == 0 ? (gold < bonusBox ? gold : bonusBox) : 0;
+            if (now_ > 0) { bonusBox -= now_; _pay(r.player, now_); }
+            if (gold > now_) {
+                _ious.push(IOU(r.player, gold - now_));
+                debt += gold - now_;
+                emit IouAdded(r.player, gold - now_);
+            }
         }
         emit RunSettled(runId, r.player, gold);
     }
@@ -168,20 +189,59 @@ contract CAGnaval {
     function getRun(uint256 runId) external view returns (Run memory) { return _runs[runId]; }
 
     // ================================================================ bonus box
-    function fundBonus() external payable {
+    function fundBonus() external payable nonReentrant {
         require(msg.value > 0, "no RON");
-        bonusBox += msg.value;
         emit BonusFunded(msg.sender, msg.value);
+        _addBonus(msg.value);
     }
 
-    /// Free part of the box: what is not promised to open runs.
-    function bonusFree() external view returns (uint256) { return bonusBox - reserved; }
+    function _addBonus(uint256 a) internal {
+        bonusBox += a;
+        _payIous(20);
+    }
+
+    /// Pays waiting IOUs, oldest first, with what the box holds. Anyone can call it.
+    function payIous(uint256 max) external nonReentrant { _payIous(max); }
+
+    function _payIous(uint256 max) internal {
+        uint256 n;
+        while (iouHead < _ious.length && bonusBox > 0 && n < max) {
+            IOU storage o = _ious[iouHead];
+            uint256 a = o.amount < bonusBox ? o.amount : bonusBox;
+            bonusBox -= a;
+            o.amount -= a;
+            debt -= a;
+            _pay(o.player, a);
+            emit IouPaid(o.player, a);
+            if (o.amount == 0) iouHead++;
+            n++;
+        }
+    }
+
+    function iouCount() external view returns (uint256) { return _ious.length - iouHead; }
+    function getIou(uint256 i) external view returns (IOU memory) { return _ious[iouHead + i]; }
 
     function withdrawBonus(uint256 amount, address to) external onlyOwner nonReentrant {
-        require(amount <= bonusBox - reserved, "reserved for open runs");
+        require(debt == 0, "pay the IOUs first");
+        require(amount <= bonusBox, "more than the box");
         bonusBox -= amount;
         _send(to, amount);
         emit BonusWithdrawn(to, amount);
+    }
+
+    // ================================================================ sales
+    /// Owner (or anyone) sends ticket sales; they are split by poolBps / bonusBps,
+    /// the rest goes to the treasury wallet. `week` is the pool that gets its part.
+    function deposit(uint256 week) external payable nonReentrant {
+        require(msg.value > 0, "no RON");
+        require(week >= currentWeek(), "week already closed");
+        uint256 pool = msg.value * poolBps / 10000;
+        uint256 bonus = msg.value * bonusBps / 10000;
+        uint256 team = msg.value - pool - bonus;
+        weekPool[week] += pool;
+        emit Deposited(msg.sender, msg.value, week, pool, bonus, team);
+        _addBonus(bonus);
+        if (team > 0) _send(treasury, team);
     }
 
     // ================================================================ weekly pool
@@ -278,12 +338,36 @@ contract CAGnaval {
         _send(msg.sender, a);
     }
 
-    receive() external payable { revert("use fundBonus or fundPool"); }
+    receive() external payable { revert("use deposit, fundBonus or fundPool"); }
 
     // ================================================================ owner
     function withdrawTickets(uint256 amount, address to) external onlyOwner {
         ticket.safeTransferFrom(address(this), to, ticketId, amount, "");
-        emit TicketsWithdrawn(to, amount);
+        emit ItemsWithdrawn(address(ticket), ticketId, to, amount);
+    }
+
+    /// Any ERC-1155 item held here (e.g. tickets of a previous collection).
+    function withdrawItems(address token, uint256 id, uint256 amount, address to) external onlyOwner {
+        IERC1155(token).safeTransferFrom(address(this), to, id, amount, "");
+        emit ItemsWithdrawn(token, id, to, amount);
+    }
+
+    /// Switch to another ticket collection/item (e.g. from the test drinks to the
+    /// CAGnaval tickets). Pools, box and history stay.
+    function setTicket(address _ticket, uint256 _ticketId) external onlyOwner {
+        require(openRuns == 0, "wait for open runs");
+        ticket = IERC1155(_ticket);
+        ticketId = _ticketId;
+        emit TicketSet(_ticket, _ticketId);
+    }
+
+    function setSplit(uint256 _poolBps, uint256 _bonusBps, address _treasury) external onlyOwner {
+        require(_poolBps + _bonusBps <= 10000, "over 100%");
+        require(_treasury != address(0), "zero address");
+        poolBps = _poolBps;
+        bonusBps = _bonusBps;
+        treasury = _treasury;
+        emit Split(_poolBps, _bonusBps, _treasury);
     }
 
     function ticketsHeld() external view returns (uint256) {
@@ -294,7 +378,7 @@ contract CAGnaval {
         external onlyOwner
     {
         require(_maxTickets >= 1 && _maxTickets <= 20, "maxTickets 1-20");
-        require(openRuns == 0 || _capPerTicket == capPerTicket, "cap changes need no open runs");
+        require(_capPerTicket > 0, "cap 0");
         require(_claimDelay <= 3 days, "claimDelay too long");
         require(_claimWeeks >= 1 && _claimWeeks <= 8, "claimWeeks 1-8");
         maxTickets = _maxTickets;
@@ -319,7 +403,6 @@ contract CAGnaval {
         require(!r.settled, "already settled");
         require(block.timestamp >= r.startedAt + 1 days, "give the referee a day");
         r.settled = true;
-        reserved -= uint256(r.tickets) * capPerTicket;
         openRuns -= 1;
         emit RunSettled(runId, r.player, 0);
     }
