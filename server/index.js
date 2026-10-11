@@ -41,6 +41,10 @@ function createApp(options) {
   config.PAID_ONLY = !!chain.enabled;
   const store = new Store(config);
   const runs = new RunManager(config, store, config.now);
+  try {
+    const fixed = store.fixBest(store.weekId(Date.now()), playerKey);
+    if (fixed) console.log('best run of', fixed, 'players set back to one ticket');
+  } catch (e) { console.error('could not check best runs', e.message); }
   const auth = new Auth(config.REFEREE_KEY ? crypto.createHash('sha256').update('session:' + config.REFEREE_KEY).digest('hex') : null);
   const bootAt = Date.now();
   if (chain.enabled) runs.onPaid = (run, result) => chain.settle(run.chain.runId, result.goldWei || '0');

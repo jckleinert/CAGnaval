@@ -222,7 +222,8 @@ class RunManager {
       // With the blockchain on, only paid runs enter the ranking (practice is just practice).
       const ranked = run.chain || !this.cfg.PAID_ONLY;
       if (ranked && counted && sim.kcal > 0) {
-        this.store.addScore(result.week, playerKey(run.player.id), run.player.name, result.score, t, run.chain ? run.player.id : null);
+        // Total: calories x tickets. Best run: the calories of the run itself, as with one ticket.
+        this.store.addScore(result.week, playerKey(run.player.id), run.player.name, result.score, t, run.chain ? run.player.id : null, sim.kcal);
       }
     } catch (e) { console.error('could not save run', run.id, e.message); }
     if (run.chain) {

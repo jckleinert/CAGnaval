@@ -100,6 +100,7 @@ test('paid run: calories x tickets in the ranking with the wallet, settled once 
   assert.strictEqual(env.store.chainRun('7').status, 'done');
   const rows = env.store.leaderboard(res.week, 'total');
   assert.strictEqual(rows[0].total, res.kcal * 3);
+  assert.strictEqual(rows[0].best, res.kcal, 'the Best run counts one ticket');
   assert.strictEqual(rows[0].addr, addr);
   const pub = env.mgr.leaderboard(res.week, 10, addr);
   assert.strictEqual(pub.top[0].addr, undefined, 'wallets are not published in the ranking');
@@ -170,4 +171,16 @@ test('paid run over HTTP: sign in, start from the tickets transaction, never twi
     assert.strictEqual(board.body.tickets, 2);
     assert.strictEqual(board.body.pool, ethers.parseEther('7.25').toString(), '2 tickets x 5 RON x 72.5%');
   } finally { app.server.close(); }
+});
+
+test('rows saved with a multiplied best run are set back to one ticket', () => {
+  const env = setup();
+  const { playerKey } = require('../server/runs.js');
+  const week = env.store.weekId(env.clock.t), addr = '0x' + '9'.repeat(40);
+  env.store.addScore(week, playerKey(addr), 'Old', 3000, 5, addr);           // saved before the rule: best = 3 x 1000
+  env.store.saveRun({ id: 'a'.repeat(24), week, player: { id: addr, name: 'Old' }, endedAt: 5, result: { counted: true, kcal: 1000 } });
+  assert.strictEqual(env.store.fixBest(week, playerKey), 1);
+  const row = env.store.leaderboard(week, 'best')[0];
+  assert.strictEqual(row.best, 1000);
+  assert.strictEqual(row.total, 3000, 'the Total keeps the tickets');
 });

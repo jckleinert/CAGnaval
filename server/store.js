@@ -69,12 +69,17 @@ class Store {
   }
 
   /* key: a fingerprint of the player id (never the id itself). The file is written a moment later, in one go. */
-  addScore(week, key, name, kcal, at, addr) {
+  /*
+   * kcal: what the run adds to the Total (calories x tickets for a paid run).
+   * single: the run's calories as if played with one ticket, for the Best run ranking (defaults to kcal).
+   */
+  addScore(week, key, name, kcal, at, addr, single) {
     const w = this._week(week, true);
     const p = w.players[key] || (w.players[key] = { name: name, total: 0, best: 0, bestAt: 0, runs: 0, last: 0 });
     p.name = name; p.total += kcal; p.runs += 1; p.last = at;
     if (addr) p.addr = addr;                                   // wallet that gets this row's share of the pool
-    if (kcal > p.best) { p.best = kcal; p.bestAt = at; }       // who got there first wins a tie
+    const one = single === undefined ? kcal : single;
+    if (one > p.best) { p.best = one; p.bestAt = at; }         // who got there first wins a tie
     this.dirty.add(week);
     if (!this.timer) { this.timer = setTimeout(() => this.flush(), 1500); this.timer.unref(); }
   }
@@ -86,6 +91,31 @@ class Store {
       try { this._write(path.join(this.dir, 'weeks', week + '.json'), this.weeks.get(week)); } catch (e) { console.error('could not save week', week, e.message); }
     }
     this.dirty.clear();
+  }
+
+  /*
+   * The Best run of a week counts one ticket. Rows saved before that rule may hold a run
+   * multiplied by its tickets: rebuild them from the saved runs (each keeps its own calories).
+   */
+  fixBest(week, keyOf) {
+    const dir = path.join(this.dir, 'runs', week);
+    let files = [];
+    try { files = fs.readdirSync(dir); } catch (e) { return 0; }
+    const best = Object.create(null);
+    for (const f of files) {
+      let r; try { r = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { continue; }
+      if (!r || !r.result || !r.result.counted || !(r.result.kcal > 0) || !r.player) continue;
+      const k = keyOf(r.player.id), b = best[k];
+      if (!b || r.result.kcal > b.kcal || (r.result.kcal === b.kcal && r.endedAt < b.at)) best[k] = { kcal: r.result.kcal, at: r.endedAt };
+    }
+    const w = this._week(week, false);
+    let fixed = 0;
+    for (const k of Object.keys(w.players)) {
+      const p = w.players[k], b = best[k];
+      if (b && p.best > b.kcal) { p.best = b.kcal; p.bestAt = b.at; fixed++; }
+    }
+    if (fixed) { this.dirty.add(week); this.flush(); }
+    return fixed;
   }
 
   /* Tickets spent in paid runs of a week: the base of the weekly prize estimate. */
