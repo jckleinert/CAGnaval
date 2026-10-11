@@ -57,6 +57,7 @@
     <img class="logo big" src="/web/img/logo.png" alt="CAGnaval" width="840" height="178">
     <p class="over-line">Drop food. Merge two of the same.</p>
     <ol class="menu" id="homeMenu" aria-label="Food order, smallest to biggest"></ol>
+    <p class="poolsign" id="poolSign" hidden><span class="pool-k">Weekly pool</span> <b id="poolAmt">0</b> <span class="pool-u">RON</span></p>
     <p class="welcome" id="welcome" hidden>Welcome, <b id="welcomeName"></b>!</p>
     <label class="field" id="nameField" for="name"><span class="sr">Your name</span>
       <input id="name" type="text" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Your name">
@@ -102,7 +103,10 @@
     <p class="check" id="overCheck"></p>
     <p class="over-line small" id="overPaid" hidden></p>
     <button class="primary wide" id="again" type="button">Play again</button>
-    <button class="ghost" id="openBoard2" type="button">Ranking</button>
+    <div class="pair">
+      <button class="ghost" id="goHome" type="button">Home</button>
+      <button class="ghost" id="openBoard2" type="button">Ranking</button>
+    </div>
   </div>
 
   <div class="over" id="prizes" hidden>

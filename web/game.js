@@ -293,6 +293,18 @@
       .then(function () { $('play').disabled = false; renderWallet(); });
   }
 
+  /* The pool of the week so far, in whole RON (rounded down). */
+  function wholeRon(wei) { return fmt(CW.ron(wei || '0').split('.')[0]); }
+  function showPool(wei) {
+    if (wei === undefined || !CW.enabled) return;
+    $('poolAmt').textContent = wholeRon(wei);
+    $('poolSign').hidden = false;
+  }
+  function loadPool() {
+    if (!CW.enabled) return;
+    call('GET', '/api/leaderboard?by=total', null, 1).then(function (b) { showPool(b.pool); }).catch(function () { /* next time */ });
+  }
+
   function maxTickets() {
     var i = paid.info;
     return i ? Math.max(0, Math.min(i.tickets, i.maxTicketsNow, i.maxTickets)) : 0;
@@ -368,6 +380,13 @@
     homeEl.hidden = true; prizesEl.hidden = false; $('prizeMsg').textContent = 'Loading…';
     loadWallet().then(function () { $('prizeMsg').textContent = ''; });
   }
+  /* From the result card back to the start card (wallet, tickets, prizes). */
+  function goHome() {
+    overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; homeEl.hidden = false;
+    $('homeMsg').textContent = '';
+    renderWallet(); loadWallet(); loadPool();
+  }
+  $('goHome').addEventListener('click', goHome);
   function claim(path, body, button) {
     button.disabled = true; $('prizeMsg').textContent = 'Confirm in your wallet…';
     CW.api('POST', path, body).then(CW.send).then(function () {
@@ -525,21 +544,19 @@
     list.classList.toggle('runs', total); head.classList.toggle('runs', total);
     call('GET', '/api/leaderboard?by=' + by + '&player=' + encodeURIComponent(me()), null, 2).then(function (b) {
       if (tok !== boardTok) return;
-      $('rankEnds').textContent = (b.pool !== undefined && b.pool !== '0' ? 'Pool ≈ ' + CW.ron(b.pool) + ' RON · ' : '') + (b.endsAt ? 'Prizes and a new week in ' + timeLeft(b.endsAt - Date.now()) : '');
+      $('rankEnds').textContent = (b.pool !== undefined ? 'Pool ' + wholeRon(b.pool) + ' RON · ' : '') + (b.endsAt ? 'Prizes and a new week in ' + timeLeft(b.endsAt - Date.now()) : '');
       msg.textContent = b.top.length ? '' : 'No runs yet this week. Be the first.';
       var cells = function (el, texts, classes) {
         texts.forEach(function (t, i) { var c = document.createElement('span'); c.textContent = t; if (classes[i]) c.className = classes[i]; el.appendChild(c); });
       };
-      var money = total && b.pool !== undefined;           // with tickets: what each one would get now
-      list.classList.toggle('prize', money); head.classList.toggle('prize', money);
-      if (b.top.length) cells(head, money ? ['#', 'Player', 'Runs', 'kcal', '≈ RON'] : total ? ['#', 'Player', 'Runs', 'kcal'] : ['#', 'Player', 'kcal'], []);
+      if (b.top.length) cells(head, total ? ['#', 'Player', 'Runs', 'kcal'] : ['#', 'Player', 'kcal'], []);
+      showPool(b.pool);
       var rows = b.top.slice(0, 20);
       if (b.you && b.you.rank > rows.length) rows.push(b.you);
       rows.forEach(function (row) {
         var li = document.createElement('li');
         var pos = 'pos' + (row.rank <= 3 ? ' p' + row.rank : '');     // gold, silver and bronze for the top three
-        if (money) cells(li, [row.rank, row.name, row.runs, fmt(row.total), row.prize && row.prize !== '0' ? CW.ron(row.prize) : '–'], [pos, 'who', 'runs-n', 'kc', 'ron']);
-        else if (total) cells(li, [row.rank, row.name, row.runs, fmt(row.total)], [pos, 'who', 'runs-n', 'kc']);
+        if (total) cells(li, [row.rank, row.name, row.runs, fmt(row.total)], [pos, 'who', 'runs-n', 'kc']);
         else cells(li, [row.rank, row.name, fmt(row.best)], [pos, 'who', 'kc']);
         if (row.you) li.className = 'you';
         list.appendChild(li);
@@ -1195,8 +1212,8 @@
 
   nameEl.value = player.name || '';
   renderWallet();
-  if (CW.init) CW.init().then(function () { renderWallet(); loadMe(); loadWallet(); });
-  setInterval(function () { if (!homeEl.hidden && CW.address) loadWallet(); }, 60000);
+  if (CW.init) CW.init().then(function () { renderWallet(); loadMe(); loadWallet(); loadPool(); });
+  setInterval(function () { if (!homeEl.hidden) { loadPool(); if (CW.address) loadWallet(); } }, 30000);
   fit();
   requestAnimationFrame(frame);
 })();

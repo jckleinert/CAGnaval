@@ -362,5 +362,8 @@ body {
 .welcome { margin: 4px 0 2px; font-size: 19px; font-weight: 600; }
 .welcome b { color: var(--pink); }
 .prize.now { background: #EAF8FE; grid-template-areas: "k k" "v v" "note note"; }
-.rank.prize, .rank-head.prize { --cols: 24px minmax(0, 1fr) 30px 62px 56px; }
-.rank .ron { color: var(--green); font-weight: 600; }
+/* The pool of the week, in whole RON, on the start card */
+.poolsign { display: inline-flex; align-items: baseline; gap: 6px; margin: 4px 0 0; padding: 5px 16px 6px; border-radius: 999px; background: var(--yellow); box-shadow: 0 3px 0 var(--yellow-d); font-weight: 600; }
+.poolsign .pool-k { font-size: 13px; }
+.poolsign b { font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
+.poolsign .pool-u { font-size: 13px; }
