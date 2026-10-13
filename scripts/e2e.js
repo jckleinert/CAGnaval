@@ -41,6 +41,18 @@ const { createApp } = require('../server/index.js');
     if (drops === 25 && !usedPowers) { usedPowers = true; await page.click('#pwSwap'); await page.waitForTimeout(200); await page.click('#pwShake'); await page.waitForTimeout(400); await page.click('#pwSweep'); }
     if (drops === 30 && shot) await page.screenshot({ path: path.join(shot, 'e2e-mid.png') });
   }
+  // a merged golden onigiri is eaten before the result card shows
+  let reveal = null;
+  try {
+    await page.waitForFunction(() => !document.getElementById('goldFx').hidden, null, { timeout: 8000 });
+    await page.waitForTimeout(1500);
+    if (shot) await page.screenshot({ path: path.join(shot, 'e2e-gold-bites.png') });
+    await page.waitForFunction(() => document.getElementById('goldFx').classList.contains('shown'), null, { timeout: 5000 });
+    await page.waitForTimeout(1300);
+    if (shot) await page.screenshot({ path: path.join(shot, 'e2e-gold-prize.png') });
+    reveal = await page.textContent('#gfxMult');
+    await page.click('#goldFx');
+  } catch (e) { /* no golden merged this run */ }
   await page.waitForFunction(() => !document.getElementById('over').hidden && document.getElementById('overCheck').textContent.length > 0, null, { timeout: 20000 });
   await page.waitForTimeout(800);
   const out = await page.evaluate(() => ({
@@ -48,6 +60,7 @@ const { createApp } = require('../server/index.js');
     used: document.getElementById('overUsed').textContent, bonus: document.getElementById('overBonus').textContent,
     check: document.getElementById('overCheck').textContent, week: document.getElementById('overWeek').textContent
   }));
+  out.reveal = reveal;
   if (shot) await page.screenshot({ path: path.join(shot, 'e2e-over.png') });
   await page.click('#openBoard2');
   await page.waitForFunction(() => document.querySelectorAll('#rank li').length > 0, null, { timeout: 5000 });

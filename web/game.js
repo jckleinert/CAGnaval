@@ -128,6 +128,8 @@
       ['pop0', 'pop1', 'pop2'].forEach(function (n, i) { get(n, function (buf) { sfx.pops[i] = buf; }); });
       get('gold', function (buf) { sfx.gold = buf; });
       get('drop', function (buf) { sfx.drop = buf; });
+      sfx.bites = [];
+      ['bite0', 'bite1', 'bite2'].forEach(function (n, i) { get(n, function (buf) { sfx.bites[i] = buf; }); });
     }
     if (sfx.ctx.state === 'suspended') sfx.ctx.resume();
   }
@@ -521,10 +523,103 @@
     var wait = PUP.sinkAt && !reduced ? Math.max(0, PUP.sinkAt + 300 - nowMs) : 0;
     setTimeout(function () {
       if (run !== r) return;
-      overEl.hidden = false;
-      countUp($('overKcal'), score);
-      $('again').focus();
+      goldReveal(res, function () {           // a merged golden onigiri is eaten first, then the card
+        if (run !== r) return;
+        overEl.hidden = false;
+        countUp($('overKcal'), score);
+        $('again').focus();
+      });
     }, wait);
+  }
+
+  /*
+   * Golden onigiri reveal: the onigiri comes up, gets eaten in four bites (a crunch each, in three
+   * tones), and where it was the multiplier and the RON won appear. Tap to skip or to go on.
+   */
+  var GFX = { el: $('goldFx'), cv: $('goldCv'), on: false };
+  function goldReveal(res, done) {
+    var g = res && res.gold;
+    if (!g || !g.merged) { done(); return; }
+    var el = GFX.el, cv = GFX.cv, c = cv.getContext('2d'), f = FOODS[2];
+    var paidPrize = res.goldWei && res.goldWei !== '0';
+    $('gfxMult').textContent = '×' + g.mult;
+    $('gfxRon').textContent = paidPrize ? '+' + CW.ron(res.goldWei) + ' RON' : '';
+    $('gfxNote').textContent = paidPrize ? 'Claim it in Prizes.' : res.tickets ? '' : 'Practice run: no prize. Play with tickets to win RON!';
+    el.classList.remove('shown'); el.hidden = false; GFX.on = true;
+    var dpr = Math.min(window.devicePixelRatio || 1, 3), css = cv.getBoundingClientRect().width || 240;
+    cv.width = cv.height = Math.round(css * dpr);
+    var W2 = cv.width, R = W2 * 0.30, t0 = performance.now(), crumbs = [], bites = [], shake = 0, finished = false, revealed = false;
+    // where the bites land, in units of the onigiri's size; the fourth one finishes it
+    var PLAN = [[0.55, -0.42, 0.36], [-0.62, -0.05, 0.38], [0.38, 0.55, 0.4]];
+    var TIMES = [750, 1250, 1750, 2250], REVEAL = 2600;
+    var off = document.createElement('canvas'); off.width = off.height = W2;
+    var oc = off.getContext('2d');
+    function bite(i) {
+      var tone = sfx.bites && sfx.bites.length ? sfx.bites[i % sfx.bites.length] : null;
+      play(tone, 0.96 + Math.random() * 0.08, 0.9);
+      shake = 1;
+      var p = PLAN[Math.min(i, PLAN.length - 1)], n = i === 3 ? 26 : 10;
+      for (var k = 0; k < n; k++) {
+        var a = Math.random() * TAU, sp = (i === 3 ? 0.5 : 0.25) + Math.random() * 0.35;
+        crumbs.push({ x: i === 3 ? 0 : p[0] * R, y: i === 3 ? 0 : p[1] * R, vx: Math.cos(a) * sp * R / 30, vy: (Math.sin(a) * sp - 0.35) * R / 30,
+          r: R * (0.03 + Math.random() * 0.05), col: Math.random() < 0.6 ? GOLD : '#FFF6DE', life: 1 });
+      }
+      if (i < 3) bites.push(p);
+    }
+    var next = 0;
+    function frameFx(now) {
+      if (!GFX.on) return;
+      var t = now - t0;
+      while (next < TIMES.length && t >= TIMES[next]) bite(next++);
+      if (!revealed && t >= REVEAL) { revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); }
+      c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W2, W2);
+      // soft rays behind
+      c.save(); c.translate(W2 / 2, W2 / 2); c.rotate(t / 2600);
+      var rg = c.createRadialGradient(0, 0, 0, 0, 0, W2 * 0.5);
+      rg.addColorStop(0, 'rgba(255, 201, 60, 0.35)'); rg.addColorStop(1, 'rgba(255, 201, 60, 0)');
+      c.fillStyle = rg;
+      for (var k = 0; k < 10; k++) { c.rotate(TAU / 10); c.beginPath(); c.moveTo(0, 0); c.lineTo(W2 * 0.5, -W2 * 0.06); c.lineTo(W2 * 0.5, W2 * 0.06); c.fill(); }
+      c.restore();
+      if (next < 4) {
+        // the onigiri, popping in, then bitten
+        var pop = Math.min(1, t / 380), sc = pop < 1 ? 0.2 + 1.0 * (1 - Math.pow(1 - pop, 3)) * (1 + 0.12 * Math.sin(pop * Math.PI)) : 1;
+        oc.setTransform(1, 0, 0, 1, 0, 0); oc.globalCompositeOperation = 'source-over'; oc.clearRect(0, 0, W2, W2);
+        var s = R / f.ext;
+        oc.setTransform(s, 0, 0, s, W2 / 2, W2 / 2);
+        drawFood(oc, 0, 0, f, 0, true, 0, next > 0 ? FACE_WOW : blink(777), null);
+        oc.globalCompositeOperation = 'destination-out';
+        bites.forEach(function (b) {
+          var bx = b[0] * f.ext, by = b[1] * f.ext, br = b[2] * f.ext, nx = -b[1], ny = b[0], nl = Math.hypot(nx, ny) || 1;
+          [[0, 0, 1], [0.34, 0, 0.66], [-0.34, 0, 0.66]].forEach(function (q) {
+            oc.beginPath(); oc.arc(bx + nx / nl * q[0] * br, by + ny / nl * q[0] * br, br * q[2], 0, TAU); oc.fill();
+          });
+        });
+        var jx = shake * (Math.random() - 0.5) * R * 0.08, jy = shake * (Math.random() - 0.5) * R * 0.08;
+        shake *= 0.85;
+        c.save(); c.translate(W2 / 2 + jx, W2 / 2 + jy); c.scale(sc, sc); c.drawImage(off, -W2 / 2, -W2 / 2); c.restore();
+      }
+      crumbs.forEach(function (p) {
+        p.x += p.vx; p.y += p.vy; p.vy += R * 0.0016; p.life -= 0.018;
+        if (p.life <= 0) return;
+        c.globalAlpha = Math.max(0, p.life); c.fillStyle = p.col; c.beginPath(); c.arc(W2 / 2 + p.x, W2 / 2 + p.y, p.r, 0, TAU); c.fill();
+      });
+      c.globalAlpha = 1;
+      crumbs = crumbs.filter(function (p) { return p.life > 0; });
+      requestAnimationFrame(frameFx);
+    }
+    function finish() {
+      if (finished) return;
+      finished = true; GFX.on = false; el.hidden = true; el.removeEventListener('click', tap);
+      done();
+    }
+    function tap() {
+      if (!revealed) { t0 -= REVEAL; next = 4; bites = []; revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); return; }
+      finish();
+    }
+    el.addEventListener('click', tap);
+    if (reduced) { next = 4; revealed = true; el.classList.add('shown'); }
+    requestAnimationFrame(frameFx);
+    setTimeout(function () { if (revealed) finish(); }, REVEAL + 4200);    // goes on by itself after a while
   }
 
   /* The ranking of the week, two ways: the total of all runs (with how many runs) or the best single run. */
