@@ -233,9 +233,17 @@ async function fails(p, msg) {
   });
   await ok('pool funded for this week', async () => { await (await game.fundPool(w, { value: RON(100) })).wait(); assert.equal(await game.weekPool(w), RON(100)); });
   await ok('results refused before the week ends', () => fails(game.connect(referee).postResults(w, [A(p1)], [RON(1)]), 'week not over'));
-  await ok('a closed week cannot be funded', async () => {
+  await ok('a closed week can still be funded for 24 h while its results are not posted', async () => {
     await travel(Number(await game.weekEndsAt(w)) - now + 5);
-    await fails(game.fundPool(w, { value: RON(1) }), 'week already closed');
+    assert.equal(await game.fundable(w), true);
+    await (await game.fundPool(w, { value: RON(1) })).wait();
+    await (await game.deposit(w, { value: RON('0.975') })).wait();   // pool part: 0.5 (split is 50% here)
+    assert.equal(await game.weekPool(w), RON('101.5'));
+    // take the extra back out of the way: it rolls over with the rest at the end
+  });
+  await ok('only the owner changes the grace; at most 3 days', async () => {
+    await fails(game.connect(p1).setFundGrace(3600), 'not owner');
+    await fails(game.setFundGrace(4 * 86400), 'too long');
   });
   await ok('only the referee posts results', () => fails(game.connect(p1).postResults(w, [A(p1)], [RON(100)]), 'not referee'));
   await ok('results posted in two parts', async () => {
@@ -243,7 +251,8 @@ async function fails(p, msg) {
     await (await game.connect(referee).postResults(w, [A(p2)], [RON(30)], { gasLimit: 300000 })).wait(); // fixed gas: ganache can under-estimate when two postings land in the same second
     assert.equal(await game.weekAssigned(w), RON(90));
   });
-  await ok('results cannot exceed the pool', () => fails(game.connect(referee).postResults(w, [A(p3)], [RON(11)]), 'more than the pool'));
+  await ok('results cannot exceed the pool', () => fails(game.connect(referee).postResults(w, [A(p3)], [RON(12)]), 'more than the pool'));
+  await ok('once results are posted the closed week takes no more RON', () => fails(game.fundPool(w, { value: RON(1) }), 'week already closed'));
   await ok('claims wait the safety hour', async () => {
     assert.equal(await game.claimable(A(p1), w), 0n);
     await fails(game.connect(p1).claim(w), 'nothing to claim');
@@ -267,7 +276,7 @@ async function fails(p, msg) {
     await fails(game.connect(stranger).rollover(w, w + 1n), 'not allowed');
     await fails(game.rollover(w, w), 'target week closed');
     await (await game.connect(referee).rollover(w, w + 1n)).wait();
-    assert.equal(await game.weekPool(w + 1n), RON(40));
+    assert.equal(await game.weekPool(w + 1n), RON('41.5'));
     await fails(game.rollover(w, w + 1n), 'nothing to move');
     await fails(game.connect(referee).postResults(w, [A(p3)], [RON(1)]), 'more than the pool');
   });
@@ -292,15 +301,15 @@ async function fails(p, msg) {
     assert.equal(await game.weekPool(w3), RON(10));
   });
   await ok('a week nobody posted rolls over after its deadline', async () => {
-    assert.equal(await game.leftover(w + 1n), RON(40));
+    assert.equal(await game.leftover(w + 1n), RON('41.5'));
     const w3 = await game.currentWeek();
     await (await game.rollover(w + 1n, w3)).wait();
-    assert.equal(await game.weekPool(w3), RON(50));
+    assert.equal(await game.weekPool(w3), RON('51.5'));
   });
   await ok('contract RON adds up', async () => {
     const box = await game.bonusBox();
     // pools still held: w3 (50) ; everything else paid or moved
-    assert.equal(await bal(G), box + RON(50) + await game.weekPool(far)); // box + pools still held
+    assert.equal(await bal(G), box + RON('51.5') + await game.weekPool(far)); // box + pools still held
   });
 
   console.log('Owner');

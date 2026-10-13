@@ -9,7 +9,8 @@ Descripción de funciones: `build/CAGnaval.abi.json`.
 - **Ventas.** Lo que te llega de Ronin Market (ya sin su 2,5%) lo mandás con `deposit`. El contrato reconstruye la venta original y reparte sobre el precio completo del ticket: 72,5% al pozo de la semana, 20% a la caja del bonus y 7,5% para vos, del que ya se descuenta el 2,5% que cobró el mercado (te llega el 5%). Ejemplo: un ticket de 5 RON → te llegan 4,875 → 3,625 al pozo, 1 a la caja y 0,25 a tu billetera. Los porcentajes se cambian con `setSplit`.
 - **Onigiri dorado.** Cuando termina la partida, el árbitro (el servidor del juego) la cierra y, si hubo dorada, el premio queda anotado a nombre del jugador. El jugador lo cobra desde el juego con `claimGold`. Siempre lo cobra completo: si la caja no tiene el total, le aparece pendiente hasta que la cargues.
 - **Partidas a la vez.** Pueden jugar todos los que quieran al mismo tiempo. Una partida solo arranca si la caja, después de descontar los premios pendientes, tiene 105 RON por ticket (un premio de ×21).
-- **Pozo semanal.** El lunes 00:00 UTC cierra la semana. El árbitro publica cuánto le toca a cada billetera; una hora después cada jugador cobra desde el juego. Tiene hasta el final de la semana siguiente.
+- **Pozo semanal.** El lunes 00:00 UTC cierra la semana. Tenés 24 horas más (`fundGrace`) para cargar el pozo de esa semana con `deposit(semana)`. Después el árbitro publica cuánto le toca a cada billetera (o antes, si se lo pedís desde el panel); una hora después cada jugador cobra desde el juego, hasta el final de la semana siguiente.
+- **Panel de admin.** Todo lo de este manual se puede hacer desde `https://<tu-sitio>/admin`, conectando la billetera dueña, sin entrar a Remix.
 
 ## Por qué es seguro aunque roben la clave del árbitro
 
@@ -36,7 +37,7 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 
 | Qué | Función | Detalle |
 |---|---|---|
-| Cargar las ventas (reparte solo) | `deposit(week)` | `week` = `currentWeek()`. Mandar en Value lo que te llegó de las ventas. |
+| Cargar las ventas (reparte solo) | `deposit(week)` | `week` = `currentWeek()`, o la semana anterior durante las 24 h después del cierre. Mandar en Value lo que te llegó de las ventas. |
 | Cargar solo la caja del bonus | `fundBonus` | Mandar RON en Value. Habilita el cobro de premios pendientes. |
 | Cargar el pozo de una semana | `fundPool(week)` | `week` = `currentWeek()`. Mandar RON en Value. Se puede cargar en varias veces. |
 | Retirar tickets para volver a venderlos | `withdrawTickets(amount, to)` | Van a la billetera `to`. Ver cuántos hay con `ticketsHeld()`. |
@@ -48,6 +49,7 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 | Anular un premio mal publicado | `voidResult(week, player)` | Antes de que lo cobre. |
 | Cerrar una partida trabada | `cancelRun(runId)` | Solo si pasó un día y el árbitro no la cerró. No paga nada. |
 | Pausar todo | `setPaused(true)` | Frena partidas nuevas y cobros. |
+| Horas para cargar el pozo después del cierre | `setFundGrace(segundos)` | 86400 = 24 h (máximo 3 días). |
 
 ## Ajustes (`setConfig`)
 
@@ -68,4 +70,4 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 cd contracts && npm install && npm run check
 ```
 
-Compila y prueba todo en una cadena simulada (46 casos, incluidos intentos de trampa).
+Compila y prueba todo en una cadena simulada (48 casos, incluidos intentos de trampa).

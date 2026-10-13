@@ -98,7 +98,9 @@
     if (!p) return Promise.reject(err('no-wallet'));
     return p.request({ method: 'eth_requestAccounts' }).then(function (accs) {
       if (!accs || String(accs[0]).toLowerCase() !== W.address) throw err('other-account', 'Switch the wallet to ' + W.short(W.address));
-      return p.request({ method: 'eth_sendTransaction', params: [{ from: tx.from, to: tx.to, data: tx.data }] });
+      var t = { from: tx.from, to: tx.to, data: tx.data };
+      if (tx.value) t.value = tx.value;
+      return p.request({ method: 'eth_sendTransaction', params: [t] });
     }).catch(function (e) { throw e.code === 'other-account' ? e : walletError(e); });
   };
 

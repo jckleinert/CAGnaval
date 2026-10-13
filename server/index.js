@@ -63,6 +63,28 @@ function createApp(options) {
   }
   function shareOf(pool, total, sum) { return sum > 0 && total > 0 ? (pool * BigInt(total) / BigInt(sum)).toString() : '0'; }
 
+  /* The admin panel: the contract as it stands, plus the rankings with wallets and what each would get. */
+  async function adminState() {
+    const c = await chain.adminRead();
+    const price = ethers.parseEther(String(config.TICKET_PRICE));
+    const fee = BigInt(c.feeBps || 250);
+    for (const wk of c.weeks) {
+      const rows = store.leaderboard(wk.weekId, 'total');
+      const tickets = store.weekTickets(wk.weekId);
+      const sum = rows.reduce((a, r) => a + (r.addr ? r.total : 0), 0);
+      const pool = BigInt(wk.weekPool || '0') - BigInt(wk.weekRolled || '0');
+      const est = estimatePool(tickets);
+      wk.tickets = tickets;
+      wk.estimate = est.toString();
+      // what the owner receives for those tickets on the market (price minus the fee), the amount to deposit
+      wk.suggestDeposit = (BigInt(tickets) * price * (10000n - fee) / 10000n).toString();
+      wk.players = rows.filter((r) => r.addr).slice(0, 100).map((r) => ({ name: r.name, addr: r.addr, total: r.total, runs: r.runs,
+        share: shareOf(pool > 0n ? pool : est, r.total, sum) }));
+    }
+    c.ticketPrice = String(config.TICKET_PRICE);
+    return c;
+  }
+
   /* A paid run: the tickets were sent in `txHash`; checks it on the chain before the game starts. */
   async function paidRun(req, body, ip) {
     if (!chain.enabled) throw new RunError(400, 'practice-only');
@@ -118,7 +140,7 @@ function createApp(options) {
     });
   }
   function serveStatic(req, res, pathname) {
-    let rel = pathname === '/' ? '/web/index.html' : pathname;
+    let rel = pathname === '/' ? '/web/index.html' : pathname === '/admin' ? '/web/admin.html' : pathname;
     if (!rel.startsWith('/web/') && !rel.startsWith('/shared/')) rel = '/web' + rel;
     const file = path.normalize(path.join(ROOT, rel));
     const okDir = file.startsWith(path.join(ROOT, 'web') + path.sep) || file.startsWith(path.join(ROOT, 'shared') + path.sep);
@@ -164,8 +186,33 @@ function createApp(options) {
         const w = store.weekId(Date.now()), board = runs.leaderboard(w, 1, '', 'total');
         const pool = estimatePool(board.tickets), mine = store.weekTotal(w, playerKey(addr));
         const prof = store.profile(addr);
+        // last week, while its results are not out yet: what this wallet should get
+        const lw = info.weekly ? info.weekly.weekId : null;
+        let last = null;
+        if (lw) {
+          const lb = runs.leaderboard(lw, 1, '', 'total'), lmine = store.weekTotal(lw, playerKey(addr));
+          last = { kcal: lmine, mine: shareOf(estimatePool(lb.tickets), lmine, lb.sum) };
+        }
         return send(res, 200, Object.assign({ address: addr, name: prof ? prof.name : null,
-          estimate: { pool: pool.toString(), mine: shareOf(pool, mine, board.sum), kcal: mine, endsAt: board.endsAt } }, info), cors);
+          estimate: { pool: pool.toString(), mine: shareOf(pool, mine, board.sum), kcal: mine, endsAt: board.endsAt }, lastEstimate: last }, info), cors);
+      }
+      if (parts[1] === 'admin') {
+        if (!chain.enabled) throw new RunError(400, 'practice-only');
+        const addr = who(req);
+        if (addr !== await chain.owner()) throw new RunError(403, 'not-owner');
+        if (req.method === 'GET' && parts[2] === 'state') return send(res, 200, await adminState(), cors);
+        if (req.method === 'POST' && parts[2] === 'tx') {
+          const body = await readJson(req);
+          let tx;
+          try { tx = chain.txAdmin(String(body.fn || ''), Array.isArray(body.args) ? body.args : [], body.value); } catch (e) { throw new RunError(400, 'bad-admin-tx'); }
+          return send(res, 200, Object.assign({ from: addr }, tx), cors);
+        }
+        if (req.method === 'POST' && parts[2] === 'close') {
+          const body = await readJson(req);
+          const out = await chain.closeWeeks(store, Number(body.week));
+          return send(res, 200, out || {}, cors);
+        }
+        throw new RunError(404, 'not-found');
       }
       if (parts[1] === 'me' && (req.method === 'GET' || req.method === 'POST')) {
         if (!chain.enabled) throw new RunError(400, 'practice-only');

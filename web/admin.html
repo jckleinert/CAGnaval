@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>CAGnaval · Admin</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="/web/admin.css">
+</head>
+<body>
+<header class="top">
+  <img class="logo" src="/web/img/logo.png" alt="CAGnaval" width="840" height="178">
+  <span class="tag">Panel de administración</span>
+  <span class="who" id="who"></span>
+</header>
+
+<main class="wrap">
+  <section class="card intro" id="gate">
+    <h1>Entrar</h1>
+    <p>Conectá la billetera dueña del contrato. Se firma un mensaje, no cuesta nada.</p>
+    <button class="btn pink" id="connect" type="button">Conectar billetera</button>
+    <p class="msg" id="gateMsg"></p>
+  </section>
+
+  <div id="panel" hidden>
+    <p class="msg sticky" id="msg" role="status"></p>
+
+    <section class="card">
+      <h2>Resumen</h2>
+      <div class="grid">
+        <div class="kv"><span>Contrato</span><b id="sContract"></b></div>
+        <div class="kv"><span>Estado</span><b id="sState"></b></div>
+        <div class="kv"><span>Billetera del árbitro</span><b id="sReferee"></b></div>
+        <div class="kv"><span>RON del árbitro (para comisiones)</span><b id="sRefBal"></b></div>
+        <div class="kv"><span>Partidas en curso</span><b id="sOpen"></b></div>
+        <div class="kv"><span>Partidas jugadas (total)</span><b id="sRuns"></b></div>
+      </div>
+      <div class="row">
+        <button class="btn" id="pause" type="button">Pausar el juego</button>
+        <button class="btn ghost" id="reload" type="button">Actualizar</button>
+      </div>
+      <p class="hint" id="sWarn"></p>
+    </section>
+
+    <section class="card" id="weekNow">
+      <h2>Semana actual <small id="nowLabel"></small></h2>
+      <div class="grid">
+        <div class="kv"><span>Tickets jugados</span><b id="nowTickets"></b></div>
+        <div class="kv"><span>Pozo estimado (lo que ven los jugadores)</span><b id="nowEst"></b></div>
+        <div class="kv"><span>Pozo cargado en el contrato</span><b id="nowPool"></b></div>
+        <div class="kv"><span>Para depositar (ventas de esos tickets)</span><b id="nowSuggest"></b></div>
+      </div>
+      <div class="row">
+        <label class="field">RON a depositar <input id="nowAmt" inputmode="decimal" placeholder="0"></label>
+        <button class="btn pink" id="nowDeposit" type="button">Depositar ventas</button>
+      </div>
+      <p class="hint">Lo que te llegó de Ronin Market. El contrato lo reparte solo: pozo, caja de la dorada y tu parte.</p>
+      <table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Billetera</th><th class="num">Partidas</th><th class="num">kcal</th><th class="num">≈ RON</th></tr></thead><tbody id="nowRows"></tbody></table>
+    </section>
+
+    <section class="card" id="weekLast">
+      <h2>Semana pasada <small id="lastLabel"></small></h2>
+      <p class="status" id="lastStatus"></p>
+      <div class="grid">
+        <div class="kv"><span>Tickets jugados</span><b id="lastTickets"></b></div>
+        <div class="kv"><span>Para depositar (ventas de esos tickets)</span><b id="lastSuggest"></b></div>
+        <div class="kv"><span>Pozo cargado</span><b id="lastPool"></b></div>
+        <div class="kv"><span>Repartido / cobrado</span><b id="lastPaid"></b></div>
+      </div>
+      <div class="row" id="lastFundRow">
+        <label class="field">RON a depositar <input id="lastAmt" inputmode="decimal" placeholder="0"></label>
+        <button class="btn pink" id="lastDeposit" type="button">Depositar a la semana pasada</button>
+        <button class="btn" id="lastClose" type="button">Publicar el reparto ahora</button>
+      </div>
+      <table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Billetera</th><th class="num">Partidas</th><th class="num">kcal</th><th class="num">RON</th><th></th></tr></thead><tbody id="lastRows"></tbody></table>
+    </section>
+
+    <section class="card">
+      <h2>Caja de la dorada</h2>
+      <div class="grid">
+        <div class="kv"><span>En la caja</span><b id="boxTotal"></b></div>
+        <div class="kv"><span>Premios sin cobrar</span><b id="boxPending"></b></div>
+        <div class="kv"><span>Libre</span><b id="boxFree"></b></div>
+        <div class="kv"><span>Tickets por partida que aguanta</span><b id="boxTickets"></b></div>
+      </div>
+      <div class="row">
+        <label class="field">RON <input id="boxAmt" inputmode="decimal" placeholder="0"></label>
+        <button class="btn pink" id="boxFund" type="button">Cargar la caja</button>
+        <button class="btn" id="boxTake" type="button">Retirar de la caja</button>
+      </div>
+      <p class="hint">Solo se puede retirar la parte libre. Lo que se debe a jugadores queda.</p>
+    </section>
+
+    <section class="card">
+      <h2>Tickets jugados en el contrato</h2>
+      <div class="grid">
+        <div class="kv"><span>Tickets guardados</span><b id="tixHeld"></b></div>
+        <div class="kv"><span>Colección / ítem</span><b id="tixId"></b></div>
+      </div>
+      <div class="row">
+        <label class="field">Cantidad <input id="tixAmt" inputmode="numeric" placeholder="0"></label>
+        <button class="btn pink" id="tixTake" type="button">Retirar a mi billetera</button>
+      </div>
+      <p class="hint">Vuelven a tu billetera para que los publiques de nuevo en Ronin Market.</p>
+    </section>
+
+    <section class="card">
+      <h2>Ajustes</h2>
+      <h3>Reparto de las ventas (sobre el precio del ticket)</h3>
+      <div class="row">
+        <label class="field">Pozo % <input id="spPool" inputmode="decimal"></label>
+        <label class="field">Caja % <input id="spBox" inputmode="decimal"></label>
+        <label class="field">Comisión Ronin % <input id="spFee" inputmode="decimal"></label>
+        <button class="btn" id="spSave" type="button">Guardar</button>
+      </div>
+      <p class="hint" id="spNote"></p>
+      <h3>Partidas y premios</h3>
+      <div class="row">
+        <label class="field">Tickets máx. por partida <input id="cfMax" inputmode="numeric"></label>
+        <label class="field">Premio máx. dorada por ticket (RON) <input id="cfCap" inputmode="decimal"></label>
+        <label class="field">Horas para cargar el pozo después del cierre <input id="cfGrace" inputmode="decimal"></label>
+        <button class="btn" id="cfSave" type="button">Guardar</button>
+      </div>
+      <p class="hint">El premio máximo de la dorada es 21 × el precio del ticket (105 RON con tickets de 5). Para probar con poca plata se puede bajar.</p>
+    </section>
+
+    <section class="card">
+      <h2>Transacciones pendientes del árbitro</h2>
+      <ul class="list" id="jobs"></ul>
+    </section>
+  </div>
+</main>
+
+<script src="/web/wallet.js"></script>
+<script src="/web/admin.js"></script>
+</body>
+</html>

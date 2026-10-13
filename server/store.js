@@ -147,7 +147,9 @@ class Store {
   }
 
   /* Paid runs already used for a game session, so a run is never played twice. */
+  _runKey(id) { return (this.cfg.GAME_CONTRACT || '').toLowerCase() + ':' + id; }
   chainRun(id) {
+    id = this._runKey(id);
     if (!this.chainRuns) {
       try { this.chainRuns = JSON.parse(fs.readFileSync(path.join(this.dir, 'chain-runs.json'), 'utf8')); } catch (e) { this.chainRuns = {}; }
     }
@@ -155,6 +157,7 @@ class Store {
   }
   setChainRun(id, value) {
     this.chainRun(id);
+    id = this._runKey(id);
     this.chainRuns[id] = value;
     this._write(path.join(this.dir, 'chain-runs.json'), this.chainRuns);
   }

@@ -373,8 +373,9 @@
     $('weekAmt').textContent = CW.ron(wk.prize) + ' RON';
     $('claimWeek').disabled = wk.claimable === '0';
     $('weekNote').textContent = wk.claimed ? 'Claimed ✓'
-      : wk.prize !== '0' && wk.claimable === '0' ? 'Opens one hour after the Monday close, for one week.'
-      : wk.prize === '0' ? 'Your share of the pool by calories, ready after each Monday close.' : '';
+      : wk.prize !== '0' && wk.claimable === '0' ? 'Ready to claim very soon. You have until next Monday.'
+      : wk.prize === '0' && i.lastEstimate && i.lastEstimate.kcal ? 'Being prepared: about ' + CW.ron(i.lastEstimate.mine) + ' RON for your ' + fmt(i.lastEstimate.kcal) + ' kcal. Ready within a day after the Monday close.'
+      : wk.prize === '0' ? 'Your share of the pool by calories, ready within a day after each Monday close.' : '';
   }
   function openPrizes() {
     homeEl.hidden = true; prizesEl.hidden = false; $('prizeMsg').textContent = 'Loading…';

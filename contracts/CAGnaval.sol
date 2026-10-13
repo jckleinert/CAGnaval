@@ -22,7 +22,8 @@ pragma solidity ^0.8.24;
     every pending prize, still holds capPerTicket RON per ticket (one 21x
     prize). Nothing is held back while runs are open, so any number of people
     can play at once.
-  - Weekly pool: after the week closes (Monday 00:00 UTC) the referee posts
+  - Weekly pool: after the week closes (Monday 00:00 UTC) the owner still has
+    fundGrace (24 h) to load that week's pool, then the referee posts
     what each wallet won. Claims open claimDelay later (a safety window in
     which the owner can void a wrong posting) and close at the end of the
     following week (claimWeeks). Whatever is not claimed can be moved to a
@@ -52,6 +53,7 @@ contract CAGnaval {
     uint256 public capPerTicket = 105 ether; // max golden prize per ticket (21 x 5 RON)
     uint256 public claimDelay = 1 hours;    // posting -> claims open
     uint256 public claimWeeks = 1;          // weeks to claim after the close
+    uint256 public fundGrace = 1 days;      // after the close, time to load that week's pool before results
     // shares of the full ticket price, in hundredths of a percent
     uint256 public poolBps = 7250;          // weekly pool 72.5%
     uint256 public bonusBps = 2000;         // golden box 20%
@@ -108,6 +110,7 @@ contract CAGnaval {
     event RefereeSet(address referee);
     event OwnerSet(address owner);
     event Paused(bool paused);
+    event FundGrace(uint256 fundGrace);
 
     modifier onlyOwner() { require(msg.sender == owner, "not owner"); _; }
     modifier onlyReferee() { require(msg.sender == referee, "not referee"); _; }
@@ -132,6 +135,13 @@ contract CAGnaval {
     function weekStartsAt(uint256 week) public pure returns (uint256) { return MONDAY0 + week * WEEK; }
     function weekEndsAt(uint256 week) public pure returns (uint256) { return MONDAY0 + (week + 1) * WEEK; }
     function claimEndsAt(uint256 week) public view returns (uint256) { return weekEndsAt(week) + claimWeeks * WEEK; }
+
+    /// A week's pool can be loaded while the week is open, and also after it closed
+    /// (for fundGrace) as long as its results have not been posted yet.
+    function fundable(uint256 week) public view returns (bool) {
+        if (week >= currentWeek()) return true;
+        return postedAt[week] == 0 && block.timestamp < weekEndsAt(week) + fundGrace;
+    }
 
     // ================================================================ runs
     /// Player starts a run by sending tickets here. `data` is ignored.
@@ -228,7 +238,7 @@ contract CAGnaval {
     /// `week` is the pool that gets its part.
     function deposit(uint256 week) external payable nonReentrant {
         require(msg.value > 0, "no RON");
-        require(week >= currentWeek(), "week already closed");
+        require(fundable(week), "week already closed");
         uint256 net = 10000 - feeBps;
         uint256 pool = msg.value * poolBps / net;
         uint256 bonus = msg.value * bonusBps / net;
@@ -242,7 +252,7 @@ contract CAGnaval {
     // ================================================================ weekly pool
     function fundPool(uint256 week) external payable {
         require(msg.value > 0, "no RON");
-        require(week >= currentWeek(), "week already closed");
+        require(fundable(week), "week already closed");
         weekPool[week] += msg.value;
         emit PoolFunded(week, msg.sender, msg.value);
     }
@@ -373,6 +383,12 @@ contract CAGnaval {
     }
 
     function setReferee(address _referee) external onlyOwner { referee = _referee; emit RefereeSet(_referee); }
+
+    function setFundGrace(uint256 _fundGrace) external onlyOwner {
+        require(_fundGrace <= 3 days, "fundGrace too long");
+        fundGrace = _fundGrace;
+        emit FundGrace(_fundGrace);
+    }
     function setPaused(bool p) external onlyOwner { paused = p; emit Paused(p); }
 
     function transferOwnership(address newOwner) external onlyOwner {

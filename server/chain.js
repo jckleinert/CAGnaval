@@ -42,8 +42,37 @@ const GAME_ABI = [
   'function postResults(uint256 week, address[] players, uint256[] amounts)',
   'function rollover(uint256 fromWeek, uint256 toWeek)',
   'function claimGold()',
-  'function claim(uint256 week)'
+  'function claim(uint256 week)',
+  // read by the admin panel
+  'function owner() view returns (address)',
+  'function referee() view returns (address)',
+  'function treasury() view returns (address)',
+  'function bonusBps() view returns (uint256)',
+  'function feeBps() view returns (uint256)',
+  'function fundGrace() view returns (uint256)',
+  'function claimDelay() view returns (uint256)',
+  'function claimWeeks() view returns (uint256)',
+  'function bonusBox() view returns (uint256)',
+  'function goldPending() view returns (uint256)',
+  'function openRuns() view returns (uint256)',
+  'function weekClaimed(uint256) view returns (uint256)',
+  'function ticketsHeld() view returns (uint256)',
+  // owner actions, sent from the owner's wallet through the admin panel
+  'function deposit(uint256 week) payable',
+  'function fundBonus() payable',
+  'function fundPool(uint256 week) payable',
+  'function withdrawTickets(uint256 amount, address to)',
+  'function withdrawBonus(uint256 amount, address to)',
+  'function setSplit(uint256 poolBps, uint256 bonusBps, uint256 feeBps, address treasury)',
+  'function setConfig(uint256 maxTickets, uint256 capPerTicket, uint256 claimDelay, uint256 claimWeeks)',
+  'function setPaused(bool p)',
+  'function setFundGrace(uint256 fundGrace)',
+  'function voidResult(uint256 week, address player)',
+  'function cancelRun(uint256 runId)'
 ];
+/* Owner actions the admin panel may prepare, and whether they carry RON. */
+const ADMIN_TX = { deposit: true, fundBonus: true, fundPool: true, withdrawTickets: false, withdrawBonus: false, setSplit: false,
+  setConfig: false, setPaused: false, setFundGrace: false, voidResult: false, cancelRun: false };
 const TICKET_ABI = [
   'function balanceOf(address, uint256) view returns (uint256)',
   'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)'
@@ -241,13 +270,27 @@ class Chain {
    * ranking (calories x tickets of paid runs), then moves leftovers (rounding,
    * a week nobody played, prizes nobody claimed in time) to the open week.
    */
-  async closeWeeks(store) {
+  /* Seconds after the close that the owner has to load the pool (24 h; older contracts: none). */
+  async grace() {
+    if (this._grace !== undefined && Date.now() - this._graceAt < 600000) return this._grace;
+    this._grace = Number(await this._read(() => this.game.fundGrace()).catch(() => 0n));
+    this._graceAt = Date.now();
+    return this._grace;
+  }
+
+  /*
+   * force: a week number the owner asked to settle now (from the admin panel) instead of
+   * waiting for the end of the grace period.
+   */
+  async closeWeeks(store, force) {
     const rd = (f) => this._read(f);
-    const now = Number(await rd(() => this.game.currentWeek()));
-    const doneFile = path.join(this.dir, 'weeks.json');
+    const now = Math.floor((Date.now() / 1000 - MONDAY0_S) / WEEK_S);
+    const doneFile = path.join(this.dir, 'weeks-' + this.cfg.GAME_CONTRACT.toLowerCase().slice(2, 10) + '.json');   // one record per contract
     let done = {};
     try { done = JSON.parse(fs.readFileSync(doneFile, 'utf8')); } catch (e) { done = {}; }
     const w = now - 1;
+    const graceOver = Date.now() / 1000 >= MONDAY0_S + (w + 1) * WEEK_S + (await this.grace());
+    if (!done[w] && !graceOver && force !== w) return { waiting: true, week: w };   // the owner may still load the pool
     if (!done[w] && Number(await rd(() => this.game.postedAt(w))) === 0 && !this.jobs.some((j) => j.kind === 'post' && j.week === w)) {
       const pool = (await rd(() => this.game.weekPool(w))) - (await rd(() => this.game.weekRolled(w)));
       const rows = store.leaderboard(weekIdOf(w), 'total').map((r) => ({ addr: r.addr, total: r.total }));
@@ -259,7 +302,7 @@ class Chain {
       }
       done[w] = { postedAt: Date.now(), winners: shares.length, pool: pool.toString() };
       fs.writeFileSync(doneFile, JSON.stringify(done));
-      return;
+      return { posted: true, week: w, winners: shares.length, pool: pool.toString() };
     }
     if (this.jobs.length) return; // let postings land before moving leftovers
     for (const from of [w, w - 1]) {
@@ -267,6 +310,46 @@ class Chain {
       const left = await rd(() => this.game.leftover(from)).catch(() => 0n);
       if (left > 0n && !this.jobs.some((j) => j.kind === 'roll' && j.from === from)) this.roll(from, now);
     }
+    return { done: true, week: w };
+  }
+
+  /* ------------------------------------------------------------ admin panel */
+  async owner() {
+    if (this._owner && Date.now() - this._ownerAt < 60000) return this._owner;
+    this._owner = String(await this._read(() => this.game.owner())).toLowerCase();
+    this._ownerAt = Date.now();
+    return this._owner;
+  }
+
+  /* Everything the owner needs to see, read one value at a time. */
+  async adminRead() {
+    const g = this.game, rd = (f) => this._read(f).catch(() => null);
+    const s = (v) => (v === null || v === undefined ? null : v.toString());
+    const w = Math.floor((Date.now() / 1000 - MONDAY0_S) / WEEK_S);
+    const out = { week: w, contract: this.cfg.GAME_CONTRACT };
+    for (const k of ['owner', 'referee', 'treasury', 'ticket', 'ticketId', 'paused', 'capPerTicket', 'maxTickets', 'poolBps', 'bonusBps', 'feeBps',
+      'fundGrace', 'claimDelay', 'claimWeeks', 'bonusBox', 'bonusFree', 'goldPending', 'openRuns', 'runCount', 'ticketsHeld']) {
+      const v = await rd(() => g[k]());
+      out[k] = typeof v === 'boolean' || typeof v === 'string' ? v : s(v);
+    }
+    out.refereeBalance = s(await rd(() => this.provider.getBalance(this.wallet.address)));
+    out.weeks = [];
+    for (const n of [w, w - 1, w - 2]) {
+      const row = { week: n, weekId: weekIdOf(n), endsAt: (MONDAY0_S + (n + 1) * WEEK_S) * 1000 };
+      for (const k of ['weekPool', 'weekAssigned', 'weekClaimed', 'weekRolled', 'postedAt', 'leftover']) row[k] = s(await rd(() => g[k](n)));
+      out.weeks.push(row);
+    }
+    out.pendingTx = this.jobs.map((j) => ({ kind: j.kind, runId: j.runId, week: j.week, tries: j.tries }));
+    return out;
+  }
+
+  /* Data of an owner transaction. value: RON as text ("12.5"), only for the ones that carry RON. */
+  txAdmin(fn, args, value) {
+    if (!Object.prototype.hasOwnProperty.call(ADMIN_TX, fn)) throw new Error('not allowed');
+    const data = this.iface.encodeFunctionData(fn, args || []);
+    const tx = { to: this.cfg.GAME_CONTRACT, data };
+    if (ADMIN_TX[fn]) tx.value = '0x' + ethers.parseEther(String(value || '0')).toString(16);
+    return tx;
   }
 }
 
