@@ -551,10 +551,27 @@
     var W2 = cv.width, R = W2 * 0.30, t0 = performance.now(), crumbs = [], bites = [], shake = 0, finished = false, revealed = false;
     // where the bites land, in units of the onigiri's size; the fourth one finishes it
     // three bites eat it all: top right, left, and the rest (x, y, size, in units of the onigiri)
-    var PLAN = [[0.72, -0.6, 1.0], [-0.78, 0.0, 1.05], [0.12, 0.42, 1.6]];
+    var PLAN = [[0.72, -0.6, 1.0], [-0.78, 0.0, 1.05], [0.05, 0.08, 1.85]];
     var LAND = 520, TIMES = [1150, 1800, 2450], REVEAL = 2850, landed = false;
     var CRUNCH = 70;      // the crunch of the bite sound comes this many ms after it starts: play it that early
-    var said = 0;
+    var said = 0, hopped = false;
+    /* A soft knock for the landing and the little hop: made on the spot, a low thump with a tiny click. */
+    function knock(vol, pitch) {
+      if (!sfx.ctx || sfx.muted) return;
+      var ac = sfx.ctx, now = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(170 * pitch, now);
+      o.frequency.exponentialRampToValueAtTime(70 * pitch, now + 0.12);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(vol, now + 0.006);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      o.connect(g); g.connect(sfx.gain); o.start(now); o.stop(now + 0.18);
+      var n = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.02), ac.sampleRate), d = n.getChannelData(0);
+      for (var k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / d.length, 3);
+      var src = ac.createBufferSource(), ng = ac.createGain(), lp = ac.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 1800 * pitch; ng.gain.value = vol * 0.35;
+      src.buffer = n; src.connect(lp); lp.connect(ng); ng.connect(sfx.gain); src.start(now);
+    }
     var off = document.createElement('canvas'); off.width = off.height = W2;
     var oc = off.getContext('2d');
     function crunch(i) {
@@ -597,7 +614,8 @@
       c.fillStyle = rg;
       for (var k = 0; k < 10; k++) { c.rotate(TAU / 10); c.beginPath(); c.moveTo(0, 0); c.lineTo(W2 * 0.5, -W2 * 0.06); c.lineTo(W2 * 0.5, W2 * 0.06); c.fill(); }
       c.restore();
-      if (next < TIMES.length) {
+      var GONE = TIMES[TIMES.length - 1] + 240;           // the last bite stays on screen a moment while it finishes the onigiri
+      if (t < GONE) {
         // the onigiri falls in from the top like in the jar, lands with a small bounce, then gets bitten
         var dy = 0, sx = 1, sy = 1;
         if (t < LAND) { var u = t / LAND; dy = -(W2 * 0.75) * (1 - u * u); }
@@ -607,13 +625,18 @@
           var sq = Math.max(0, 1 - (t - LAND) / 140) * 0.14;              // squash right at the landing
           sx = 1 + sq; sy = 1 - sq;
         }
-        if (!landed && t >= LAND) { landed = true; play(sfx.drop, 0.8, 0.5); shake = 0.6; }
+        if (!landed && t >= LAND) { landed = true; knock(0.42, 1); shake = 0.6; }
+        if (!hopped && t >= LAND + 400) { hopped = true; knock(0.2, 1.15); }
         oc.setTransform(1, 0, 0, 1, 0, 0); oc.globalCompositeOperation = 'source-over'; oc.clearRect(0, 0, W2, W2);
         var s = R / f.ext;
         oc.setTransform(s, 0, 0, s, W2 / 2, W2 / 2);
         drawFood(oc, 0, 0, f, 0, true, 0, next > 0 ? FACE_WOW : blink(777), null);
         oc.globalCompositeOperation = 'destination-out';
-        bites.forEach(function (b) { biteShape(oc, b[0] * f.ext, b[1] * f.ext, b[2] * f.ext * 0.62); });
+        bites.forEach(function (b, i) {
+          // the last bite grows over what is left, so the third bite is seen eating it all
+          var grow = i === PLAN.length - 1 ? 0.55 + 0.45 * Math.min(1, (t - TIMES[i]) / 200) : 1;
+          biteShape(oc, b[0] * f.ext, b[1] * f.ext, b[2] * f.ext * 0.62 * grow);
+        });
         var jx = shake * (Math.random() - 0.5) * R * 0.08, jy = shake * (Math.random() - 0.5) * R * 0.08;
         shake *= 0.85;
         c.save(); c.translate(W2 / 2 + jx, W2 / 2 + jy + dy + (1 - sy) * R); c.scale(sx, sy); c.drawImage(off, -W2 / 2, -W2 / 2); c.restore();
@@ -633,7 +656,7 @@
       done();
     }
     function tap() {
-      if (!revealed) { t0 -= REVEAL; next = said = TIMES.length; bites = []; landed = true; revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); return; }
+      if (!revealed) { t0 -= REVEAL; next = said = TIMES.length; bites = []; landed = hopped = true; revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); return; }
       finish();
     }
     el.addEventListener('click', tap);
