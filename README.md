@@ -153,7 +153,7 @@ Cambiar el tamaño de una comida o su forma general sí cambia el juego, y oblig
 - El botón del parlante, en la punta derecha del toldo, apaga y prende el sonido; el juego lo recuerda.
 - Los navegadores solo dejan sonar una página después de que la persona la toca, así que el sonido arranca con el primer toque o con el botón Play.
 
-- Morder la dorada: `web/snd/bite0-2.mp3`, un mordisco recortado de `art/sounds/eating-original.mp3` en tres tonos. Cuando una partida termina con la dorada fusionada, se come en cuatro mordiscos y aparece el multiplicador y el RON ganado antes de la tarjeta final (el onigiri cae como en el frasco, rebota y se come; la pantalla queda hasta que el jugador toca).
+- Morder la dorada: `web/snd/bite0-2.mp3`, un mordisco recortado de `art/sounds/eating-original.mp3` en tres tonos. Cuando una partida termina con la dorada fusionada, se come en tres mordiscos con marcas de dientes, cada uno con su crujido y aparece el multiplicador y el RON ganado antes de la tarjeta final (el onigiri cae como en el frasco, rebota y se come; la pantalla queda hasta que el jugador toca).
 ## El personaje (CAG)
 
 CAG está asomada arriba del frasco, encima de la comida que va a caer, y sigue la puntería. Respira, parpadea, y abre los ojos al soltar y cuando el frasco está por llenarse. El borde de abajo del busto queda escondido detrás del borde del frasco, así no se ve un hueco cuando se mueve. Es solo visual.

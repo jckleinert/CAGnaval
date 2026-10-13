@@ -550,26 +550,43 @@
     cv.width = cv.height = Math.round(css * dpr);
     var W2 = cv.width, R = W2 * 0.30, t0 = performance.now(), crumbs = [], bites = [], shake = 0, finished = false, revealed = false;
     // where the bites land, in units of the onigiri's size; the fourth one finishes it
-    var PLAN = [[0.55, -0.42, 0.36], [-0.62, -0.05, 0.38], [0.38, 0.55, 0.4]];
-    var LAND = 520, TIMES = [1150, 1650, 2150, 2650], REVEAL = 3000, landed = false;
+    // three bites eat it all: top right, left, and the rest (x, y, size, in units of the onigiri)
+    var PLAN = [[0.72, -0.6, 1.0], [-0.78, 0.0, 1.05], [0.12, 0.42, 1.6]];
+    var LAND = 520, TIMES = [1150, 1800, 2450], REVEAL = 2850, landed = false;
+    var CRUNCH = 70;      // the crunch of the bite sound comes this many ms after it starts: play it that early
+    var said = 0;
     var off = document.createElement('canvas'); off.width = off.height = W2;
     var oc = off.getContext('2d');
-    function bite(i) {
+    function crunch(i) {
       var tone = sfx.bites && sfx.bites.length ? sfx.bites[i % sfx.bites.length] : null;
-      play(tone, 0.96 + Math.random() * 0.08, 0.9);
+      play(tone, 0.97 + Math.random() * 0.06, 0.95);
+    }
+    function bite(i) {
       shake = 1;
-      var p = PLAN[Math.min(i, PLAN.length - 1)], n = i === 3 ? 26 : 10;
+      var p = PLAN[i], last = i === PLAN.length - 1, n = last ? 30 : 14;
+      // crumbs fly from the edge of the bite, toward the outside
       for (var k = 0; k < n; k++) {
-        var a = Math.random() * TAU, sp = (i === 3 ? 0.5 : 0.25) + Math.random() * 0.35;
-        crumbs.push({ x: i === 3 ? 0 : p[0] * R, y: i === 3 ? 0 : p[1] * R, vx: Math.cos(a) * sp * R / 30, vy: (Math.sin(a) * sp - 0.35) * R / 30,
-          r: R * (0.03 + Math.random() * 0.05), col: Math.random() < 0.6 ? GOLD : '#FFF6DE', life: 1 });
+        var a = last ? Math.random() * TAU : Math.atan2(p[1], p[0]) + (Math.random() - 0.5) * 1.6, sp = (last ? 0.45 : 0.3) + Math.random() * 0.35;
+        var ex = last ? (Math.random() - 0.5) * R : p[0] * R * 0.55, ey = last ? (Math.random() - 0.5) * R : p[1] * R * 0.55;
+        crumbs.push({ x: ex, y: ey, vx: Math.cos(a) * sp * R / 30, vy: (Math.sin(a) * sp - 0.3) * R / 30,
+          r: R * (0.025 + Math.random() * 0.05), col: Math.random() < 0.65 ? GOLD : '#FFF6DE', life: 1 });
       }
-      if (i < 3) bites.push(p);
+      bites.push(p);
+    }
+    /* A bite with teeth marks: a big round bite whose edge is a row of small round dents. */
+    function biteShape(g, cx, cy, r) {
+      g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.fill();
+      var teeth = 13, tr = r * 0.17;
+      for (var k = 0; k < teeth; k++) {
+        var a = k / teeth * TAU;
+        g.beginPath(); g.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, tr, 0, TAU); g.fill();
+      }
     }
     var next = 0;
     function frameFx(now) {
       if (!GFX.on) return;
       var t = now - t0;
+      while (said < TIMES.length && t >= TIMES[said] - CRUNCH) crunch(said++);
       while (next < TIMES.length && t >= TIMES[next]) bite(next++);
       if (!revealed && t >= REVEAL) { revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); }
       c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W2, W2);
@@ -580,7 +597,7 @@
       c.fillStyle = rg;
       for (var k = 0; k < 10; k++) { c.rotate(TAU / 10); c.beginPath(); c.moveTo(0, 0); c.lineTo(W2 * 0.5, -W2 * 0.06); c.lineTo(W2 * 0.5, W2 * 0.06); c.fill(); }
       c.restore();
-      if (next < 4) {
+      if (next < TIMES.length) {
         // the onigiri falls in from the top like in the jar, lands with a small bounce, then gets bitten
         var dy = 0, sx = 1, sy = 1;
         if (t < LAND) { var u = t / LAND; dy = -(W2 * 0.75) * (1 - u * u); }
@@ -596,12 +613,7 @@
         oc.setTransform(s, 0, 0, s, W2 / 2, W2 / 2);
         drawFood(oc, 0, 0, f, 0, true, 0, next > 0 ? FACE_WOW : blink(777), null);
         oc.globalCompositeOperation = 'destination-out';
-        bites.forEach(function (b) {
-          var bx = b[0] * f.ext, by = b[1] * f.ext, br = b[2] * f.ext, nx = -b[1], ny = b[0], nl = Math.hypot(nx, ny) || 1;
-          [[0, 0, 1], [0.34, 0, 0.66], [-0.34, 0, 0.66]].forEach(function (q) {
-            oc.beginPath(); oc.arc(bx + nx / nl * q[0] * br, by + ny / nl * q[0] * br, br * q[2], 0, TAU); oc.fill();
-          });
-        });
+        bites.forEach(function (b) { biteShape(oc, b[0] * f.ext, b[1] * f.ext, b[2] * f.ext * 0.62); });
         var jx = shake * (Math.random() - 0.5) * R * 0.08, jy = shake * (Math.random() - 0.5) * R * 0.08;
         shake *= 0.85;
         c.save(); c.translate(W2 / 2 + jx, W2 / 2 + jy + dy + (1 - sy) * R); c.scale(sx, sy); c.drawImage(off, -W2 / 2, -W2 / 2); c.restore();
@@ -621,11 +633,11 @@
       done();
     }
     function tap() {
-      if (!revealed) { t0 -= REVEAL; next = 4; bites = []; landed = true; revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); return; }
+      if (!revealed) { t0 -= REVEAL; next = said = TIMES.length; bites = []; landed = true; revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); return; }
       finish();
     }
     el.addEventListener('click', tap);
-    if (reduced) { next = 4; revealed = true; el.classList.add('shown'); }
+    if (reduced) { next = said = TIMES.length; revealed = true; el.classList.add('shown'); }
     requestAnimationFrame(frameFx);      // it stays until the player taps
   }
 
