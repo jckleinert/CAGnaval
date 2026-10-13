@@ -26,8 +26,8 @@ pragma solidity ^0.8.24;
     fundGrace (24 h) to load that week's pool, then the referee posts
     what each wallet won. Claims open claimDelay later (a safety window in
     which the owner can void a wrong posting) and close at the end of the
-    following week (claimWeeks). Whatever is not claimed can be moved to a
-    later week with rollover.
+    following week (claimWeeks). Whatever is not claimed by then the owner
+    either takes back (recoverPool) or moves to a later week (rollover).
 
   Limits that hold even if the referee key leaked
   -----------------------------------------------
@@ -100,6 +100,7 @@ contract CAGnaval {
     event ResultsVoided(uint256 indexed week, address indexed player, uint256 amount);
     event Claimed(uint256 indexed week, address indexed player, uint256 amount);
     event Rolled(uint256 indexed fromWeek, uint256 indexed toWeek, uint256 amount);
+    event PoolRecovered(uint256 indexed week, address indexed to, uint256 amount);
     event GoldWon(uint256 indexed runId, address indexed player, uint256 amount);
     event GoldClaimed(address indexed player, uint256 amount);
     event Deposited(address indexed from, uint256 amount, uint256 week, uint256 pool, uint256 bonus, uint256 team);
@@ -322,6 +323,16 @@ contract CAGnaval {
         weekRolled[fromWeek] += a;
         weekPool[toWeek] += a;
         emit Rolled(fromWeek, toWeek, a);
+    }
+
+    /// Owner takes back what a week's winners did not claim, once their claim time is over.
+    function recoverPool(uint256 week, address to) external onlyOwner nonReentrant {
+        require(block.timestamp >= claimEndsAt(week), "claims still open");
+        uint256 a = leftover(week);
+        require(a > 0, "nothing to recover");
+        weekRolled[week] += a;     // counted as gone from the week, like a rollover
+        _send(to, a);
+        emit PoolRecovered(week, to, a);
     }
 
     // ================================================================ payments

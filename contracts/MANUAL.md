@@ -45,7 +45,8 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 | Cambiar porcentajes | `setSplit(poolBps, bonusBps, feeBps, treasury)` | En centésimos de por ciento, sobre el precio completo: 7250 = 72,5%, 2000 = 20%, 250 = 2,5% del mercado. Lo que sobra va a `treasury`. |
 | Cambiar de colección de tickets | `setTicket(ticket, ticketId)` | Por ejemplo, de las bebidas de prueba a los tickets de CAGnaval. Sin partidas abiertas. Pozos y caja se mantienen. |
 | Retirar tickets de una colección anterior | `withdrawItems(token, id, amount, to)` | |
-| Pasar lo no cobrado a otra semana | `rollover(fromWeek, toWeek)` | Lo hace el árbitro solo; vos también podés. |
+| Pasar lo no cobrado a otra semana | `rollover(fromWeek, toWeek)` | Cuando terminó el plazo de cobro. |
+| Retirar lo no cobrado | `recoverPool(week, to)` | Cuando terminó el plazo de cobro de esa semana (una semana después del reparto). |
 | Anular un premio mal publicado | `voidResult(week, player)` | Antes de que lo cobre. |
 | Cerrar una partida trabada | `cancelRun(runId)` | Solo si pasó un día y el árbitro no la cerró. No paga nada. |
 | Pausar todo | `setPaused(true)` | Frena partidas nuevas y cobros. |
@@ -70,4 +71,4 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 cd contracts && npm install && npm run check
 ```
 
-Compila y prueba todo en una cadena simulada (48 casos, incluidos intentos de trampa).
+Compila y prueba todo en una cadena simulada (49 casos, incluidos intentos de trampa).

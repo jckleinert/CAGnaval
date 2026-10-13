@@ -68,11 +68,12 @@ const GAME_ABI = [
   'function setPaused(bool p)',
   'function setFundGrace(uint256 fundGrace)',
   'function voidResult(uint256 week, address player)',
-  'function cancelRun(uint256 runId)'
+  'function cancelRun(uint256 runId)',
+  'function recoverPool(uint256 week, address to)'
 ];
 /* Owner actions the admin panel may prepare, and whether they carry RON. */
 const ADMIN_TX = { deposit: true, fundBonus: true, fundPool: true, withdrawTickets: false, withdrawBonus: false, setSplit: false,
-  setConfig: false, setPaused: false, setFundGrace: false, voidResult: false, cancelRun: false };
+  setConfig: false, setPaused: false, setFundGrace: false, voidResult: false, cancelRun: false, recoverPool: false, rollover: false };
 const TICKET_ABI = [
   'function balanceOf(address, uint256) view returns (uint256)',
   'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)'
@@ -304,6 +305,9 @@ class Chain {
       fs.writeFileSync(doneFile, JSON.stringify(done));
       return { posted: true, week: w, winners: shares.length, pool: pool.toString() };
     }
+    // Unclaimed prizes wait for the owner (take back or move on, from the admin panel),
+    // unless AUTO_ROLLOVER is on: then the referee moves them to the open week.
+    if (!this.cfg.AUTO_ROLLOVER) return { done: true, week: w };
     if (this.jobs.length) return; // let postings land before moving leftovers
     for (const from of [w, w - 1]) {
       if (from < 0) continue;
@@ -334,8 +338,10 @@ class Chain {
     }
     out.refereeBalance = s(await rd(() => this.provider.getBalance(this.wallet.address)));
     out.weeks = [];
-    for (const n of [w, w - 1, w - 2]) {
-      const row = { week: n, weekId: weekIdOf(n), endsAt: (MONDAY0_S + (n + 1) * WEEK_S) * 1000 };
+    const claimWeeks = Number(out.claimWeeks || 1);
+    for (const n of [w, w - 1, w - 2, w - 3, w - 4, w - 5]) {
+      const row = { week: n, weekId: weekIdOf(n), endsAt: (MONDAY0_S + (n + 1) * WEEK_S) * 1000,
+        claimEndsAt: (MONDAY0_S + (n + 1 + claimWeeks) * WEEK_S) * 1000 };
       for (const k of ['weekPool', 'weekAssigned', 'weekClaimed', 'weekRolled', 'postedAt', 'leftover']) row[k] = s(await rd(() => g[k](n)));
       out.weeks.push(row);
     }

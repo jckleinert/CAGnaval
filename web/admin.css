@@ -44,7 +44,7 @@ h3 { margin: 16px 0 8px; font-size: 15px; color: var(--dim); }
 .tbl td { padding: 6px 8px; border-bottom: 1px solid #EEF7FB; }
 .tbl td.num, .tbl th.num { text-align: right; }
 .tbl .addr { color: var(--dim); font-size: 12.5px; }
-.tbl tbody:empty::after { content: "Nadie jugó con tickets todavía."; display: block; padding: 10px 8px; color: var(--dim); }
+.tbl tbody:empty::after { content: attr(data-empty); display: block; padding: 10px 8px; color: var(--dim); }
 .list { margin: 0; padding-left: 18px; color: var(--dim); }
 @media (max-width: 560px) { .tbl .addr { display: none; } .field input { width: 120px; } }
 [hidden] { display: none !important; }

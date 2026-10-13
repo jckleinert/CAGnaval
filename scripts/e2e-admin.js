@@ -18,7 +18,7 @@ const { Chain } = require('../server/chain.js');
   const endOf = (n) => (4 * 86400 + (n + 1) * 7 * 86400) * 1000;
   const sent = [], closes = [];
   const real = new Chain({ GAME_CONTRACT: '0x' + '4'.repeat(40), REFEREE_KEY: '0x' + '5'.repeat(64), DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'cagnaval-c-')), CHAIN_RPC: 'http://127.0.0.1:1', CHAIN_ID: 2020 });
-  const week = (n, extra) => Object.assign({ week: n, weekId: new Date((4 * 86400 + n * 7 * 86400) * 1000).toISOString().slice(0, 10), endsAt: endOf(n),
+  const week = (n, extra) => Object.assign({ week: n, weekId: new Date((4 * 86400 + n * 7 * 86400) * 1000).toISOString().slice(0, 10), endsAt: endOf(n), claimEndsAt: endOf(n + 1),
     weekPool: '0', weekAssigned: '0', weekClaimed: '0', weekRolled: '0', postedAt: '0', leftover: '0' }, extra || {});
   const fake = {
     enabled: true, jobs: [], referee: '0x' + '2'.repeat(40),
@@ -28,7 +28,7 @@ const { Chain } = require('../server/chain.js');
       return { week: W, contract: '0x' + '4'.repeat(40), owner: owner.address, referee: '0x' + '2'.repeat(40), treasury: owner.address, ticket: '0x' + '6'.repeat(40), ticketId: '1',
         paused: false, capPerTicket: RON(1), maxTickets: '5', poolBps: '7250', bonusBps: '2000', feeBps: '250', fundGrace: '259200', claimDelay: '3600', claimWeeks: '1',
         bonusBox: RON(10), bonusFree: RON(9), goldPending: RON(1), openRuns: '0', runCount: '12', ticketsHeld: '9', refereeBalance: RON('4.98'),
-        weeks: [week(W, { weekPool: RON(3) }), week(W - 1), week(W - 2, { postedAt: '1', weekPool: RON(5), weekAssigned: RON(5) })], pendingTx: [] };
+        weeks: [week(W, { weekPool: RON(3) }), week(W - 1), week(W - 2, { postedAt: '1', weekPool: RON(5), weekAssigned: RON(5), weekClaimed: RON(3), leftover: RON(2) })], pendingTx: [] };
     },
     txAdmin: real.txAdmin.bind(real),
     async closeWeeks(store, w) { closes.push(w); return { posted: true, week: w }; },
@@ -82,6 +82,7 @@ const { Chain } = require('../server/chain.js');
   await page.fill('#tixAmt', '9'); await page.click('#tixTake'); await page.waitForTimeout(300);
   await page.fill('#boxAmt', '2'); await page.click('#boxFund'); await page.waitForTimeout(300);
   await page.click('#lastClose'); await page.waitForTimeout(300);
+  await page.click('#oldRows button.pink'); await page.waitForTimeout(300);
   await browser.close(); app.server.close();
 
   const iface = new ethers.Interface(require('../server/chain.js').GAME_ABI);
@@ -90,7 +91,7 @@ const { Chain } = require('../server/chain.js');
   console.log(JSON.stringify(out, null, 1));
   const ok = /Esperando que cargues el pozo/.test(lastStatus) && suggest === '39 RON' && lastRows.length === 2
     && decoded[0] === 'deposit(' + (W - 1) + ') value 39.0' && decoded[1] === 'withdrawTickets(9,' + owner.address + ')' && decoded[2] === 'fundBonus() value 2.0'
-    && closes[0] === W - 1 && !problems.length;
+    && decoded[3] === 'recoverPool(' + (W - 2) + ',' + owner.address + ')' && closes[0] === W - 1 && !problems.length;
   console.log(ok ? 'E2E ADMIN OK' : 'E2E ADMIN FAILED');
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -287,6 +287,20 @@ async function fails(p, msg) {
     await travel(ends - t + 5);
     await fails(game.connect(referee).postResults(w, [A(p3)], [RON(1)]), 'claim time over');
   });
+  await ok('owner takes back unclaimed prizes only after the claim time, once', async () => {
+    const wr = await game.currentWeek();
+    await (await game.fundPool(wr, { value: RON(4) })).wait();
+    await travel(7 * 86400 + 86400 + 10);                    // week over, grace over
+    await (await game.connect(referee).postResults(wr, [A(p2)], [RON(4)])).wait();
+    await fails(game.recoverPool(wr, A(owner)), 'claims still open');
+    await travel(7 * 86400);
+    await fails(game.connect(p2).recoverPool(wr, A(p2)), 'not owner');
+    const b0 = await bal(A(stranger));
+    await (await game.recoverPool(wr, A(stranger))).wait();
+    assert.equal(await bal(A(stranger)) - b0, RON(4));
+    assert.equal(await game.claimable(A(p2), wr), 0n);
+    await fails(game.recoverPool(wr, A(owner)), 'nothing to recover');
+  });
   await ok('unclaimed prizes roll over after the deadline', async () => {
     // week w+1 is now closed with nobody posted; a week with results nobody claimed:
     const w2 = await game.currentWeek();

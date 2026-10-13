@@ -68,6 +68,7 @@ Todo se cambia con variables de entorno. Ninguna es obligatoria.
 | `CHAIN_RPC` | `https://api.roninchain.com/rpc` | Nodo de Ronin que usa el árbitro |
 | `CHAIN_ID` | `2020` | Red de Ronin (2020 = la real) |
 | `CLOSE_EVERY_MS` | `600000` | Cada cuánto revisa si hay que hacer el reparto semanal |
+| `AUTO_ROLLOVER` | apagado | `1` = el árbitro pasa solo los premios sin cobrar al pozo de la semana actual |
 
 ## Partidas con tickets (etapa 2)
 
@@ -76,7 +77,7 @@ Todo se cambia con variables de entorno. Ninguna es obligatoria.
 3. Su billetera manda los tickets al contrato; el árbitro lee esa transacción y recién ahí arranca la partida. Si la página se cierra en el medio, el botón ofrece retomar esa misma partida.
 4. Al terminar, el árbitro cierra la partida en el contrato con el premio de la dorada: multiplicador × tickets × valor del ticket (el valor es `capPerTicket` / 21). El jugador lo cobra desde "Prizes".
 5. **Panel de admin** en `/admin`, solo para la billetera dueña del contrato: estado de la caja y del pozo, cuánto depositar cada semana, ranking con billeteras y lo que le toca a cada una, retirar tickets, cargar o retirar la caja, cambiar porcentajes y ajustes, pausar, anular un premio y publicar el reparto antes de tiempo. Cada acción la confirma la billetera.
-6. Después del cierre del lunes hay 24 horas para cargar el pozo de esa semana; recién ahí el árbitro publica el reparto (o antes, desde el panel).
+6. Después del cierre del lunes hay 24 horas para cargar el pozo de esa semana; recién ahí el árbitro publica el reparto (o antes, desde el panel). Los ganadores tienen una semana para cobrar; lo que no cobran, el dueño lo retira o lo suma al pozo de la semana actual desde el panel (con `AUTO_ROLLOVER=1` el árbitro lo pasa solo a la semana actual).
 7. La primera vez que firma, el jugador elige su nombre: queda atado a su billetera, no se repite entre jugadores y es el que aparece siempre en el ranking. Después la pantalla de inicio lo saluda por su nombre.
 8. Mientras dura la semana, el ranking Total y la tarjeta "Prizes" muestran cuánto le tocaría a cada uno: tickets jugados en la semana × precio del ticket (`TICKET_PRICE`, 5 RON) × la parte del pozo (72,5%), repartido por calorías. Es una estimación: lo que se paga es lo que esté cargado en el contrato al cierre.
 9. Las calorías × tickets suman al ranking Total. El ranking Best run cuenta como si cada partida se hubiera jugado con un solo ticket: premia la mejor partida, no cuántos tickets se usaron. Después del cierre del lunes el árbitro publica el reparto del pozo de esa semana, proporcional a las calorías, y pasa a la semana abierta lo que sobre por redondeo, lo de semanas sin jugadores y lo que nadie cobró a tiempo.

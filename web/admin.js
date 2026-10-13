@@ -95,6 +95,25 @@
     $('lastPaid').textContent = ron(last.weekAssigned) + ' / ' + ron(last.weekClaimed) + ' RON';
     rows($('lastRows'), last.players, !!posted, last.week);
 
+    var old = $('oldRows'); old.textContent = '';
+    s.weeks.slice(1).forEach(function (wk) {
+      var left = BigInt(wk.leftover || '0'), ended = Date.now() >= wk.claimEndsAt, posted = wk.postedAt && wk.postedAt !== '0';
+      if (!posted && left === 0n) return;
+      var tr = document.createElement('tr');
+      cell(tr, wk.weekId); cell(tr, ron(wk.weekAssigned), 'num'); cell(tr, ron(wk.weekClaimed), 'num');
+      cell(tr, ended ? ron(wk.leftover) : ron(BigInt(wk.weekAssigned || '0') - BigInt(wk.weekClaimed || '0')), 'num');
+      cell(tr, ended ? 'Terminó el plazo' : 'Cobran hasta el ' + when(wk.claimEndsAt));
+      var td = cell(tr, '');
+      if (ended && left > 0n) {
+        var b1 = document.createElement('button'); b1.className = 'btn small pink'; b1.textContent = 'Retirar';
+        b1.addEventListener('click', function () { send('recoverPool', [String(wk.week), CW.address], null, 'retirar ' + ron(wk.leftover) + ' RON sin cobrar de la semana del ' + wk.weekId); });
+        var b2 = document.createElement('button'); b2.className = 'btn small'; b2.textContent = 'Al pozo actual';
+        b2.addEventListener('click', function () { send('rollover', [String(wk.week), String(s.weeks[0].week)], null, 'pasar ' + ron(wk.leftover) + ' RON al pozo de esta semana'); });
+        td.appendChild(b1); td.appendChild(document.createTextNode(' ')); td.appendChild(b2);
+      }
+      old.appendChild(tr);
+    });
+
     $('boxTotal').textContent = ron(s.bonusBox) + ' RON';
     $('boxPending').textContent = ron(s.goldPending) + ' RON';
     $('boxFree').textContent = ron(s.bonusFree) + ' RON';

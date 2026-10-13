@@ -56,7 +56,7 @@
         <button class="btn pink" id="nowDeposit" type="button">Depositar ventas</button>
       </div>
       <p class="hint">Lo que te llegó de Ronin Market. El contrato lo reparte solo: pozo, caja de la dorada y tu parte.</p>
-      <table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Billetera</th><th class="num">Partidas</th><th class="num">kcal</th><th class="num">≈ RON</th></tr></thead><tbody id="nowRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Billetera</th><th class="num">Partidas</th><th class="num">kcal</th><th class="num">≈ RON</th></tr></thead><tbody id="nowRows" data-empty="Nadie jugó con tickets todavía."></tbody></table>
     </section>
 
     <section class="card" id="weekLast">
@@ -73,7 +73,13 @@
         <button class="btn pink" id="lastDeposit" type="button">Depositar a la semana pasada</button>
         <button class="btn" id="lastClose" type="button">Publicar el reparto ahora</button>
       </div>
-      <table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Billetera</th><th class="num">Partidas</th><th class="num">kcal</th><th class="num">RON</th><th></th></tr></thead><tbody id="lastRows"></tbody></table>
+      <table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Billetera</th><th class="num">Partidas</th><th class="num">kcal</th><th class="num">RON</th><th></th></tr></thead><tbody id="lastRows" data-empty="Nadie jugó con tickets esa semana."></tbody></table>
+    </section>
+
+    <section class="card">
+      <h2>Premios sin cobrar</h2>
+      <p class="hint">Lo que los ganadores no cobraron a tiempo (tienen una semana después del reparto). Podés retirarlo a tu billetera o sumarlo al pozo de la semana actual.</p>
+      <table class="tbl"><thead><tr><th>Semana</th><th class="num">Repartido</th><th class="num">Cobrado</th><th class="num">Sin cobrar</th><th>Estado</th><th></th></tr></thead><tbody id="oldRows" data-empty="No hay premios pendientes de semanas anteriores."></tbody></table>
     </section>
 
     <section class="card">
