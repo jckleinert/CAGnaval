@@ -380,8 +380,9 @@ body {
 .gfx-ron { margin: 6px 0 0; padding: 6px 22px 8px; border-radius: 999px; background: var(--yellow); box-shadow: 0 5px 0 var(--yellow-d); font-size: 30px; font-weight: 700; opacity: 0; transform: translateY(10px); transition: opacity 0.3s, transform 0.3s; }
 .gfx-ron:empty { display: none; }
 .gfx-note { margin: 10px 0 0; max-width: 300px; font-size: 15px; font-weight: 600; color: var(--dim); opacity: 0; transition: opacity 0.3s; }
-.gfx-tap { margin: 18px 0 0; font-size: 13px; font-weight: 600; color: var(--dim); opacity: 0; transition: opacity 0.4s; }
+.gfx-tap { margin: 18px 0 0; font-size: 15px; font-weight: 600; color: var(--dim); opacity: 0; transition: opacity 0.4s; }
 .goldfx.shown .gfx-mult { opacity: 1; transform: scale(1); }
 .goldfx.shown .gfx-ron { opacity: 1; transform: none; transition-delay: 0.3s; }
 .goldfx.shown .gfx-note { opacity: 1; transition-delay: 0.6s; }
-.goldfx.shown .gfx-tap { opacity: 1; transition-delay: 1.2s; }
+.goldfx.shown .gfx-tap { opacity: 1; transition-delay: 1.2s; animation: tapnudge 1.6s ease-in-out 2s infinite; }
+@keyframes tapnudge { 0%, 100% { transform: none; } 50% { transform: translateY(-3px); } }

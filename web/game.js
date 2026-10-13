@@ -551,7 +551,7 @@
     var W2 = cv.width, R = W2 * 0.30, t0 = performance.now(), crumbs = [], bites = [], shake = 0, finished = false, revealed = false;
     // where the bites land, in units of the onigiri's size; the fourth one finishes it
     var PLAN = [[0.55, -0.42, 0.36], [-0.62, -0.05, 0.38], [0.38, 0.55, 0.4]];
-    var TIMES = [750, 1250, 1750, 2250], REVEAL = 2600;
+    var LAND = 520, TIMES = [1150, 1650, 2150, 2650], REVEAL = 3000, landed = false;
     var off = document.createElement('canvas'); off.width = off.height = W2;
     var oc = off.getContext('2d');
     function bite(i) {
@@ -581,8 +581,16 @@
       for (var k = 0; k < 10; k++) { c.rotate(TAU / 10); c.beginPath(); c.moveTo(0, 0); c.lineTo(W2 * 0.5, -W2 * 0.06); c.lineTo(W2 * 0.5, W2 * 0.06); c.fill(); }
       c.restore();
       if (next < 4) {
-        // the onigiri, popping in, then bitten
-        var pop = Math.min(1, t / 380), sc = pop < 1 ? 0.2 + 1.0 * (1 - Math.pow(1 - pop, 3)) * (1 + 0.12 * Math.sin(pop * Math.PI)) : 1;
+        // the onigiri falls in from the top like in the jar, lands with a small bounce, then gets bitten
+        var dy = 0, sx = 1, sy = 1;
+        if (t < LAND) { var u = t / LAND; dy = -(W2 * 0.75) * (1 - u * u); }
+        else if (t < LAND + 420) {
+          var v = (t - LAND) / 420;
+          dy = -R * 0.22 * Math.sin(v * Math.PI) * (1 - v * 0.4);          // one small hop
+          var sq = Math.max(0, 1 - (t - LAND) / 140) * 0.14;              // squash right at the landing
+          sx = 1 + sq; sy = 1 - sq;
+        }
+        if (!landed && t >= LAND) { landed = true; play(sfx.drop, 0.8, 0.5); shake = 0.6; }
         oc.setTransform(1, 0, 0, 1, 0, 0); oc.globalCompositeOperation = 'source-over'; oc.clearRect(0, 0, W2, W2);
         var s = R / f.ext;
         oc.setTransform(s, 0, 0, s, W2 / 2, W2 / 2);
@@ -596,7 +604,7 @@
         });
         var jx = shake * (Math.random() - 0.5) * R * 0.08, jy = shake * (Math.random() - 0.5) * R * 0.08;
         shake *= 0.85;
-        c.save(); c.translate(W2 / 2 + jx, W2 / 2 + jy); c.scale(sc, sc); c.drawImage(off, -W2 / 2, -W2 / 2); c.restore();
+        c.save(); c.translate(W2 / 2 + jx, W2 / 2 + jy + dy + (1 - sy) * R); c.scale(sx, sy); c.drawImage(off, -W2 / 2, -W2 / 2); c.restore();
       }
       crumbs.forEach(function (p) {
         p.x += p.vx; p.y += p.vy; p.vy += R * 0.0016; p.life -= 0.018;
@@ -613,13 +621,12 @@
       done();
     }
     function tap() {
-      if (!revealed) { t0 -= REVEAL; next = 4; bites = []; revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); return; }
+      if (!revealed) { t0 -= REVEAL; next = 4; bites = []; landed = true; revealed = true; el.classList.add('shown'); play(sfx.gold, 1, 0.9); return; }
       finish();
     }
     el.addEventListener('click', tap);
     if (reduced) { next = 4; revealed = true; el.classList.add('shown'); }
-    requestAnimationFrame(frameFx);
-    setTimeout(function () { if (revealed) finish(); }, REVEAL + 4200);    // goes on by itself after a while
+    requestAnimationFrame(frameFx);      // it stays until the player taps
   }
 
   /* The ranking of the week, two ways: the total of all runs (with how many runs) or the best single run. */
