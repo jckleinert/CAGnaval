@@ -5,11 +5,12 @@ const num = (v, d) => (v === undefined || v === '' || Number.isNaN(Number(v)) ? 
 module.exports = {
   PORT: num(process.env.PORT, 3000),
   DATA_DIR: process.env.DATA_DIR || require('path').join(__dirname, '..', 'data'),
-  // Chance that a run contains a golden food (design: 1 in 8).
-  GOLD_ODDS: num(process.env.GOLD_ODDS, 0.125),
+  // Chance that a run contains a golden food (design: 1 in 10, so the golden box pays at most
+  // 18% of the ticket price on average: 0.1 x average multiplier 1.8 x ticket).
+  GOLD_ODDS: num(process.env.GOLD_ODDS, 0.1),
   // The golden food appears between these two foods of the run.
-  GOLD_FROM: num(process.env.GOLD_FROM, 5),
-  GOLD_TO: num(process.env.GOLD_TO, 120),
+  GOLD_FROM: num(process.env.GOLD_FROM, 60),   // from food 60: a run has to last a while to get it
+  GOLD_TO: num(process.env.GOLD_TO, 150),
   // Real time allowed between two moves: 15 s of game clock plus slack for slow devices and network.
   TURN_WALL_MS: num(process.env.TURN_WALL_MS, 25000),
   // How far the game clock of a move may be ahead of real time.

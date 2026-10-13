@@ -53,8 +53,8 @@ Todo se cambia con variables de entorno. Ninguna es obligatoria.
 | --- | --- | --- |
 | `PORT` | `3000` | Puerto del servidor |
 | `DATA_DIR` | `./data` | Dónde se guardan partidas y ranking |
-| `GOLD_ODDS` | `0.125` | Probabilidad de que una partida tenga comida dorada (1 de cada 8). Para probarla seguido, poné `1` |
-| `GOLD_FROM` / `GOLD_TO` | `5` / `120` | Entre qué fichas de la partida puede salir la dorada |
+| `GOLD_ODDS` | `0.1` | Probabilidad de que una partida tenga comida dorada (1 de cada 10). Para probarla seguido, poné `1` |
+| `GOLD_FROM` / `GOLD_TO` | `60` / `150` | Entre qué fichas de la partida puede salir la dorada |
 | `WEEK_START_DOW` | `1` | Día en que arranca la semana, en UTC (0 domingo, 1 lunes, ... 6 sábado) |
 | `WEEK_START_HOUR` | `0` | Hora en que arranca la semana, en UTC |
 | `TURN_WALL_MS` | `25000` | Tiempo real máximo entre dos jugadas antes de dar la partida por abandonada |
@@ -89,7 +89,7 @@ Cada semana empieza con el ranking vacío; las semanas anteriores quedan guardad
 - El frasco se considera lleno cuando el centro de una comida queda por encima de la línea durante 3 segundos seguidos (o sea, puede asomar hasta la mitad). Mientras tanto la línea titila y aparece una cuenta regresiva; si la pila se acomoda o hay una fusión y la comida baja, la cuenta se corta. Una comida recién caída o recién fusionada no cuenta durante el primer segundo. Si mientras una comida está pasada de la línea queda **otra** también pasada, la partida termina en el momento, sin esperar la cuenta.
 - Las comidas descansan: una comida que estuvo un segundo en el mismo lugar se queda completamente quieta (sin temblar ni girar) hasta que otra en movimiento la toca. Si sigue rebotando o girando sin moverse del lugar, descansa igual a los dos segundos y medio. Cuando se saca una comida del frasco (una fusión, Sweep) o se usa Shake, se despiertan todas, para que ninguna quede colgada.
 - Las paredes y el piso del frasco son sólidos: ninguna comida puede hundirse en el vidrio ni salirse del frasco, por más que la aprieten las grandes.
-- Comida dorada en 1 de cada 8 partidas. Es siempre el onigiri, en su versión de oro. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).
+- Comida dorada en 1 de cada 10 partidas, entre la ficha 60 y la 150 (hay que aguantar para verla). Con el multiplicador promedio ×1,8, la caja paga como mucho el 18% del precio del ticket, y entra el 20%. Es siempre el onigiri, en su versión de oro. Si se fusiona, el árbitro revela un multiplicador de ×0,5 a ×21 (en práctica no paga nada).
 - Ventajas Shake, Swap y Sweep, un uso de cada una por partida (en práctica son gratis).
 - Dos rankings semanales: **Total** (las calorías de todas las partidas de la semana, con la cantidad de partidas jugadas) y **Best run** (la mejor partida de cada jugador; si dos empatan, gana quien llegó primero). En la pantalla de ranking se cambia con dos pestañas.
 
