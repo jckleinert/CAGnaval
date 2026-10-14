@@ -90,7 +90,11 @@
       <p class="pick-note" id="pickNote"></p>
     </div>
     <button class="primary wide" id="play" type="button">Play</button>
-    <button class="link practice" id="practice" type="button" hidden>or practice for free</button>
+    <div class="homelinks">
+      <button class="link practice" id="openHow" type="button">How to play</button>
+      <span class="sep" id="linkSep" aria-hidden="true" hidden>·</span>
+      <button class="link practice" id="practice" type="button" hidden>Play free</button>
+    </div>
     <div class="pair" id="homePair">
       <span class="best" id="bestPill">Best <b id="best">0</b> kcal</span>
       <button class="ghost" id="openBoard" type="button">Ranking</button>
@@ -182,6 +186,26 @@
     <ul class="gp-list" id="goldsList"></ul>
     <p class="over-line small" id="goldsMsg"></p>
     <button class="ghost" id="closeGolds" type="button">Back</button>
+  </div>
+
+  <div class="over" id="howto" hidden>
+    <span class="peekbox" aria-hidden="true"><canvas class="peek"></canvas></span>
+    <p class="over-title">How to play</p>
+    <div class="howto">
+      <div class="hrow b">
+        <span class="hpic"><i class="hf s ck"></i><span>+</span><i class="hf s ck"></i></span>
+        <span><b>Merge two of the same</b><span class="t">Drop food. Two alike become a bigger one and give you calories.</span></span>
+      </div>
+      <div class="hrow y">
+        <span class="hpic"><i class="oni hf l"></i></span>
+        <span><b>Golden onigiri</b><span class="t">Merge it to win your tickets' value × its multiplier, up to ×21.</span></span>
+      </div>
+      <div class="hrow p">
+        <span class="hpic"><svg width="38" height="38" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v2h3v3a4 4 0 0 1-4 4h-.3A5 5 0 0 1 13 14.9V17h3v3H8v-3h3v-2.1A5 5 0 0 1 8.3 12H8a4 4 0 0 1-4-4V5h3zm0 4H6v1a2 2 0 0 0 1 1.7zm10 0v2.7A2 2 0 0 0 18 8V7z" fill="currentColor"/></svg></span>
+        <span><b>Weekly prize pool</b><span class="t">Every Monday the pool is shared by calories. More kcal, bigger share.</span></span>
+      </div>
+    </div>
+    <button class="primary wide" id="closeHow" type="button">Got it</button>
   </div>
 
   <div class="over" id="choose" hidden>

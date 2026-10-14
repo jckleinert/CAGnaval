@@ -615,3 +615,23 @@ body.golds-open .gstack { display: none; }
 /* the golden onigiri list: a plain round window */
 #golds.gpanel::before { display: none; }
 #golds.gpanel { padding-top: 18px; border-radius: 22px; }
+/* how to play */
+.homelinks { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -2px 0 4px; }
+.homelinks .link.practice { margin: 0; }
+.homelinks .sep { color: var(--dim); opacity: 0.6; }
+.homelinks .sep[hidden] { display: none; }
+.howto { display: flex; flex-direction: column; gap: 7px; width: 100%; max-width: 294px; }
+.hrow { display: grid; grid-template-columns: 76px 1fr; align-items: center; gap: 10px; padding: 10px 12px 10px 8px; border-radius: 18px; text-align: left; }
+.hrow.b { background: #EAF8FE; }
+.hrow.y { background: linear-gradient(135deg, #FFE69A, var(--yellow)); box-shadow: 0 4px 0 var(--yellow-d); }
+.hrow.p { background: #FFEFF4; }
+.hpic { display: flex; align-items: center; justify-content: center; gap: 2px; font-weight: 700; color: var(--dim); }
+.hrow.p .hpic { color: var(--pink); }
+.hf { display: inline-block; flex: none; background: center / contain no-repeat; }
+.hf.s { width: 28px; height: 28px; }
+.hf.l { width: 46px; height: 46px; }
+.hf.ck { background-image: url(/web/img/cookie-s.webp); }
+.hrow b { display: block; font-size: 15.5px; line-height: 1.15; }
+.hrow .t { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 500; line-height: 1.3; color: #5D6275; }
+.hrow.y .t { color: rgba(27, 34, 51, 0.75); }
+.hf.oni { background-image: url(/web/img/oni-gold.webp); }
