@@ -689,20 +689,24 @@
       gfeed.back = [homeEl, overEl, prizesEl, boardEl, shopEl, chooseEl].filter(function (e) { return !e.hidden; })[0] || null;
       if (gfeed.back) gfeed.back.hidden = true;
     }
-    goldsEl.hidden = false; document.body.classList.add('golds-open'); renderGolds(); loadGolds();
+    goldsEl.hidden = false; document.body.classList.add('golds-open'); placeGoldsBtn(); renderGolds(); loadGolds();
   }
-  function closeGolds() { goldsEl.hidden = true; document.body.classList.remove('golds-open'); if (gfeed.back) gfeed.back.hidden = false; gfeed.back = null; }
+  function closeGolds() { goldsEl.hidden = true; document.body.classList.remove('golds-open'); if (gfeed.back) gfeed.back.hidden = false; gfeed.back = null; placeGoldsBtn(); }
   $('goldsBtn').addEventListener('click', openGolds);
   $('closeGolds').addEventListener('click', closeGolds);
   $('gTabLatest').addEventListener('click', function () { gfeed.tab = 'latest'; renderGolds(); });
   $('gTabBig').addEventListener('click', function () { gfeed.tab = 'big'; renderGolds(); });
   setInterval(function () { if (!document.hidden) loadGolds(); }, 10000);
-  setInterval(function () {
+  setInterval(placeGoldsBtn, 300);
+  function placeGoldsBtn() {
     document.body.classList.toggle('in-run', !!(run && run.live));
-    // on a phone the button sits in the awning, level with the sound button
-    var m = $('mute').getBoundingClientRect();
-    if (m.height) { var st = document.documentElement.style; st.setProperty('--gb-top', Math.round(m.top) + 'px'); st.setProperty('--gb-size', Math.round(m.height) + 'px'); }
-  }, 300);
+    // on a phone the button sits centred just under the start card, and only there
+    if (!desktop()) {
+      var h = homeEl.hidden ? null : homeEl.getBoundingClientRect();
+      document.body.classList.toggle('gb-off', !h);
+      if (h) document.documentElement.style.setProperty('--gb-top', Math.round(Math.min(h.bottom + 14, window.innerHeight - 56)) + 'px');
+    }
+  }
 
   /* Messages of a run go out one at a time, in order. */
   function post(kind, msg, onReply) {

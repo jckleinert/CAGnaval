@@ -552,11 +552,11 @@ body {
 #over .pair.two { margin-top: -2px; }
 #over .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* golden onigiri feed: soft notices, a button with the onigiri, and the list */
-.oni { display: inline-block; flex: none; width: 28px; height: 28px; background: url(/web/img/foods/2-gold.webp) 0 0 / 400% 100% no-repeat; }
-.gbtn { position: fixed; z-index: 21; left: max(10px, env(safe-area-inset-left, 0px)); top: var(--gb-top, 12px); width: var(--gb-size, 34px); height: var(--gb-size, 34px); display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--paper); box-shadow: 0 3px 0 var(--shade), 0 0 0 2px rgba(255, 201, 60, 0.55); cursor: pointer; }
+.oni { display: inline-block; flex: none; width: 28px; height: 28px; background: url(/web/img/oni-gold.webp) center / contain no-repeat; }
+.gbtn { position: fixed; z-index: 21; left: 50%; transform: translateX(-50%); top: var(--gb-top, 12px); width: 46px; height: 46px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--paper); box-shadow: 0 3px 0 var(--shade), 0 0 0 2px rgba(255, 201, 60, 0.55); cursor: pointer; }
 .gbtn[hidden] { display: none; }
-.gbtn .oni { width: 76%; height: 76%; }
-body.in-run .gbtn { display: none; }
+.gbtn .oni { width: 72%; height: 72%; }
+body.in-run .gbtn, body.gb-off .gbtn { display: none; }
 .gstack { position: fixed; z-index: 45; left: 12px; right: 12px; top: calc(64px * var(--k)); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
 .gnote { display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 5px 14px 5px 7px; border-radius: 999px; background: linear-gradient(135deg, #FFF3CC, #FFFFFF 75%); box-shadow: 0 6px 18px rgba(27, 34, 51, 0.12), inset 0 0 0 1.5px rgba(255, 201, 60, 0.6); font-size: 13px; font-weight: 500; color: var(--ink); pointer-events: auto; cursor: pointer; animation: gin 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; transition: opacity 0.4s, transform 0.4s; }
 .gnote .oni { width: 26px; height: 26px; }
@@ -583,7 +583,8 @@ body.in-run .gbtn { display: none; }
 @media (min-width: 900px) {
   /* on a computer: a round button in the corner, notices above it, and the list opens from it */
   .gbtn { position: fixed; z-index: 44; left: auto; top: auto; right: 22px; bottom: 22px; width: 52px; height: 52px; box-shadow: 0 6px 18px rgba(27, 34, 51, 0.14), 0 0 0 3px rgba(255, 201, 60, 0.5); }
-  body.in-run .gbtn { display: grid; }
+  body.in-run .gbtn, body.gb-off .gbtn { display: grid; }
+  .gbtn { transform: none; }
   .gbtn .oni { width: 36px; height: 36px; }
   .gstack { left: auto; right: 22px; top: auto; bottom: 88px; align-items: flex-end; flex-direction: column-reverse; }
   .gnote { width: 260px; padding: 9px 14px 9px 10px; border-radius: 16px; }
