@@ -70,7 +70,6 @@ const { createApp } = require('../server/index.js');
   const shot = process.env.E2E_SHOTS;
   const text = (id) => page.evaluate((i) => document.getElementById(i).textContent, id);
   await page.goto(base + '/');
-  await page.fill('#name', 'Wallet bot');
   await page.waitForFunction(() => document.getElementById('play').textContent.includes('Connect'), null, { timeout: 5000 });
   if (shot) await page.screenshot({ path: path.join(shot, 'w1-home.png') });
   await page.click('#play');                                                    // connect + sign in

@@ -304,7 +304,7 @@
     if (wei === undefined || !CW.enabled) return;
     $('poolAmt').textContent = $('tPool').textContent = wholeRon(wei);
     $('poolAmt').dataset.has = '1';
-    $('poolSign').hidden = !$('tiles').hidden;
+    $('poolSign').hidden = true;                     // the pool card shows it
   }
   function loadPool() {
     if (!CW.enabled) return;
@@ -331,18 +331,19 @@
     $('connect').hidden = true;
     $('walletWho').hidden = !signed;
     var tiles = signed && !!paid.name;
-    $('tiles').hidden = !tiles;
+    $('tiles').hidden = !on;                        // the pool card shows signed in or not
+    $('tixbar').hidden = !tiles;
     homeEl.classList.toggle('dashed', tiles);
-    $('bestPill').hidden = tiles;
-    $('homePair').classList.toggle('two', tiles);
-    if (CW.enabled) $('poolSign').hidden = tiles || $('poolAmt').dataset.has !== '1';
+    $('bestPill').hidden = on;
+    $('homePair').classList.toggle('two', signed);
+    if (on) $('poolSign').hidden = true;
     var note = '', named = signed && !!paid.name, asking = signed && paid.name === null;
     $('welcome').hidden = !named;
     $('welcomeName').textContent = named ? paid.name : '';
-    $('nameField').hidden = named;
-    nameEl.placeholder = asking ? 'Your name in the ranking' : 'Your name';
+    $('nameField').hidden = named || (on && !asking);   // with the wallet, the name is asked once after connecting
+    nameEl.placeholder = asking ? 'Pick your name' : 'Your name';
     if (!on) { play.textContent = 'Play'; }
-    else if (!signed) { play.textContent = 'Connect Ronin Wallet'; note = 'Play for prizes with tickets. Practice is free.'; }
+    else if (!signed) { play.textContent = 'Connect Ronin Wallet'; note = 'Connect your wallet to play for prizes.'; }
     else if (asking) { play.textContent = 'Save my name'; note = 'This is how you will appear in the ranking. It stays with your wallet.'; }
     else if (pendingTx()) { play.textContent = 'Resume your paid run'; note = 'Your tickets were sent. Tap to play that run.'; }
     else if (!info) { play.textContent = 'Play'; note = 'Loading your wallet…'; }
