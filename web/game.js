@@ -301,8 +301,9 @@
   function wholeRon(wei) { return fmt(CW.ron(wei || '0').split('.')[0]); }
   function showPool(wei) {
     if (wei === undefined || !CW.enabled) return;
-    $('poolAmt').textContent = wholeRon(wei);
-    $('poolSign').hidden = false;
+    $('poolAmt').textContent = $('tPool').textContent = wholeRon(wei);
+    $('poolAmt').dataset.has = '1';
+    $('poolSign').hidden = !$('tiles').hidden;
   }
   function loadPool() {
     if (!CW.enabled) return;
@@ -320,6 +321,12 @@
     $('openPrizes').hidden = !signed;
     $('connect').hidden = true;
     $('walletWho').hidden = !signed;
+    var tiles = signed && !!paid.name;
+    $('tiles').hidden = !tiles;
+    $('bestPill').hidden = tiles;
+    $('homePair').classList.toggle('two', tiles);
+    if (CW.enabled) $('poolSign').hidden = tiles || $('poolAmt').dataset.has !== '1';
+    $('tBest').textContent = bestEl.textContent;
     $('ticketPick').hidden = !signed || !info || pendingTx() !== null;
     var note = '', named = signed && !!paid.name, asking = signed && paid.name === null;
     $('welcome').hidden = !named;
@@ -342,13 +349,13 @@
       note = !info.tickets ? 'You need tickets to play for prizes.'
         : !info.maxTicketsNow ? 'The golden prize box is being refilled. Try again soon.'
         : info.maxTicketsNow < Math.min(info.tickets, info.maxTickets) ? 'Up to ' + info.maxTicketsNow + ' tickets per run right now.'
-        : 'Tickets multiply your calories and the golden prize.';
+        : '';
       if (!max && !(shop.on && !info.tickets)) play.disabled = true;
       else if (!busy) play.disabled = false;
     }
     if (signed) {
       $('walletAddr').textContent = CW.short(CW.address);
-      $('walletTix').textContent = info ? info.tickets : '…';
+      $('walletTix').textContent = info ? fmt(info.tickets) : '…';
       $('openShop').hidden = !shop.on;
       var g = info && info.gold, wk = info && info.weekly;
       $('prizeDot').hidden = !((g && g.won !== '0' && g.payableNow) || (wk && wk.claimable !== '0'));
@@ -367,8 +374,8 @@
     var g = i.gold, wk = i.weekly, won = g.won !== '0', est = i.estimate;
     if (est) {
       $('nowAmt').textContent = '≈ ' + CW.ron(est.mine) + ' RON';
-      $('nowNote').textContent = est.kcal ? 'Your ' + fmt(est.kcal) + ' kcal of a pool of ≈ ' + CW.ron(est.pool) + ' RON. It moves as everyone plays; final after the Monday close.'
-        : 'Play with tickets this week to get a share of the pool (≈ ' + CW.ron(est.pool) + ' RON so far).';
+      $('nowNote').textContent = est.kcal ? 'For your ' + fmt(est.kcal) + ' kcal. Changes as everyone plays.'
+        : 'Play with tickets to get a share of the ≈ ' + CW.ron(est.pool) + ' RON pool.';
     }
     $('goldAmt').textContent = CW.ron(g.won) + ' RON';
     $('claimGold').disabled = !(won && g.payableNow);
