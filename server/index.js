@@ -17,6 +17,8 @@
  *   POST /api/tx/play              data of the play tx    { n }            (token)
  *   POST /api/tx/claim-gold        data of the claim tx                    (token)
  *   POST /api/tx/claim             data of the claim tx   { week }         (token)
+ *   GET  /api/market               tickets on sale in Ronin Market, by price
+ *   POST /api/tx/buy               data of a Ronin Market purchase { n }   (token)
  *   POST /api/runs                 a paid run             { player, txHash } (token)
  */
 const http = require('http');
@@ -28,6 +30,7 @@ const { RunManager, RunError, cleanName, playerKey } = require('./runs.js');
 const { ethers } = require('ethers');
 const { Chain } = require('./chain.js');
 const { Auth } = require('./auth.js');
+const { Market } = require('./market.js');
 const crypto = require('crypto');
 const Sim = require('../shared/sim.js');
 
@@ -38,6 +41,7 @@ const CSP = "default-src 'self'; style-src 'self' https://fonts.googleapis.com; 
 function createApp(options) {
   const config = Object.assign({}, cfg, options || {});
   const chain = config.chain || new Chain(config);
+  const market = config.market || new Market(config);
   config.PAID_ONLY = !!chain.enabled;
   const store = new Store(config);
   const runs = new RunManager(config, store, config.now);
@@ -238,12 +242,32 @@ function createApp(options) {
           if (!Number.isInteger(n) || n < 1 || n > 20) throw new RunError(400, 'bad-tickets');
           return send(res, 200, Object.assign({ from: addr }, await chain.txPlay(addr, n)), cors);
         }
+        if (parts[2] === 'buy') {
+          const n = Number(body.n);
+          if (!market.enabled) throw new RunError(400, 'no-shop');
+          if (!Number.isInteger(n) || n < 1 || n > 20) throw new RunError(400, 'bad-tickets');
+          const info = await chain.info();
+          let tx;
+          try { tx = await market.txBuy(addr, n, info.ticket, info.ticketId); } catch (e) {
+            if (e.message === 'not-enough-listed') { const err = new RunError(409, 'not-enough-listed'); err.extra = { available: e.available }; throw err; }
+            if (e.message === 'not-enough-ron') throw new RunError(409, 'not-enough-ron');
+            console.error('shop:', e.message); throw new RunError(503, 'shop-busy');
+          }
+          return send(res, 200, Object.assign({ from: addr }, tx), cors);
+        }
         if (parts[2] === 'claim-gold') return send(res, 200, Object.assign({ from: addr }, chain.txClaimGold()), cors);
         if (parts[2] === 'claim') {
           const w = Number(body.week);
           if (!Number.isInteger(w) || w < 0) throw new RunError(400, 'bad-week');
           return send(res, 200, Object.assign({ from: addr }, chain.txClaim(w)), cors);
         }
+      }
+      if (req.method === 'GET' && parts[1] === 'market') {
+        if (!chain.enabled || !market.enabled) return send(res, 200, { enabled: false }, cors);
+        const info = await chain.info();
+        let s;
+        try { s = await market.summary(info.ticket, info.ticketId); } catch (e) { console.error('shop list:', String(e.message).slice(0, 200)); throw new RunError(503, 'shop-busy'); }
+        return send(res, 200, Object.assign({ enabled: true, ticket: info.ticket, ticketId: info.ticketId }, s), cors);
       }
       if (req.method === 'GET' && parts[1] === 'leaderboard') {
         const b = runs.leaderboard(url.searchParams.get('week') || '', 50, url.searchParams.get('player') || '', url.searchParams.get('by') || '');
@@ -274,7 +298,7 @@ function createApp(options) {
       }
       throw new RunError(404, 'not-found');
     } catch (e) {
-      if (e instanceof RunError) return send(res, e.status, { error: e.code }, cors);
+      if (e instanceof RunError) return send(res, e.status, Object.assign({ error: e.code }, e.extra || {}), cors);
       if (e && e.code && /SERVER_ERROR|TIMEOUT|NETWORK_ERROR|CALL_EXCEPTION|BAD_DATA/.test(e.code)) {
         console.error('chain read failed:', url.pathname, e.shortMessage || e.message);
         return send(res, 503, { error: 'chain-busy' }, cors);

@@ -34,6 +34,9 @@ module.exports = {
   CHAIN_RPC: process.env.CHAIN_RPC || 'https://api.roninchain.com/rpc',
   CHAIN_ID: num(process.env.CHAIN_ID, 2020),
   // Price of one ticket in RON: the base of the weekly prize estimate shown to players.
+  MARKET: process.env.MARKET || 'on',           // 'off' hides the ticket shop
+  MARKET_API_KEY: process.env.MARKET_API_KEY || '',
+  MARKET_GRAPHQL: process.env.MARKET_GRAPHQL || '',
   TICKET_PRICE: process.env.TICKET_PRICE || '5',
   // 1 = the referee moves unclaimed prizes to the open week by itself. Off: the owner decides in the admin panel.
   AUTO_ROLLOVER: process.env.AUTO_ROLLOVER === '1',

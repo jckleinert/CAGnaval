@@ -32,7 +32,7 @@
         clearTimeout(timer);
         return res.json().catch(function () { return {}; }).then(function (data) {
           if (res.status === 401 && data.error === 'sign-in') W.signOut();
-          if (res.status >= 400) throw err(data.error || 'http-' + res.status);
+          if (res.status >= 400) { var e = err(data.error || 'http-' + res.status); e.data = data; throw e; }
           return data;
         });
       }, function () { clearTimeout(timer); throw err('network'); });
@@ -100,6 +100,7 @@
       if (!accs || String(accs[0]).toLowerCase() !== W.address) throw err('other-account', 'Switch the wallet to ' + W.short(W.address));
       var t = { from: tx.from, to: tx.to, data: tx.data };
       if (tx.value) t.value = tx.value;
+      if (tx.gas) t.gas = tx.gas;
       return p.request({ method: 'eth_sendTransaction', params: [t] });
     }).catch(function (e) { throw e.code === 'other-account' ? e : walletError(e); });
   };

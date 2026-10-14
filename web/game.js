@@ -38,7 +38,7 @@
   var cv = $('game'), ctx = cv.getContext('2d'), stage = $('stage'), jar = $('jar');
   var kcalEl = $('kcal'), bestEl = $('best'), nextDisc = $('nextDisc'), ladder = $('ladder');
   var statusEl = $('status'), toastEl = $('toast');
-  var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name'), prizesEl = $('prizes');
+  var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name'), prizesEl = $('prizes'), shopEl = $('shop');
   var CW = window.CAGW || { enabled: false };
   var paid = { tickets: 1, info: null, lastMode: 'practice', busy: false, name: undefined };   // name: undefined = not asked yet, null = none chosen
   var btn = { shake: $('pwShake'), swap: $('pwSwap'), sweep: $('pwSweep') };
@@ -192,6 +192,8 @@
     var card = !homeEl.hidden ? homeEl : !overEl.hidden ? overEl : null;
     var name = CW.address && paid.name ? paid.name : nameEl.value.replace(/\s+/g, ' ').trim().slice(0, 16);
     player.name = name || 'Player'; if (!(CW.address && paid.name)) save('cagnaval.player', player);
+    if (mode === 'paid' && shop.on && paid.info && !paid.info.tickets) { openShop(); return; }
+    busy = true;
     $('play').disabled = true; $('again').disabled = true; $('practice').disabled = true;
     var msgEl = card === overEl ? $('overCheck') : $('homeMsg');
     // Paid runs talk to the wallet, so they happen on the start card where the wallet is shown.
@@ -209,7 +211,7 @@
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
       run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0, tickets: start.tickets || 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
-      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; toastEl.hidden = true; boardBack = null;
+      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; toastEl.hidden = true; boardBack = null;
       if (card) card.classList.remove('leaving');
       PUP.riseAt = nowMs || 1; PUP.sinkAt = 0;                                        // and comes up behind the jar
       $('homeMsg').textContent = '';
@@ -220,7 +222,7 @@
       if (card) { card.classList.remove('leaving'); card.hidden = false; }
       say(errText(e));
       if (mode === 'paid') loadWallet();
-    }).then(function () { $('play').disabled = false; $('again').disabled = false; $('practice').disabled = false; renderWallet(); });
+    }).then(function () { busy = false; $('play').disabled = false; $('again').disabled = false; $('practice').disabled = false; renderWallet(); });
   }
 
   /* A paid run: send the tickets to the contract (the wallet asks to confirm), then the referee
@@ -336,16 +338,18 @@
       $('tCount').textContent = paid.tickets;
       $('tMinus').disabled = paid.tickets <= 1;
       $('tPlus').disabled = paid.tickets >= max;
-      play.textContent = max ? 'Play with ' + paid.tickets + ' ticket' + (paid.tickets > 1 ? 's' : '') : info.tickets ? 'Prize box refilling' : 'No tickets';
+      play.textContent = max ? 'Play with ' + paid.tickets + ' ticket' + (paid.tickets > 1 ? 's' : '') : info.tickets ? 'Prize box refilling' : shop.on ? 'Get tickets' : 'No tickets';
       note = !info.tickets ? 'You need tickets to play for prizes.'
         : !info.maxTicketsNow ? 'The golden prize box is being refilled. Try again soon.'
         : info.maxTicketsNow < Math.min(info.tickets, info.maxTickets) ? 'Up to ' + info.maxTicketsNow + ' tickets per run right now.'
         : 'Tickets multiply your calories and the golden prize.';
-      if (!max) play.disabled = true;
+      if (!max && !(shop.on && !info.tickets)) play.disabled = true;
+      else if (!busy) play.disabled = false;
     }
     if (signed) {
       $('walletAddr').textContent = CW.short(CW.address);
       $('walletTix').textContent = info ? info.tickets : '…';
+      $('openShop').hidden = !shop.on;
       var g = info && info.gold, wk = info && info.weekly;
       $('prizeDot').hidden = !((g && g.won !== '0' && g.payableNow) || (wk && wk.claimable !== '0'));
     }
@@ -385,7 +389,7 @@
   }
   /* From the result card back to the start card (wallet, tickets, prizes). */
   function goHome() {
-    overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; homeEl.hidden = false;
+    overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; homeEl.hidden = false;
     $('homeMsg').textContent = '';
     renderWallet(); loadWallet(); loadPool();
   }
@@ -401,6 +405,79 @@
   $('closePrizes').addEventListener('click', function () { prizesEl.hidden = true; homeEl.hidden = false; renderWallet(); });
   $('claimGold').addEventListener('click', function () { claim('/api/tx/claim-gold', {}, $('claimGold')); });
   $('claimWeek').addEventListener('click', function () { claim('/api/tx/claim', { week: paid.info.weekly.week }, $('claimWeek')); });
+
+  /* ---------- ticket shop: the tickets on sale in Ronin Market, bought from here ---------- */
+  var busy = false;
+  var shop = { on: false, list: null, n: 1, buying: false };
+  function shopCount() { return shop.list ? Math.min(20, shop.list.available) : 0; }
+  /* What n tickets cost, taking the cheapest first. */
+  function shopTotal(n) {
+    var left = n, sum = 0n;
+    (shop.list ? shop.list.offers : []).forEach(function (o) {
+      var q = Math.min(o.qty, left); if (q <= 0) return;
+      sum += BigInt(o.price) * BigInt(q); left -= q;
+    });
+    return left > 0 ? null : sum;
+  }
+  function renderShop() {
+    var max = shopCount();
+    shop.n = clamp(shop.n, 1, Math.max(1, max));
+    $('sCount').textContent = shop.n;
+    $('sMinus').disabled = shop.buying || shop.n <= 1;
+    $('sPlus').disabled = shop.buying || shop.n >= max;
+    var total = shop.list ? shopTotal(shop.n) : null;
+    $('shopTotal').textContent = !shop.list ? '…' : total === null ? '–' : CW.ron(total.toString()) + ' RON';
+    $('shopNote').textContent = !shop.list ? '' : !shop.list.available ? 'Sold out right now. New tickets go on sale often.'
+      : shop.list.available + ' on sale in Ronin Market' + (shop.list.offers.length ? ', from ' + CW.ron(shop.list.offers[0].price) + ' RON each.' : '.');
+    $('shopBuy').textContent = 'Buy ' + shop.n + ' ticket' + (shop.n > 1 ? 's' : '');
+    $('shopBuy').disabled = shop.buying || !max || total === null;
+  }
+  function loadShop() {
+    return CW.api('GET', '/api/market').then(function (m) {
+      shop.on = !!m.enabled; shop.list = m.enabled ? m : null;
+      renderWallet(); if (!shopEl.hidden) renderShop();
+    }).catch(function (e) { if (!shopEl.hidden) $('shopMsg').textContent = e.code === 'shop-busy' ? 'Could not read Ronin Market. Try again in a moment.' : errText(e); });
+  }
+  function openShop() {
+    homeEl.hidden = true; overEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = false;
+    if (!shop.buying) $('shopMsg').textContent = '';
+    renderShop(); loadShop();
+  }
+  /* After the purchase: wait until the tickets show up in the wallet. */
+  function waitTickets(before, n, tries) {
+    return CW.info().then(function (info) {
+      paid.info = info; renderWallet();
+      if (info.tickets >= before + n || tries <= 0) return info;
+      return new Promise(function (ok) { setTimeout(ok, 3000); }).then(function () { return waitTickets(before, n, tries - 1); });
+    }, function () {
+      if (tries <= 0) return null;
+      return new Promise(function (ok) { setTimeout(ok, 3000); }).then(function () { return waitTickets(before, n, tries - 1); });
+    });
+  }
+  $('openShop').addEventListener('click', openShop);
+  $('closeShop').addEventListener('click', function () { shopEl.hidden = true; homeEl.hidden = false; renderWallet(); });
+  $('sMinus').addEventListener('click', function () { shop.n--; renderShop(); });
+  $('sPlus').addEventListener('click', function () { shop.n++; renderShop(); });
+  $('shopBuy').addEventListener('click', function () {
+    var n = shop.n, before = paid.info ? paid.info.tickets : 0;
+    shop.buying = true; renderShop(); $('shopMsg').textContent = 'Preparing your purchase…';
+    CW.api('POST', '/api/tx/buy', { n: n }, 30000).then(function (tx) {
+      $('shopMsg').textContent = 'Confirm in your wallet: ' + CW.ron(tx.total) + ' RON for ' + n + ' ticket' + (n > 1 ? 's' : '') + '.';
+      return CW.send(tx);
+    }).then(function () {
+      $('shopMsg').textContent = 'Bought! Your tickets are on the way…';
+      return waitTickets(before, n, 20);
+    }).then(function (info) {
+      $('shopMsg').textContent = info && info.tickets >= before + n ? 'Done! You have ' + info.tickets + ' ticket' + (info.tickets > 1 ? 's' : '') + '. Good luck!'
+        : 'Bought! The tickets can take a minute to show up.';
+    }).catch(function (e) {
+      var c = e && e.code;
+      $('shopMsg').textContent = c === 'not-enough-ron' ? 'Not enough RON in your wallet for that.'
+        : c === 'not-enough-listed' ? 'Only ' + ((e.data && e.data.available) || 0) + ' on sale right now. Pick fewer.'
+        : c === 'shop-busy' ? 'Could not reach Ronin Market. Try again in a moment.'
+        : errText(e);
+    }).then(function () { shop.buying = false; loadShop(); renderShop(); });
+  });
 
   /* Messages of a run go out one at a time, in order. */
   function post(kind, msg, onReply) {
@@ -1350,7 +1427,7 @@
 
   nameEl.value = player.name || '';
   renderWallet();
-  if (CW.init) CW.init().then(function () { renderWallet(); loadMe(); loadWallet(); loadPool(); });
+  if (CW.init) CW.init().then(function () { renderWallet(); loadMe(); loadWallet(); loadPool(); if (CW.enabled) loadShop(); });
   setInterval(function () { if (!homeEl.hidden) { loadPool(); if (CW.address) loadWallet(); } }, 30000);
   fit();
   requestAnimationFrame(frame);

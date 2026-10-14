@@ -67,6 +67,7 @@
       <div class="who" id="walletWho" hidden>
         <span class="addr" id="walletAddr"></span>
         <span class="tix"><b id="walletTix">0</b> tickets</span>
+        <button class="link buy" id="openShop" type="button" hidden>Get more</button>
         <button class="link" id="signOut" type="button">Sign out</button>
       </div>
       <div class="pick" id="ticketPick" hidden>
@@ -141,6 +142,25 @@
     </div>
     <p class="over-line small" id="prizeMsg"></p>
     <button class="ghost" id="closePrizes" type="button">Back</button>
+  </div>
+
+  <div class="over" id="shop" hidden>
+    <span class="peekbox" aria-hidden="true"><canvas class="peek"></canvas></span>
+    <p class="over-title">Get tickets</p>
+    <div class="prize shopbox">
+      <span class="prize-k">How many</span>
+      <div class="pick shop-pick">
+        <button class="step" id="sMinus" type="button" aria-label="One ticket less">−</button>
+        <b class="pick-n" id="sCount">1</b>
+        <button class="step" id="sPlus" type="button" aria-label="One ticket more">+</button>
+      </div>
+      <span class="prize-k">Total</span>
+      <span class="prize-v" id="shopTotal">…</span>
+      <span class="prize-note" id="shopNote"></span>
+    </div>
+    <button class="primary wide" id="shopBuy" type="button" disabled>Buy</button>
+    <p class="over-line small" id="shopMsg"></p>
+    <button class="ghost" id="closeShop" type="button">Back</button>
   </div>
 
   <div class="over" id="board" hidden>

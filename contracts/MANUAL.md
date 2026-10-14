@@ -72,3 +72,11 @@ cd contracts && npm install && npm run check
 ```
 
 Compila y prueba todo en una cadena simulada (49 casos, incluidos intentos de trampa).
+
+## Tienda de tickets (en la página)
+
+Los jugadores compran tickets desde el juego. La compra se hace en Ronin Market (con la herramienta oficial de Sky Mavis): se compran las publicaciones más baratas del ticket, de cualquier vendedor, y se paga en RON desde la billetera del jugador. Las comisiones y el volumen son los de Ronin Market. El servidor nunca toca el RON.
+
+Variables de Railway (opcionales):
+- `MARKET=off` oculta la tienda.
+- `MARKET_API_KEY`: clave de la Developer Console de Sky Mavis, solo si Ronin Market la pide.
