@@ -551,3 +551,52 @@ body {
 #over .check { margin-top: 0; padding: 0; background: none; font-size: 11.5px; }
 #over .pair.two { margin-top: -2px; }
 #over .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* golden onigiri feed: soft notices, a button with the onigiri, and the list */
+.oni { display: inline-block; flex: none; width: 28px; height: 28px; background: url(/web/img/foods/2-gold.webp) 0 0 / 400% 100% no-repeat; }
+.gbtn { position: fixed; z-index: 21; left: max(10px, env(safe-area-inset-left, 0px)); top: var(--gb-top, 12px); width: var(--gb-size, 34px); height: var(--gb-size, 34px); display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--paper); box-shadow: 0 3px 0 var(--shade), 0 0 0 2px rgba(255, 201, 60, 0.55); cursor: pointer; }
+.gbtn[hidden] { display: none; }
+.gbtn .oni { width: 76%; height: 76%; }
+body.in-run .gbtn { display: none; }
+.gstack { position: fixed; z-index: 45; left: 12px; right: 12px; top: calc(64px * var(--k)); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.gnote { display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 5px 14px 5px 7px; border-radius: 999px; background: linear-gradient(135deg, #FFF3CC, #FFFFFF 75%); box-shadow: 0 6px 18px rgba(27, 34, 51, 0.12), inset 0 0 0 1.5px rgba(255, 201, 60, 0.6); font-size: 13px; font-weight: 500; color: var(--ink); pointer-events: auto; cursor: pointer; animation: gin 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.1) both; transition: opacity 0.4s, transform 0.4s; }
+.gnote .oni { width: 26px; height: 26px; }
+.gnote .t { display: flex; gap: 5px; align-items: baseline; white-space: nowrap; min-width: 0; }
+.gnote b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.gnote small { font-size: 12px; color: var(--dim); }
+.gnote .amt { margin-left: 4px; font-weight: 600; color: var(--yellow-d); white-space: nowrap; }
+.gnote.out { opacity: 0; transform: translateY(-6px); }
+@keyframes gin { from { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+.gpanel .tabs2 { margin: 2px 0 2px; }
+.gp-list { list-style: none; margin: 0; padding: 0; width: 100%; max-width: 294px; max-height: 52vh; overflow-y: auto; }
+.gp-list li { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 7px 6px; border-top: 1px solid #F1EDE4; text-align: left; }
+.gp-list li:first-child { border-top: 0; }
+.gp-list li.fresh { border-radius: 12px; background: linear-gradient(90deg, rgba(255, 235, 174, 0.6), rgba(255, 235, 174, 0)); }
+.gp-list .oni { width: 26px; height: 26px; }
+.gp-list .w { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.gp-list .w b { font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gp-list .w small { font-size: 11.5px; font-weight: 600; color: var(--dim); }
+.gp-list li.me .w b::after { content: " · you"; color: var(--blue-d); }
+.gp-list .a { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
+.gp-list .a b { font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.gp-list .a small { font-size: 11.5px; font-weight: 700; color: var(--yellow-d); }
+#golds .over-line.small:empty { display: none; }
+@media (min-width: 900px) {
+  /* on a computer: a round button in the corner, notices above it, and the list opens from it */
+  .gbtn { position: fixed; z-index: 44; left: auto; top: auto; right: 22px; bottom: 22px; width: 52px; height: 52px; box-shadow: 0 6px 18px rgba(27, 34, 51, 0.14), 0 0 0 3px rgba(255, 201, 60, 0.5); }
+  body.in-run .gbtn { display: grid; }
+  .gbtn .oni { width: 36px; height: 36px; }
+  .gstack { left: auto; right: 22px; top: auto; bottom: 88px; align-items: flex-end; flex-direction: column-reverse; }
+  .gnote { width: 260px; padding: 9px 14px 9px 10px; border-radius: 16px; }
+  .gnote .oni { width: 30px; height: 30px; }
+  .gnote .t { flex-direction: column; gap: 0; line-height: 1.25; }
+  .gnote .amt { margin-left: auto; }
+  .gnote.old { opacity: 0.6; transform: scale(0.96); transform-origin: right bottom; }
+  .gnote.out { transform: translateX(12px); }
+  @keyframes gin { from { opacity: 0; transform: translateX(16px); } }
+  #golds.gpanel { position: fixed; z-index: 43; top: auto; left: auto; right: 22px; bottom: 88px; width: 320px; margin: 0; padding-top: 26px; transform: none; box-shadow: 0 6px 0 var(--shade), 0 14px 40px rgba(27, 34, 51, 0.16); }
+  #golds .over-title { font-size: 21px; }
+  #golds .gp-list { max-height: 330px; }
+}
+body.in-run .gstack { top: calc(118px * var(--k)); }
+body.golds-open .gstack { display: none; }
+@media (min-width: 900px) { body.in-run .gstack { top: auto; } }

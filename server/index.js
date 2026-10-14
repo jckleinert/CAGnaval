@@ -17,6 +17,7 @@
  *   POST /api/tx/play              data of the play tx    { n }            (token)
  *   POST /api/tx/claim-gold        data of the claim tx                    (token)
  *   POST /api/tx/claim             data of the claim tx   { week }         (token)
+ *   GET  /api/golds                golden onigiri prizes: latest and biggest this week
  *   GET  /api/market               tickets on sale in Ronin Market, by price
  *   POST /api/tx/buy               data of a Ronin Market purchase { n }   (token)
  *   POST /api/runs                 a paid run             { player, txHash } (token)
@@ -261,6 +262,14 @@ function createApp(options) {
           if (!Number.isInteger(w) || w < 0) throw new RunError(400, 'bad-week');
           return send(res, 200, Object.assign({ from: addr }, chain.txClaim(w)), cors);
         }
+      }
+      if (req.method === 'GET' && parts[1] === 'golds') {
+        // Golden onigiri prizes of paid runs: the latest, and the biggest of this week.
+        const all = store.golds(), week = store.weekId(Date.now());
+        const pub = (g) => ({ id: g.id, name: g.name, mult: g.mult, wei: g.wei, at: g.at });
+        const latest = all.slice(-30).reverse().map(pub);
+        const biggest = all.filter((g) => g.week === week).sort((a, b) => (BigInt(b.wei) > BigInt(a.wei) ? 1 : BigInt(b.wei) < BigInt(a.wei) ? -1 : b.at - a.at)).slice(0, 15).map(pub);
+        return send(res, 200, { latest, biggest, now: Date.now() }, cors);
       }
       if (req.method === 'GET' && parts[1] === 'market') {
         if (!chain.enabled || !market.enabled) return send(res, 200, { enabled: false }, cors);

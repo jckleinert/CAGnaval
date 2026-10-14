@@ -57,6 +57,21 @@ class Store {
     return data;
   }
 
+  /* Golden onigiri prizes of paid runs, newest last (the last 300). */
+  golds() {
+    if (!this._golds) {
+      try { this._golds = JSON.parse(fs.readFileSync(path.join(this.dir, 'golds.json'), 'utf8')); } catch (e) { this._golds = []; }
+    }
+    return this._golds;
+  }
+  addGold(entry) {
+    const list = this.golds();
+    if (list.some((g) => g.id === entry.id)) return;
+    list.push(entry);
+    if (list.length > 300) list.splice(0, list.length - 300);
+    this._write(path.join(this.dir, 'golds.json'), list);
+  }
+
   saveRun(record) {
     const dir = path.join(this.dir, 'runs', record.week);
     fs.mkdirSync(dir, { recursive: true });

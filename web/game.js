@@ -212,6 +212,7 @@
       run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0, tickets: start.tickets || 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
       homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; chooseEl.hidden = true; toastEl.hidden = true; boardBack = null;
+      if (!goldsEl.hidden && !desktop()) { goldsEl.hidden = true; gfeed.back = null; document.body.classList.remove('golds-open'); }
       if (card) card.classList.remove('leaving');
       PUP.riseAt = nowMs || 1; PUP.sinkAt = 0;                                        // and comes up behind the jar
       $('homeMsg').textContent = '';
@@ -620,6 +621,88 @@
       $('stepsBack').hidden = false;
     }).then(function () { shop.buying = false; loadShop(); });
   });
+
+  /* ---------- golden onigiri feed: who wins it, as it happens ---------- */
+  var goldsEl = $('golds'), gfeed = { last: null, data: null, tab: 'latest', back: null };
+  function oniEl() { var o = document.createElement('span'); o.className = 'oni'; o.setAttribute('aria-hidden', 'true'); return o; }
+  function agoText(ms) {
+    var m = Math.floor(ms / 60000);
+    return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.floor(m / 60) + ' h ago' : Math.floor(m / 1440) + ' d ago';
+  }
+  function isMine(g) { return !!(CW.address && paid.name && g.name === paid.name); }
+  function goldNotice(g) {
+    var st = $('goldStack');
+    var n = document.createElement('div'); n.className = 'gnote'; n.setAttribute('role', 'status');
+    var t = document.createElement('span'); t.className = 't';
+    var b = document.createElement('b'); b.textContent = g.name;
+    var sm = document.createElement('small'); sm.textContent = 'golden ×' + g.mult;
+    t.appendChild(b); t.appendChild(sm);
+    var a = document.createElement('span'); a.className = 'amt'; a.textContent = '+' + CW.ron(g.wei) + ' RON';
+    n.appendChild(oniEl()); n.appendChild(t); n.appendChild(a);
+    n.addEventListener('click', openGolds);
+    Array.prototype.forEach.call(st.children, function (c) { c.classList.add('old'); });
+    st.appendChild(n);
+    while (st.children.length > 3) st.removeChild(st.firstChild);
+    setTimeout(function () { n.classList.add('out'); setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); }, 450); }, 6000);
+  }
+  function loadGolds() {
+    if (!CW.enabled) return;
+    call('GET', '/api/golds', null, 1).then(function (d) {
+      var newest = d.latest.length ? d.latest[0].at : 0;
+      if (gfeed.last !== null) {
+        d.latest.filter(function (g) { return g.at > gfeed.last && !isMine(g); }).reverse().slice(-3).forEach(goldNotice);
+      }
+      gfeed.last = Math.max(gfeed.last || 0, newest);
+      gfeed.data = d; gfeed.skew = Date.now() - d.now;
+      if (!goldsEl.hidden) renderGolds();
+    }).catch(function () { /* next time */ });
+  }
+  function renderGolds() {
+    var d = gfeed.data, list = $('goldsList'), latest = gfeed.tab === 'latest';
+    $('gTabLatest').setAttribute('aria-selected', latest ? 'true' : 'false');
+    $('gTabBig').setAttribute('aria-selected', latest ? 'false' : 'true');
+    list.textContent = '';
+    if (!d) { $('goldsMsg').textContent = 'Loading…'; return; }
+    var rows = latest ? d.latest : d.biggest, now = Date.now() - (gfeed.skew || 0);
+    $('goldsMsg').textContent = rows.length ? '' : latest ? 'No golden onigiri yet. Be the first!' : 'None this week yet.';
+    rows.forEach(function (g, i) {
+      var li = document.createElement('li');
+      if (isMine(g)) li.classList.add('me');
+      if (latest && i === 0 && now - g.at < 5 * 60000) li.classList.add('fresh');
+      var w = document.createElement('span'); w.className = 'w';
+      var b = document.createElement('b'); b.textContent = g.name;
+      var sm = document.createElement('small'); sm.textContent = agoText(now - g.at);
+      w.appendChild(b); w.appendChild(sm);
+      var a = document.createElement('span'); a.className = 'a';
+      var ab = document.createElement('b'); ab.textContent = '+' + CW.ron(g.wei) + ' RON';
+      var am = document.createElement('small'); am.textContent = '×' + g.mult;
+      a.appendChild(ab); a.appendChild(am);
+      li.appendChild(oniEl()); li.appendChild(w); li.appendChild(a);
+      list.appendChild(li);
+    });
+  }
+  function desktop() { return window.matchMedia('(min-width: 900px)').matches; }
+  function openGolds() {
+    if (!goldsEl.hidden) { if (desktop()) closeGolds(); return; }
+    if (!desktop()) {
+      // on a phone it takes the place of the card it was opened from, like the ranking
+      gfeed.back = [homeEl, overEl, prizesEl, boardEl, shopEl, chooseEl].filter(function (e) { return !e.hidden; })[0] || null;
+      if (gfeed.back) gfeed.back.hidden = true;
+    }
+    goldsEl.hidden = false; document.body.classList.add('golds-open'); renderGolds(); loadGolds();
+  }
+  function closeGolds() { goldsEl.hidden = true; document.body.classList.remove('golds-open'); if (gfeed.back) gfeed.back.hidden = false; gfeed.back = null; }
+  $('goldsBtn').addEventListener('click', openGolds);
+  $('closeGolds').addEventListener('click', closeGolds);
+  $('gTabLatest').addEventListener('click', function () { gfeed.tab = 'latest'; renderGolds(); });
+  $('gTabBig').addEventListener('click', function () { gfeed.tab = 'big'; renderGolds(); });
+  setInterval(function () { if (!document.hidden) loadGolds(); }, 10000);
+  setInterval(function () {
+    document.body.classList.toggle('in-run', !!(run && run.live));
+    // on a phone the button sits in the awning, level with the sound button
+    var m = $('mute').getBoundingClientRect();
+    if (m.height) { var st = document.documentElement.style; st.setProperty('--gb-top', Math.round(m.top) + 'px'); st.setProperty('--gb-size', Math.round(m.height) + 'px'); }
+  }, 300);
 
   /* Messages of a run go out one at a time, in order. */
   function post(kind, msg, onReply) {
@@ -1575,7 +1658,7 @@
 
   nameEl.value = player.name || '';
   renderWallet();
-  if (CW.init) CW.init().then(function () { renderWallet(); loadMe(); loadWallet(); loadPool(); if (CW.enabled) loadShop(); });
+  if (CW.init) CW.init().then(function () { renderWallet(); loadMe(); loadWallet(); loadPool(); if (CW.enabled) { loadShop(); loadGolds(); $('goldsBtn').hidden = false; } });
   setInterval(function () { if (!homeEl.hidden) { loadPool(); if (CW.address) loadWallet(); } }, 30000);
   fit();
   requestAnimationFrame(frame);

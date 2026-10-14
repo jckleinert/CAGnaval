@@ -164,6 +164,19 @@
     <button class="ghost" id="closePrizes" type="button">Back</button>
   </div>
 
+  <button class="gbtn" id="goldsBtn" type="button" hidden aria-label="Golden onigiri wins"><span class="oni" aria-hidden="true"></span></button>
+  <div class="gstack" id="goldStack" aria-live="polite"></div>
+  <div class="over gpanel" id="golds" hidden>
+    <p class="over-title">Golden onigiri</p>
+    <div class="tabs2" role="tablist" aria-label="Golden onigiri">
+      <button class="tab2" id="gTabLatest" type="button" role="tab" aria-selected="true">Latest</button>
+      <button class="tab2" id="gTabBig" type="button" role="tab" aria-selected="false">Biggest this week</button>
+    </div>
+    <ul class="gp-list" id="goldsList"></ul>
+    <p class="over-line small" id="goldsMsg"></p>
+    <button class="ghost" id="closeGolds" type="button">Back</button>
+  </div>
+
   <div class="over" id="choose" hidden>
     <span class="peekbox" aria-hidden="true"><canvas class="peek"></canvas></span>
     <p class="over-title">How many tickets?</p>

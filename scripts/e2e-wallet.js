@@ -41,6 +41,10 @@ const { createApp } = require('../server/index.js');
   };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cagnaval-e2ew-'));
   const app = createApp({ DATA_DIR: dir, chain: fake, market, REFEREE_KEY: '0x' + '5'.repeat(64), NO_CLOSER: true });
+  // some golden onigiri prizes already won by others
+  const T0 = Date.now();
+  [['Lunaa', 21, RON(3.15), 40], ['Pixel_Kid', 1.5, RON(0.45), 18], ['Tomi', 0.5, RON(0.15), 3]].forEach((g, i) =>
+    app.store.addGold({ id: 'g' + i, name: g[0], mult: g[1], wei: g[2], tickets: 1, at: T0 - g[3] * 60000, week: app.store.weekId(T0) }));
   await new Promise((r) => app.server.listen(0, r));
   const base = 'http://127.0.0.1:' + app.server.address().port;
   const browser = await chromium.launch();
@@ -106,6 +110,18 @@ const { createApp } = require('../server/index.js');
   await page.waitForTimeout(500);
 
   await page.click('#closePrizes');
+  // someone wins a golden onigiri: a notice shows up, and the list has it on top
+  app.store.addGold({ id: 'g9', name: 'Vale.eth', mult: 3, wei: RON(0.9), tickets: 2, at: Date.now(), week: app.store.weekId(Date.now()) });
+  await page.waitForSelector('.gnote', { timeout: 15000 });
+  const notice = await page.textContent('.gnote');
+  if (shot) await page.screenshot({ path: path.join(shot, 'w4b-notice.png') });
+  await page.click('#goldsBtn');
+  await page.waitForFunction(() => document.querySelectorAll('#goldsList li').length === 4, null, { timeout: 5000 });
+  const goldRows = await page.$$eval('#goldsList li b', (b) => b.map((x) => x.textContent));
+  if (shot) await page.screenshot({ path: path.join(shot, 'w4c-golds.png') });
+  await page.click('#gTabBig');
+  const bigFirst = await page.textContent('#goldsList li b');
+  await page.click('#closeGolds');
   // the shop: 3 tickets, the cheapest first (2 x 5 + 1 x 6 = 16 RON)
   await page.click('#openShop');
   await page.waitForFunction(() => document.getElementById('shopTotal').textContent === '5 RON', null, { timeout: 5000 });
@@ -124,10 +140,10 @@ const { createApp } = require('../server/index.js');
   await page.click('#openBoard');
   await page.waitForTimeout(800);
   if (shot) await page.screenshot({ path: path.join(shot, 'w4-rank.png') });
-  const out = { welcome, label, capped, note, gold, week, shopTotal, shopNote, shopDone, homeBack, tixBefore, tixAfter, sent, settled, problems };
+  const out = { notice, goldRows, bigFirst, welcome, label, capped, note, gold, week, shopTotal, shopNote, shopDone, homeBack, tixBefore, tixAfter, sent, settled, problems };
   console.log(JSON.stringify(out, null, 1));
   await browser.close(); app.server.close();
-  const ok = welcome === 'Welcome, Wallet bot!' && label === 'Play with 3 tickets' && capped && /3 tickets/.test(note) && sent.map((s) => s.kind).join() === 'play,claimGold,claim,buy' && sent[0].n === 3 && sent[3].n === 3 && sent[3].gas === '0x30d40'
+  const ok = /Vale\.eth/.test(notice) && /\+0\.9 RON/.test(notice) && goldRows[0] === 'Vale.eth' && bigFirst === 'Lunaa' && welcome === 'Welcome, Wallet bot!' && label === 'Play with 3 tickets' && capped && /3 tickets/.test(note) && sent.map((s) => s.kind).join() === 'play,claimGold,claim,buy' && sent[0].n === 3 && sent[3].n === 3 && sent[3].gas === '0x30d40'
     && shopTotal === '16 RON' && /5 on sale/.test(shopNote) && tixAfter === tixBefore + 3 && shopDone === 'You have ' + tixAfter + ' tickets' && homeBack
     && settled.length === 1 && gold === '2.5 RON' && week === '12.34 RON' && !problems.length;
   console.log(ok ? 'E2E WALLET OK' : 'E2E WALLET FAILED');

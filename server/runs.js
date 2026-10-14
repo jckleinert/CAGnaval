@@ -228,6 +228,9 @@ class RunManager {
     } catch (e) { console.error('could not save run', run.id, e.message); }
     if (run.chain) {
       try { this.store.setChainRun(run.chain.runId, { status: 'done', run: run.id, at: t, gold: result.goldWei }); } catch (e) { console.error(e.message); }
+      if (result.goldWei !== '0') {
+        try { this.store.addGold({ id: String(run.chain.runId), name: run.player.name, mult: result.gold.mult, wei: result.goldWei, tickets: run.chain.tickets, at: t, week: result.week }); } catch (e) { console.error('could not note golden prize', e.message); }
+      }
       try { if (this.onPaid) this.onPaid(run, result); } catch (e) { console.error('could not settle', run.chain.runId, e.message); }
     }
     run.sim = null;
