@@ -459,27 +459,23 @@ body {
 .pc-bar { grid-column: 1 / -1; height: 8px; margin-top: 5px; border-radius: 99px; background: rgba(255, 255, 255, 0.55); overflow: hidden; }
 .pc-bar i { display: block; width: 0; height: 100%; border-radius: 99px; background: var(--pink); transition: width 0.6s ease; }
 .pc-s { grid-column: 1 / -1; font-size: 11.5px; font-weight: 600; color: rgba(27, 34, 51, 0.7); }
-.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
-.tile { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; padding: 9px 12px 10px; border-radius: 16px; text-align: left; }
-.tile.pink { background: #FFEFF4; }
-.tile.blue { background: #EAF8FE; }
-.tile-ico { width: 20px; height: 20px; margin-bottom: 2px; }
-.tile.pink .tile-ico { color: var(--pink); }
-.tile.blue .tile-ico { color: var(--blue-d); }
-.tile-k { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
-.tile-v { max-width: 100%; font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tile.pink .tile-v { color: var(--pink-d); }
-.tile-s { font-size: 11.5px; font-weight: 600; color: var(--dim); white-space: nowrap; }
-.tile-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; }
 .tile-btn { padding: 3px 10px 4px; font: 700 12px var(--font); color: #fff; background: var(--pink); border: 0; border-radius: 999px; box-shadow: 0 2px 0 var(--pink-d); cursor: pointer; white-space: nowrap; }
 .tile-btn:active { transform: translateY(2px); box-shadow: none; }
 .tile-btn[hidden] { display: none; }
-.chooser { display: flex; flex-direction: column; align-items: stretch; gap: 6px; width: 100%; margin-top: 7px; padding: 10px 12px 12px; border-radius: 18px; background: #FFF6DB; }
+.tixbar { display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 12px; border-radius: 14px; background: #FFEFF4; }
+.tix-ico { flex: none; width: 20px; height: 20px; color: var(--pink); }
+.tix-k { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); }
+.tix-v { margin-right: auto; font-size: 22px; line-height: 1; color: var(--pink-d); font-variant-numeric: tabular-nums; }
+.chooser { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "l step" "chips chips"; align-items: center; row-gap: 6px; width: 100%; margin-top: 7px; padding: 8px 10px 9px 12px; border-radius: 14px; background: #FFF6DB; }
 .chooser[hidden] { display: none; }
-.ch-k { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); text-align: left; }
-.ch-row { display: flex; align-items: center; justify-content: space-between; }
-.chooser .step.big { background: var(--paper); box-shadow: 0 4px 0 var(--shade); color: var(--ink); }
-.chooser .qty-n b { font-size: 36px; }
+.ch-l { grid-area: l; display: flex; flex-direction: column; text-align: left; }
+.ch-k { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); }
+.ch-l small { font-size: 12px; font-weight: 600; color: var(--dim); }
+.ch-step { grid-area: step; display: flex; align-items: center; gap: 8px; }
+.ch-n { min-width: 26px; font-size: 26px; line-height: 1; text-align: center; font-variant-numeric: tabular-nums; }
+.ch-n.bump { animation: bump 0.22s ease; }
+.chooser .chips { grid-area: chips; justify-content: flex-start; }
+.chooser .chip { min-width: 34px; padding: 2px 9px; font-size: 13px; }
 .link.practice { margin: -2px 0 4px; font-size: 14px; font-weight: 600; color: var(--blue-d); text-decoration: none; }
 .link.practice:hover { text-decoration: underline; }
 .link.practice[hidden] { display: none; }
@@ -490,3 +486,9 @@ body {
 #home.dashed .tagline, #home.dashed .menu { display: none; }
 #home.dashed .logo.big { width: 190px; }
 #home.dashed .welcome { margin-top: 0; }
+/* the "how many tickets" card: more room, so a bigger chooser */
+#choose .chooser { grid-template-columns: 1fr auto; padding: 12px 14px 13px; border-radius: 18px; margin: 4px 0 2px; }
+#choose .ch-n { min-width: 40px; font-size: 38px; }
+#choose .step { width: 40px; height: 40px; font-size: 24px; background: var(--paper); box-shadow: 0 4px 0 var(--shade); }
+#choose .chooser .chips { justify-content: center; }
+#choose .chooser .chip { min-width: 46px; padding: 5px 12px; font-size: 15px; }

@@ -78,13 +78,16 @@ const { createApp } = require('../server/index.js');
   if (shot) await page.screenshot({ path: path.join(shot, 'w1b-name.png') });
   await page.fill('#name', 'Wallet bot');
   await page.click('#play');                                                    // the name now belongs to the wallet
-  await page.waitForFunction(() => document.getElementById('play').textContent.includes('ticket'), null, { timeout: 8000 });
+  await page.waitForFunction(() => document.getElementById('play').textContent === 'Play for prizes', null, { timeout: 8000 });
   const welcome = await text('welcome');
+  if (shot) await page.screenshot({ path: path.join(shot, 'w2-connected.png') });
+  await page.click('#play');                                                    // asks how many tickets
+  await page.waitForFunction(() => !document.getElementById('choose').hidden, null, { timeout: 5000 });
   await page.click('#tPlus'); await page.click('#tPlus');
   const capped = await page.evaluate(() => document.getElementById('tPlus').disabled);   // 3 is the most the box allows
-  const label = await text('play');
-  if (shot) await page.screenshot({ path: path.join(shot, 'w2-connected.png') });
-  await page.click('#play');                                                    // sends 3 tickets, starts the run
+  const label = await text('goPlay');
+  if (shot) await page.screenshot({ path: path.join(shot, 'w2b-choose.png') });
+  await page.click('#goPlay');                                                  // sends 3 tickets, starts the run
   await page.waitForFunction(() => document.getElementById('home').hidden, null, { timeout: 10000 });
   const note = await text('counterNote');
   const box = await page.locator('#game').boundingBox();
@@ -93,7 +96,7 @@ const { createApp } = require('../server/index.js');
   const live = Array.from(app.runs.active.values())[0];
   app.runs._expire(live, 'test');
   await page.reload();
-  await page.waitForFunction(() => document.getElementById('play').textContent.includes('ticket'), null, { timeout: 8000 });
+  await page.waitForFunction(() => document.getElementById('play').textContent === 'Play for prizes', null, { timeout: 8000 });
   await page.click('#openPrizes');
   await page.waitForFunction(() => !document.getElementById('prizes').hidden && document.getElementById('goldAmt').textContent !== '0 RON', null, { timeout: 5000 });
   if (shot) await page.screenshot({ path: path.join(shot, 'w3-prizes.png') });

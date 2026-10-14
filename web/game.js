@@ -38,7 +38,7 @@
   var cv = $('game'), ctx = cv.getContext('2d'), stage = $('stage'), jar = $('jar');
   var kcalEl = $('kcal'), bestEl = $('best'), nextDisc = $('nextDisc'), ladder = $('ladder');
   var statusEl = $('status'), toastEl = $('toast');
-  var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name'), prizesEl = $('prizes'), shopEl = $('shop');
+  var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name'), prizesEl = $('prizes'), shopEl = $('shop'), chooseEl = $('choose');
   var CW = window.CAGW || { enabled: false };
   var paid = { tickets: 1, info: null, lastMode: 'practice', busy: false, name: undefined };   // name: undefined = not asked yet, null = none chosen
   var btn = { shake: $('pwShake'), swap: $('pwSwap'), sweep: $('pwSweep') };
@@ -211,7 +211,7 @@
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
       run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0, tickets: start.tickets || 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
-      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; toastEl.hidden = true; boardBack = null;
+      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; chooseEl.hidden = true; toastEl.hidden = true; boardBack = null;
       if (card) card.classList.remove('leaving');
       PUP.riseAt = nowMs || 1; PUP.sinkAt = 0;                                        // and comes up behind the jar
       $('homeMsg').textContent = '';
@@ -331,17 +331,13 @@
     var tiles = signed && !!paid.name;
     $('tiles').hidden = !tiles;
     homeEl.classList.toggle('dashed', tiles);
-    $('bestPill').hidden = tiles;
-    $('homePair').classList.toggle('two', tiles);
+    $('bestPill').hidden = false;
     if (CW.enabled) $('poolSign').hidden = tiles || $('poolAmt').dataset.has !== '1';
-    $('tBest').textContent = bestEl.textContent;
-    $('ticketPick').hidden = !signed || !info || pendingTx() !== null;
     var note = '', named = signed && !!paid.name, asking = signed && paid.name === null;
     $('welcome').hidden = !named;
     $('welcomeName').textContent = named ? paid.name : '';
     $('nameField').hidden = named;
     nameEl.placeholder = asking ? 'Your name in the ranking' : 'Your name';
-    if (asking) $('ticketPick').hidden = true;
     if (!on) { play.textContent = 'Play'; }
     else if (!signed) { play.textContent = 'Connect Ronin Wallet'; note = 'Play for prizes with tickets. Practice is free.'; }
     else if (asking) { play.textContent = 'Save my name'; note = 'This is how you will appear in the ranking. It stays with your wallet.'; }
@@ -364,7 +360,8 @@
       Array.prototype.forEach.call(tc.children, function (c) { c.classList.toggle('on', (c.dataset.q === 'max' ? max : Number(c.dataset.q)) === paid.tickets); });
       $('tMinus').disabled = paid.tickets <= 1;
       $('tPlus').disabled = paid.tickets >= max;
-      play.textContent = max ? 'Play with ' + paid.tickets + ' ticket' + (paid.tickets > 1 ? 's' : '') : info.tickets ? 'Prize box refilling' : shop.on ? 'Get tickets' : 'No tickets';
+      play.textContent = max ? 'Play for prizes' : info.tickets ? 'Prize box refilling' : shop.on ? 'Get tickets' : 'No tickets';
+      $('goPlay').textContent = 'Play with ' + paid.tickets + ' ticket' + (paid.tickets > 1 ? 's' : '');
       note = !info.tickets ? 'You need tickets to play for prizes.'
         : !info.maxTicketsNow ? 'The golden prize box is being refilled. Try again soon.'
         : '';
@@ -1373,7 +1370,7 @@
   function paintPuppet(face) { paintCag(puppet, pctx, face); PUP.shown = face; }
   /* CAG over the cards: made at the exact number of screen pixels she covers, so she looks sharp.
      A card that is hidden forgets she was up, so she comes up again the next time it shows. */
-  var cards = [homeEl, overEl, boardEl, prizesEl, shopEl];
+  var cards = [homeEl, overEl, boardEl, prizesEl, shopEl, chooseEl];
   function drawPeek() {
     if (!ART_P || !PUP.ok) return;
     for (var i = 0; i < cards.length; i++) {
@@ -1536,7 +1533,15 @@
     else if (e.key === ' ' || e.key === 'Enter') { doDrop(); e.preventDefault(); }
   });
   Object.keys(btn).forEach(function (k) { btn[k].addEventListener('click', function () { usePower(k); }); });
-  $('play').addEventListener('click', function () { startRun(); });
+  /* Play on the start card: with more than one ticket to use, first ask how many. */
+  function wantsChoice() {
+    return CW.enabled && CW.address && paid.name && paid.info && !pendingTx() && maxTickets() > 1;
+  }
+  function openChoose() { homeEl.hidden = true; chooseEl.hidden = false; renderWallet(); }
+  function closeChoose() { chooseEl.hidden = true; homeEl.hidden = false; renderWallet(); }
+  $('play').addEventListener('click', function () { if (wantsChoice()) openChoose(); else startRun(); });
+  $('goPlay').addEventListener('click', function () { closeChoose(); startRun('paid'); });
+  $('closeChoose').addEventListener('click', closeChoose);
   $('practice').addEventListener('click', function () { startRun('practice'); });
   // Play again repeats the kind of run just played, with the same number of tickets.
   $('again').addEventListener('click', function () { startRun(paid.lastMode); });

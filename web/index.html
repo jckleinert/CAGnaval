@@ -73,28 +73,12 @@
           <span class="pc-bar" aria-hidden="true"><i id="tPoolBar"></i></span>
           <span class="pc-s" id="tPoolEnds">Shared out every Monday by calories</span>
         </div>
-        <div class="tiles">
-          <div class="tile pink">
-            <svg class="tile-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2.2a2.8 2.8 0 0 0 0 5.6V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2.2a2.8 2.8 0 0 0 0-5.6zm11 0v2h2V7zm0 4v2h2v-2zm0 4v2h2v-2z" fill="currentColor"/></svg>
-            <span class="tile-k">Your tickets</span>
-            <span class="tile-row"><b class="tile-v" id="walletTix">0</b><button class="tile-btn" id="openShop" type="button" hidden>+ Get more</button></span>
-          </div>
-          <div class="tile blue">
-            <svg class="tile-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4l1 3 1-3h4l-3 7.1A6.5 6.5 0 1 1 9.9 9.1zm5 9a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zm0 1.8 1.1 2.2 2.4.3-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.3z" fill="currentColor"/></svg>
-            <span class="tile-k">Your best</span>
-            <b class="tile-v" id="tBest">0</b>
-            <span class="tile-s">kcal · your record</span>
-          </div>
+        <div class="tixbar">
+          <svg class="tix-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2.2a2.8 2.8 0 0 0 0 5.6V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2.2a2.8 2.8 0 0 0 0-5.6zm11 0v2h2V7zm0 4v2h2v-2zm0 4v2h2v-2z" fill="currentColor"/></svg>
+          <span class="tix-k">Your tickets</span>
+          <b class="tix-v" id="walletTix">0</b>
+          <button class="tile-btn" id="openShop" type="button" hidden>+ Get more</button>
         </div>
-      </div>
-      <div class="chooser" id="ticketPick" hidden>
-        <span class="ch-k">Choose your tickets</span>
-        <div class="ch-row">
-          <button class="step big" id="tMinus" type="button" aria-label="One ticket less">−</button>
-          <span class="qty-n"><b id="tCount">1</b><small id="tOf">of 1 available</small></span>
-          <button class="step big" id="tPlus" type="button" aria-label="One ticket more">+</button>
-        </div>
-        <div class="chips" id="tChips"></div>
       </div>
       <p class="pick-note" id="pickNote"></p>
     </div>
@@ -162,6 +146,23 @@
     </div>
     <p class="over-line small" id="prizeMsg"></p>
     <button class="ghost" id="closePrizes" type="button">Back</button>
+  </div>
+
+  <div class="over" id="choose" hidden>
+    <span class="peekbox" aria-hidden="true"><canvas class="peek"></canvas></span>
+    <p class="over-title">How many tickets?</p>
+    <p class="over-line small">More tickets multiply your calories and the golden prize.</p>
+    <div class="chooser" id="ticketPick">
+        <span class="ch-l"><span class="ch-k">Tickets this run</span><small id="tOf">of 1 available</small></span>
+        <span class="ch-step">
+          <button class="step" id="tMinus" type="button" aria-label="One ticket less">−</button>
+          <b class="ch-n" id="tCount">1</b>
+          <button class="step" id="tPlus" type="button" aria-label="One ticket more">+</button>
+        </span>
+        <div class="chips" id="tChips"></div>
+      </div>
+    <button class="primary wide" id="goPlay" type="button">Play</button>
+    <button class="ghost" id="closeChoose" type="button">Back</button>
   </div>
 
   <div class="over shop" id="shop" hidden>
