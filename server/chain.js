@@ -157,9 +157,12 @@ class Chain {
       const ticket = await rd(() => g.ticket()), ticketId = await rd(() => g.ticketId()), cap = await rd(() => g.capPerTicket());
       const maxTickets = await rd(() => g.maxTickets()), paused = await rd(() => g.paused());
       const poolBps = await rd(() => g.poolBps()).catch(() => 7250n);
+      const free = await rd(() => g.bonusFree()).catch(() => 0n);
+      // the biggest golden prize that can be won right now: x21 with as many tickets as the box allows
+      const goldMax = cap === 0n ? 0n : (BigInt(Math.min(Number(maxTickets), Number(free / cap)))) * cap;
       const week = Math.floor((Date.now() / 1000 - MONDAY0_S) / WEEK_S);
       const v = { contract: this.cfg.GAME_CONTRACT, chainId: this.cfg.CHAIN_ID, ticket, ticketId: ticketId.toString(),
-        cap: cap.toString(), maxTickets: Number(maxTickets), week, paused, poolBps: Number(poolBps) };
+        cap: cap.toString(), maxTickets: Number(maxTickets), week, paused, poolBps: Number(poolBps), goldMax: goldMax.toString() };
       this.cache = { at: Date.now(), v };
       return v;
     })().finally(() => { this._infoP = null; });

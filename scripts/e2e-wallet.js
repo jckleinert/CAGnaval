@@ -20,7 +20,7 @@ const { createApp } = require('../server/index.js');
   let runN = 0;
   const fake = {
     enabled: true, jobs: [], referee: '0x' + '2'.repeat(40),
-    async info() { return { contract: '0x' + '4'.repeat(40), chainId: 2020, ticket: '0x' + '6'.repeat(40), ticketId: '1', cap: RON(1), maxTickets: 5, week: 2908, paused: false }; },
+    async info() { return { contract: '0x' + '4'.repeat(40), chainId: 2020, ticket: '0x' + '6'.repeat(40), ticketId: '1', cap: RON(1), maxTickets: 5, week: 2908, paused: false, goldMax: RON(3) }; },
     async wallet_() {
       return { tickets: 7 - sent.filter((t) => t.kind === 'play').length + sent.filter((t) => t.kind === 'buy').reduce((a, t) => a + t.n, 0), ron: RON(100), gold: { won: RON(2.5), payableNow: true },
         weekly: { week: 2907, weekId: '2026-10-05', prize: RON(12.34), claimable: RON(12.34), claimed: false }, maxTicketsNow: 3, cap: RON(1), maxTickets: 5, paused: false };

@@ -601,3 +601,17 @@ body.in-run .gbtn, body.gb-off .gbtn { display: none; }
 body.in-run .gstack { top: calc(118px * var(--k)); }
 body.golds-open .gstack { display: none; }
 @media (min-width: 900px) { body.in-run .gstack { top: auto; } }
+/* pool card in two: the weekly pool and the biggest golden prize */
+.poolcard { grid-template-columns: 1.15fr 1fr; align-items: stretch; column-gap: 8px; padding: 9px; }
+.pc-half { position: relative; display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 4px 6px 3px; text-align: left; }
+.pc-half.gold { padding: 7px 10px 6px; border-radius: 14px; background: rgba(255, 255, 255, 0.55); }
+.poolcard .pc-k { font-size: 11px; white-space: nowrap; }
+.poolcard .pc-v { font-size: 30px; white-space: nowrap; }
+.poolcard .pc-v small { font-size: 14px; }
+.pc-half.gold .pc-v { font-size: 26px; color: var(--pink-d); }
+.poolcard .pc-bar { margin-top: 3px; height: 6px; }
+.poolcard .pc-s { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-oni { position: absolute; top: 4px; right: 6px; width: 26px; height: 26px; }
+/* the golden onigiri list: a plain round window */
+#golds.gpanel::before { display: none; }
+#golds.gpanel { padding-top: 18px; border-radius: 22px; }

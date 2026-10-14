@@ -300,6 +300,7 @@
 
   /* The pool of the week so far, in whole RON (rounded down). */
   var poolEndsAt = 0;
+  function wholeOrDec(wei) { var r = CW.ron(wei); return Number(r) >= 100 ? wholeRon(wei) : r; }
   function wholeRon(wei) { return fmt(CW.ron(wei || '0').split('.')[0]); }
   function showPool(wei) {
     if (wei === undefined || !CW.enabled) return;
@@ -309,12 +310,13 @@
   }
   function loadPool() {
     if (!CW.enabled) return;
+    call('GET', '/api/chain', null, 1).then(function (c) { if (c && c.goldMax) $('tGoldMax').textContent = wholeOrDec(c.goldMax); }).catch(function () { /* next time */ });
     call('GET', '/api/leaderboard?by=total', null, 1).then(function (b) {
       showPool(b.pool);
       if (b.endsAt) {
         var left = Math.max(0, b.endsAt - Date.now()), WEEK = 7 * 864e5;
         $('tPoolBar').style.width = Math.round(100 * clamp(1 - left / WEEK, 0.03, 1)) + '%';
-        $('tPoolEnds').textContent = 'Prizes in ' + timeLeft(left) + ' · shared by calories';
+        $('tPoolEnds').textContent = 'Prizes in ' + timeLeft(left);
         poolEndsAt = b.endsAt;
       }
     }).catch(function () { /* next time */ });
