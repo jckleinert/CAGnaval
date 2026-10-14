@@ -712,13 +712,15 @@
     var g = res && res.gold;
     $('overGold').classList.toggle('hot', !!(g && g.merged));
     $('overBonus').textContent = g && g.merged ? '×' + g.mult : g && g.appeared ? 'Missed' : 'None';
-    var paidLine = '';
+    var paidLine = '', goldWon = !!(res && res.goldWei && res.goldWei !== '0');
     if (res && res.tickets) {
-      paidLine = fmt(kcal) + ' kcal × ' + res.tickets + ' ticket' + (res.tickets > 1 ? 's' : '') + '.';
-      if (res.goldWei && res.goldWei !== '0') paidLine += ' Golden prize: ' + CW.ron(res.goldWei) + ' RON. Claim it in Prizes.';
+      paidLine = fmt(kcal) + ' kcal × ' + res.tickets + ' ticket' + (res.tickets > 1 ? 's' : '');
       setTimeout(loadWallet, 8000);       // tickets and prizes changed
-    }
+    } else if (CW.enabled) paidLine = 'Practice run · not ranked';
+    $('overScoreK').textContent = res && res.tickets ? 'Score' : 'Calories';
     $('overPaid').textContent = paidLine; $('overPaid').hidden = !paidLine;
+    $('overGoldWin').hidden = !goldWon;
+    if (goldWon) $('overGoldRon').textContent = '+' + CW.ron(res.goldWei) + ' RON';
 
     var oc = $('overCheck'), ok = !!(res && res.verified);
     oc.classList.toggle('bad', !ok); oc.classList.toggle('ok', ok);

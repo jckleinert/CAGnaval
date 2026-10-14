@@ -96,19 +96,27 @@
     <span class="peekbox" aria-hidden="true"><canvas class="peek"></canvas></span>
     <p class="over-title" id="overTitle"></p>
     <div class="hero"><span class="hero-disc" id="overHero"></span><span class="hero-cap" id="overTop"></span></div>
-    <div class="tally">
-      <p class="over-kcal"><span id="overKcal">0</span><small>kcal</small></p>
-      <p class="sticker" id="overBest" hidden>New best!</p>
+    <div class="scorecard">
+      <span class="sc-k" id="overScoreK">Score</span>
+      <div class="tally">
+        <p class="over-kcal"><span id="overKcal">0</span><small>kcal</small></p>
+        <p class="sticker" id="overBest" hidden>New best!</p>
+      </div>
+      <span class="sc-s" id="overPaid" hidden></span>
     </div>
     <div class="stats">
       <div class="stat blue"><span class="stat-k">Foods</span><span class="stat-v" id="overUsed"></span></div>
       <div class="stat pink"><span class="stat-k">This week</span><span class="stat-v" id="overWeek">–</span></div>
       <div class="stat yellow" id="overGold"><span class="stat-k">Golden</span><span class="stat-v" id="overBonus"></span></div>
     </div>
+    <div class="goldwin" id="overGoldWin" hidden>
+      <span class="gw-k">Golden prize</span>
+      <b class="gw-v" id="overGoldRon"></b>
+      <span class="gw-s">Claim it in Prizes</span>
+    </div>
     <p class="check" id="overCheck"></p>
-    <p class="over-line small" id="overPaid" hidden></p>
     <button class="primary wide" id="again" type="button">Play again</button>
-    <div class="pair">
+    <div class="pair two">
       <button class="ghost" id="goHome" type="button">Home</button>
       <button class="ghost" id="openBoard2" type="button">Ranking</button>
     </div>
