@@ -350,6 +350,8 @@
       var max = maxTickets();
       paid.tickets = clamp(paid.tickets, 1, Math.max(1, max));
       $('tCount').textContent = paid.tickets;
+      $('tWord').textContent = paid.tickets > 1 ? 'tickets' : 'ticket';
+      $('bKcal').textContent = $('bGold').textContent = '×' + paid.tickets;
       $('tOf').textContent = max && max < Math.min(info.tickets, info.maxTickets) ? 'max ' + max + ' per run now' : 'of ' + max + ' available';
       var tc = $('tChips'), want = [1, 3, 5].filter(function (q) { return q < max; }).concat(max > 1 ? ['max'] : []);
       if (tc.dataset.k !== want.join()) {

@@ -160,16 +160,19 @@
   <div class="over" id="choose" hidden>
     <span class="peekbox" aria-hidden="true"><canvas class="peek"></canvas></span>
     <p class="over-title">How many tickets?</p>
-    <p class="over-line small">More tickets multiply your calories and the golden prize.</p>
-    <div class="chooser" id="ticketPick">
-        <span class="ch-l"><span class="ch-k">Tickets this run</span><small id="tOf">of 1 available</small></span>
-        <span class="ch-step">
-          <button class="step" id="tMinus" type="button" aria-label="One ticket less">−</button>
-          <b class="ch-n" id="tCount">1</b>
-          <button class="step" id="tPlus" type="button" aria-label="One ticket more">+</button>
-        </span>
-        <div class="chips" id="tChips"></div>
+    <div class="chooser big" id="ticketPick">
+      <div class="cb-row">
+        <button class="step" id="tMinus" type="button" aria-label="One ticket less">−</button>
+        <span class="cb-n"><b class="ch-n" id="tCount">1</b><small id="tWord">ticket</small></span>
+        <button class="step" id="tPlus" type="button" aria-label="One ticket more">+</button>
       </div>
+      <div class="chips" id="tChips"></div>
+      <small class="cb-of" id="tOf">of 1 available</small>
+    </div>
+    <div class="boost">
+      <span><b id="bKcal">×1</b> calories</span>
+      <span><b id="bGold">×1</b> golden prize</span>
+    </div>
     <button class="primary wide" id="goPlay" type="button">Play</button>
     <button class="ghost" id="closeChoose" type="button">Back</button>
   </div>
