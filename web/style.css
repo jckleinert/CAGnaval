@@ -536,7 +536,7 @@ body {
 .tixbar[hidden] { display: none; }
 #home .pick-note { margin-top: 3px; }
 /* result card */
-.scorecard { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; max-width: 294px; margin-top: 4px; padding: 9px 12px 10px; border-radius: 18px; background: linear-gradient(135deg, #EAF8FE, var(--blue-l)); box-shadow: 0 4px 0 #A9DFF3; }
+.scorecard { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; max-width: 294px; margin-top: 4px; }
 .sc-k { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--blue-d); }
 .scorecard .tally { position: relative; }
 .sc-s { font-size: 12px; font-weight: 600; color: var(--dim); }
@@ -550,3 +550,4 @@ body {
 .gw-v { grid-area: v; font-size: 22px; font-variant-numeric: tabular-nums; }
 #over .check { margin-top: 0; padding: 0; background: none; font-size: 11.5px; }
 #over .pair.two { margin-top: -2px; }
+#over .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

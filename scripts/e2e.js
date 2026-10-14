@@ -58,7 +58,7 @@ const { createApp } = require('../server/index.js');
   const out = await page.evaluate(() => ({
     title: document.getElementById('overTitle').textContent, kcal: document.getElementById('overKcal').textContent,
     used: document.getElementById('overUsed').textContent, bonus: document.getElementById('overBonus').textContent,
-    check: document.getElementById('overCheck').textContent, week: document.getElementById('overWeek').textContent
+    check: document.getElementById('overCheck').textContent
   }));
   out.reveal = reveal;
   if (shot) await page.screenshot({ path: path.join(shot, 'e2e-over.png') });

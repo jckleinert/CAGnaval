@@ -731,14 +731,10 @@
       : res.sync === false ? 'Your screen and the referee disagreed from move ' + res.mismatchAt + '. The referee score is used.'
       : 'The referee score is used.';
 
-    $('overWeek').textContent = '–';
     var record = !!(res && res.counted && res.verified && kcal > best && kcal > 0);
     $('overBest').hidden = !record;
     if (res && res.counted) {
       if (record) { best = kcal; save('cagnaval.best', best); }
-      call('GET', '/api/leaderboard?player=' + encodeURIComponent(me()), null, 1).then(function (b) {
-        if (run === r && b.you) { $('overWeek').textContent = '#' + b.you.rank; $('overWeek').title = fmt(b.you.total) + ' kcal this week'; }
-      }).catch(function () { /* ranking is optional here */ });
     }
     // Show the card once CAG has ducked behind the jar.
     var wait = PUP.sinkAt && !reduced ? Math.max(0, PUP.sinkAt + 300 - nowMs) : 0;
