@@ -298,6 +298,7 @@
   }
 
   /* The pool of the week so far, in whole RON (rounded down). */
+  var poolEndsAt = 0;
   function wholeRon(wei) { return fmt(CW.ron(wei || '0').split('.')[0]); }
   function showPool(wei) {
     if (wei === undefined || !CW.enabled) return;
@@ -313,6 +314,7 @@
         var left = Math.max(0, b.endsAt - Date.now()), WEEK = 7 * 864e5;
         $('tPoolBar').style.width = Math.round(100 * clamp(1 - left / WEEK, 0.03, 1)) + '%';
         $('tPoolEnds').textContent = 'Prizes in ' + timeLeft(left) + ' · shared by calories';
+        poolEndsAt = b.endsAt;
       }
     }).catch(function () { /* next time */ });
   }
@@ -389,30 +391,28 @@
     var i = paid.info;
     if (!i) return;
     var g = i.gold, wk = i.weekly, won = g.won !== '0', est = i.estimate;
-    var gi = $('goldIco');
-    if (!gi.firstChild && FOODS[2]) gi.appendChild(icon(FOODS[2], 34, true));
-    if (est) {
-      $('nowAmt').textContent = '≈ ' + CW.ron(est.mine) + ' RON';
-      $('nowNote').textContent = est.kcal ? 'Your share of the ≈ ' + CW.ron(est.pool) + ' RON pool so far. It changes as everyone plays.'
-        : 'Play with tickets to get a share of the ≈ ' + CW.ron(est.pool) + ' RON pool.';
-      $('pWeekKcal').textContent = fmt(est.kcal || 0);
-    }
-    $('pBest').textContent = bestEl.textContent;
+    // the golden onigiri, drawn again once its picture has loaded (sharp, not the stand-in)
+    var gi = $('goldIco'), art = ART[FOODS[2].i], ok = String(!!(art && art.ok));
+    if (gi.dataset.ok !== ok) { gi.textContent = ''; gi.appendChild(icon(FOODS[2], 34, true)); gi.dataset.ok = ok; }
+    // this week
+    var kcal = est ? est.kcal || 0 : 0;
+    $('pWeekKcal').textContent = fmt(kcal);
+    $('nowAmt').textContent = est && kcal ? '≈ ' + CW.ron(est.mine) + ' RON' : '–';
+    var pct = est && kcal && est.pool !== '0' ? Number(BigInt(est.mine) * 10000n / BigInt(est.pool)) / 100 : 0;
+    $('nowNote').textContent = !kcal ? 'Play with tickets to get a share of the pool.' : pct ? pct + '% of the pool so far' : '';
+    $('nowEnds').textContent = poolEndsAt ? 'ends in ' + timeLeft(Math.max(0, poolEndsAt - Date.now())) : '';
+    // last week: only when there is something to claim
+    var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], d = wk.weekId.split('-');
+    var show = wk.prize !== '0' && !wk.claimed;
+    $('weekBox').hidden = !show;
+    $('weekLabel').textContent = 'Week of ' + MON[Number(d[1]) - 1] + ' ' + Number(d[2]);
+    $('weekAmt').textContent = CW.ron(wk.prize) + ' RON';
+    $('claimWeek').disabled = wk.claimable === '0';
+    $('weekNote').textContent = wk.claimable === '0' ? 'Ready to claim soon' : '';
+    // golden onigiri
     $('goldAmt').textContent = CW.ron(g.won) + ' RON';
     $('claimGold').disabled = !(won && g.payableNow);
-    $('goldNote').textContent = won && !g.payableNow ? 'Pending: the prize box is being refilled. You claim it in full as soon as it is.'
-      : won ? '' : 'Merge it in a paid run to win up to ×21.';
-    var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], d = wk.weekId.split('-');
-    $('weekLabel').textContent = 'Weekly prize · ' + MON[Number(d[1]) - 1] + ' ' + Number(d[2]);
-    $('weekAmt').textContent = CW.ron(wk.prize) + ' RON';
-    var cw = $('claimWeek');
-    cw.disabled = wk.claimable === '0';
-    cw.textContent = wk.claimed ? 'Claimed ✓' : 'Claim';
-    cw.classList.toggle('done', !!wk.claimed);
-    $('weekNote').textContent = wk.claimed ? ''
-      : wk.prize !== '0' && wk.claimable === '0' ? 'Ready to claim very soon. You have until next Monday.'
-      : wk.prize === '0' && i.lastEstimate && i.lastEstimate.kcal ? 'Being prepared: ≈ ' + CW.ron(i.lastEstimate.mine) + ' RON. Ready a day after the Monday close.'
-      : wk.prize === '0' ? 'Your share of the pool, ready a day after each Monday close.' : 'Claim it before next Monday.';
+    $('goldNote').textContent = won && !g.payableNow ? 'Pending: prize box refilling' : '';
   }
   function openPrizes() {
     homeEl.hidden = true; prizesEl.hidden = false; $('prizeMsg').textContent = 'Loading…';

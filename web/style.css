@@ -511,11 +511,15 @@ body {
 .pz-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 var(--pink-d); }
 .pz-btn:disabled { color: rgba(27, 34, 51, 0.4); background: rgba(255, 255, 255, 0.65); box-shadow: none; cursor: default; }
 .pz-btn.done { color: #fff; background: var(--green); }
-.pz-note { grid-area: note; font-size: 12px; font-weight: 600; color: var(--dim); }
+.pz-note { grid-area: note; font-size: 11.5px; font-weight: 600; color: var(--dim); }
 .pz.gold .pz-note { color: rgba(27, 34, 51, 0.7); }
 .pz.now .pz-note { grid-area: auto; }
 .pz-note:empty { display: none; }
-.pz-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px; }
-.pz-stats > span { display: flex; flex-direction: column; padding: 6px 10px; border-radius: 12px; background: #fff; font-size: 12px; font-weight: 600; color: var(--dim); }
-.pz-stats small { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.pz-stats b { font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pz[hidden] { display: none; }
+.pz-head { display: flex; justify-content: space-between; align-items: baseline; }
+.pz-time { font-size: 11.5px; font-weight: 700; color: var(--blue-d); }
+.pz-two { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 2px; }
+.pz-two > span { display: flex; flex-direction: column; padding: 6px 10px 7px; border-radius: 12px; background: #fff; }
+.pz-two small { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); }
+.pz-two b { font-size: 19px; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pz-two span:last-child b { color: var(--blue-d); }
