@@ -498,7 +498,8 @@ body {
 .pz.week { background: #FFEFF4; }
 .pz.now { grid-template-columns: 1fr; grid-template-areas: none; background: #EAF8FE; }
 .pz-ico { grid-area: ico; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px; background: rgba(255, 255, 255, 0.7); }
-.pz-ico canvas { display: block; width: 34px; height: 34px; }
+.pz-ico canvas { display: block; width: 40px; height: 40px; }
+.pz.gold .pz-ico { width: 46px; height: 46px; }
 .pz-ico svg { width: 24px; height: 24px; }
 .pz.week .pz-ico { color: var(--pink); background: #fff; }
 .pz-txt { grid-area: txt; display: flex; flex-direction: column; min-width: 0; }

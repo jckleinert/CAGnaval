@@ -392,8 +392,7 @@
     if (!i) return;
     var g = i.gold, wk = i.weekly, won = g.won !== '0', est = i.estimate;
     // the golden onigiri, drawn again once its picture has loaded (sharp, not the stand-in)
-    var gi = $('goldIco'), art = ART[FOODS[2].i], ok = String(!!(art && art.ok));
-    if (gi.dataset.ok !== ok) { gi.textContent = ''; gi.appendChild(icon(FOODS[2], 34, true)); gi.dataset.ok = ok; }
+    drawGoldIcon();
     // this week
     var kcal = est ? est.kcal || 0 : 0;
     $('pWeekKcal').textContent = fmt(kcal);
@@ -414,8 +413,23 @@
     $('claimGold').disabled = !(won && g.payableNow);
     $('goldNote').textContent = won && !g.payableNow ? 'Pending: prize box refilling' : '';
   }
+  /* The golden onigiri of the prizes card, painted at the exact number of screen pixels it covers
+     (the cards are scaled up on big screens, so a fixed size would look blocky). */
+  function drawGoldIcon() {
+    var gi = $('goldIco'), art = ART[FOODS[2].i], ok = !!(art && art.ok);
+    if (prizesEl.hidden) return;
+    var px = gi.getBoundingClientRect().width * 40 / 46;           // the box is 46 units, the picture 40
+    if (!px) return;
+    var key = ok + ':' + Math.round(px * (window.devicePixelRatio || 1));
+    if (gi.dataset.key === key) return;
+    gi.dataset.key = key; gi.textContent = '';
+    var dpr = window.devicePixelRatio || 1, c = icon(FOODS[2], px * dpr / Math.min(dpr, 3), true);
+    gi.appendChild(c);
+  }
+  window.addEventListener('resize', function () { drawGoldIcon(); });
   function openPrizes() {
     homeEl.hidden = true; prizesEl.hidden = false; $('prizeMsg').textContent = 'Loading…';
+    requestAnimationFrame(drawGoldIcon);
     loadWallet().then(function () { $('prizeMsg').textContent = ''; });
   }
   /* From the result card back to the start card (wallet, tickets, prizes). */
