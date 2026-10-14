@@ -127,22 +127,32 @@
   <div class="over" id="prizes" hidden>
     <span class="peekbox" aria-hidden="true"><canvas class="peek"></canvas></span>
     <p class="over-title">Your prizes</p>
-    <div class="prize gold">
-      <span class="prize-k">Golden onigiri</span>
-      <span class="prize-v" id="goldAmt">0 RON</span>
-      <button class="primary" id="claimGold" type="button" disabled>Claim</button>
-      <span class="prize-note" id="goldNote"></span>
+    <div class="pz gold">
+      <span class="pz-ico" id="goldIco" aria-hidden="true"></span>
+      <span class="pz-txt">
+        <span class="pz-k">Golden onigiri</span>
+        <b class="pz-v" id="goldAmt">0 RON</b>
+      </span>
+      <button class="pz-btn" id="claimGold" type="button" disabled>Claim</button>
+      <span class="pz-note" id="goldNote"></span>
     </div>
-    <div class="prize week">
-      <span class="prize-k" id="weekLabel">Weekly prize</span>
-      <span class="prize-v" id="weekAmt">0 RON</span>
-      <button class="primary" id="claimWeek" type="button" disabled>Claim</button>
-      <span class="prize-note" id="weekNote"></span>
+    <div class="pz week">
+      <span class="pz-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3h10v2h3v3a4 4 0 0 1-4 4h-.3A5 5 0 0 1 13 14.9V17h3v3H8v-3h3v-2.1A5 5 0 0 1 8.3 12H8a4 4 0 0 1-4-4V5h3zm0 4H6v1a2 2 0 0 0 1 1.7zm10 0v2.7A2 2 0 0 0 18 8V7z" fill="currentColor"/></svg></span>
+      <span class="pz-txt">
+        <span class="pz-k" id="weekLabel">Weekly prize</span>
+        <b class="pz-v" id="weekAmt">0 RON</b>
+      </span>
+      <button class="pz-btn" id="claimWeek" type="button" disabled>Claim</button>
+      <span class="pz-note" id="weekNote"></span>
     </div>
-    <div class="prize now">
-      <span class="prize-k">This week so far</span>
-      <span class="prize-v" id="nowAmt">≈ 0 RON</span>
-      <span class="prize-note" id="nowNote"></span>
+    <div class="pz now">
+      <span class="pz-k">This week so far</span>
+      <b class="pz-v big" id="nowAmt">≈ 0 RON</b>
+      <span class="pz-note" id="nowNote"></span>
+      <span class="pz-stats">
+        <span><small>This week</small><b id="pWeekKcal">0</b> kcal</span>
+        <span><small>Best run</small><b id="pBest">0</b> kcal</span>
+      </span>
     </div>
     <p class="over-line small" id="prizeMsg"></p>
     <button class="ghost" id="closePrizes" type="button">Back</button>

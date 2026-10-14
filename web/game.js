@@ -331,7 +331,8 @@
     var tiles = signed && !!paid.name;
     $('tiles').hidden = !tiles;
     homeEl.classList.toggle('dashed', tiles);
-    $('bestPill').hidden = false;
+    $('bestPill').hidden = tiles;
+    $('homePair').classList.toggle('two', tiles);
     if (CW.enabled) $('poolSign').hidden = tiles || $('poolAmt').dataset.has !== '1';
     var note = '', named = signed && !!paid.name, asking = signed && paid.name === null;
     $('welcome').hidden = !named;
@@ -388,23 +389,30 @@
     var i = paid.info;
     if (!i) return;
     var g = i.gold, wk = i.weekly, won = g.won !== '0', est = i.estimate;
+    var gi = $('goldIco');
+    if (!gi.firstChild && FOODS[2]) gi.appendChild(icon(FOODS[2], 34, true));
     if (est) {
       $('nowAmt').textContent = '≈ ' + CW.ron(est.mine) + ' RON';
-      $('nowNote').textContent = est.kcal ? 'For your ' + fmt(est.kcal) + ' kcal. Changes as everyone plays.'
+      $('nowNote').textContent = est.kcal ? 'Your share of the ≈ ' + CW.ron(est.pool) + ' RON pool so far. It changes as everyone plays.'
         : 'Play with tickets to get a share of the ≈ ' + CW.ron(est.pool) + ' RON pool.';
+      $('pWeekKcal').textContent = fmt(est.kcal || 0);
     }
+    $('pBest').textContent = bestEl.textContent;
     $('goldAmt').textContent = CW.ron(g.won) + ' RON';
     $('claimGold').disabled = !(won && g.payableNow);
-    $('goldNote').textContent = won && !g.payableNow ? 'Pending: the prize box is being refilled. You can claim it in full as soon as it is.'
-      : won ? '' : 'Merge the golden onigiri in a paid run to win.';
+    $('goldNote').textContent = won && !g.payableNow ? 'Pending: the prize box is being refilled. You claim it in full as soon as it is.'
+      : won ? '' : 'Merge it in a paid run to win up to ×21.';
     var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], d = wk.weekId.split('-');
-    $('weekLabel').textContent = 'Weekly prize · week of ' + MON[Number(d[1]) - 1] + ' ' + Number(d[2]);
+    $('weekLabel').textContent = 'Weekly prize · ' + MON[Number(d[1]) - 1] + ' ' + Number(d[2]);
     $('weekAmt').textContent = CW.ron(wk.prize) + ' RON';
-    $('claimWeek').disabled = wk.claimable === '0';
-    $('weekNote').textContent = wk.claimed ? 'Claimed ✓'
+    var cw = $('claimWeek');
+    cw.disabled = wk.claimable === '0';
+    cw.textContent = wk.claimed ? 'Claimed ✓' : 'Claim';
+    cw.classList.toggle('done', !!wk.claimed);
+    $('weekNote').textContent = wk.claimed ? ''
       : wk.prize !== '0' && wk.claimable === '0' ? 'Ready to claim very soon. You have until next Monday.'
-      : wk.prize === '0' && i.lastEstimate && i.lastEstimate.kcal ? 'Being prepared: about ' + CW.ron(i.lastEstimate.mine) + ' RON for your ' + fmt(i.lastEstimate.kcal) + ' kcal. Ready within a day after the Monday close.'
-      : wk.prize === '0' ? 'Your share of the pool by calories, ready within a day after each Monday close.' : '';
+      : wk.prize === '0' && i.lastEstimate && i.lastEstimate.kcal ? 'Being prepared: ≈ ' + CW.ron(i.lastEstimate.mine) + ' RON. Ready a day after the Monday close.'
+      : wk.prize === '0' ? 'Your share of the pool, ready a day after each Monday close.' : 'Claim it before next Monday.';
   }
   function openPrizes() {
     homeEl.hidden = true; prizesEl.hidden = false; $('prizeMsg').textContent = 'Loading…';
