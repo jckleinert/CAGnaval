@@ -408,7 +408,7 @@
 
   /* ---------- ticket shop: the tickets on sale in Ronin Market, bought from here ---------- */
   var busy = false;
-  var shop = { on: false, list: null, n: 1, buying: false };
+  var shop = { on: false, list: null, n: 1, buying: false, imgOk: false };
   function shopCount() { return shop.list ? Math.min(20, shop.list.available) : 0; }
   /* What n tickets cost, taking the cheapest first. */
   function shopTotal(n) {
@@ -419,64 +419,158 @@
     });
     return left > 0 ? null : sum;
   }
+  function shopView(which) {
+    $('shopPick').hidden = which !== 'pick'; $('shopSteps').hidden = which !== 'steps'; $('shopDone').hidden = which !== 'done';
+  }
   function renderShop() {
-    var max = shopCount();
+    var L = shop.list, max = shopCount();
     shop.n = clamp(shop.n, 1, Math.max(1, max));
+    var name = L && L.meta && L.meta.name ? L.meta.name : 'Ticket';
+    $('shopName').textContent = name;
+    $('shopFrom').textContent = !L ? 'Loading…' : L.offers.length ? 'from ' + CW.ron(L.offers[0].price) + ' RON each' : 'Sold out';
+    $('shopStock').textContent = !L ? '' : !L.available ? 'New tickets go on sale often.' : L.available + ' on sale in Ronin Market';
     $('sCount').textContent = shop.n;
-    $('sMinus').disabled = shop.buying || shop.n <= 1;
-    $('sPlus').disabled = shop.buying || shop.n >= max;
-    var total = shop.list ? shopTotal(shop.n) : null;
-    $('shopTotal').textContent = !shop.list ? '…' : total === null ? '–' : CW.ron(total.toString()) + ' RON';
-    $('shopNote').textContent = !shop.list ? '' : !shop.list.available ? 'Sold out right now. New tickets go on sale often.'
-      : shop.list.available + ' on sale in Ronin Market' + (shop.list.offers.length ? ', from ' + CW.ron(shop.list.offers[0].price) + ' RON each.' : '.');
-    $('shopBuy').textContent = 'Buy ' + shop.n + ' ticket' + (shop.n > 1 ? 's' : '');
-    $('shopBuy').disabled = shop.buying || !max || total === null;
+    $('sWord').textContent = shop.n > 1 ? 'tickets' : 'ticket';
+    $('sMinus').disabled = shop.n <= 1;
+    $('sPlus').disabled = shop.n >= max;
+    // quick picks
+    var chips = $('shopChips'), want = [1, 3, 5, 10].filter(function (q) { return q <= max; });
+    if (chips.dataset.k !== want.join() ) {
+      chips.dataset.k = want.join(); chips.textContent = '';
+      want.forEach(function (q) {
+        var c = document.createElement('button'); c.type = 'button'; c.className = 'chip'; c.textContent = q; c.dataset.q = q;
+        c.addEventListener('click', function () { setShopN(q); }); chips.appendChild(c);
+      });
+    }
+    Array.prototype.forEach.call(chips.children, function (c) { c.classList.toggle('on', Number(c.dataset.q) === shop.n); });
+    var total = L ? shopTotal(shop.n) : null;
+    $('shopTotal').textContent = !L ? '…' : total === null ? '–' : CW.ron(total.toString()) + ' RON';
+    var ron = paid.info && paid.info.ron != null ? BigInt(paid.info.ron) : null, short = ron !== null && total !== null && ron < total;
+    $('shopRonRow').hidden = ron === null;
+    if (ron !== null) { $('shopRon').textContent = CW.ron(ron.toString()) + ' RON' + (short ? ' · not enough' : ''); $('shopRon').className = short ? 'short' : ''; }
+    $('shopBuy').textContent = max ? 'Buy ' + shop.n + ' ticket' + (shop.n > 1 ? 's' : '') : 'Sold out';
+    $('shopBuy').disabled = shop.buying || !max || total === null || short;
+  }
+  function setShopN(n) {
+    var before = shop.n; shop.n = n; renderShop();
+    if (shop.n !== before && !reduced) { var b = $('sCount'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); }
+  }
+  function showTicketPic(img, fallback) {
+    if (!shop.imgOk) return;
+    img.src = '/api/market/image'; img.hidden = false; fallback.hidden = true;
   }
   function loadShop() {
     return CW.api('GET', '/api/market').then(function (m) {
       shop.on = !!m.enabled; shop.list = m.enabled ? m : null;
+      if (m.enabled && m.meta && m.meta.image && !shop.imgTried) {
+        shop.imgTried = true;
+        var probe = new Image();
+        probe.onload = function () { shop.imgOk = true; showTicketPic($('shopImg'), $('shopFallback')); showTicketPic($('doneImg'), $('doneFallback')); };
+        probe.src = '/api/market/image';
+      }
       renderWallet(); if (!shopEl.hidden) renderShop();
     }).catch(function (e) { if (!shopEl.hidden) $('shopMsg').textContent = e.code === 'shop-busy' ? 'Could not read Ronin Market. Try again in a moment.' : errText(e); });
   }
   function openShop() {
     homeEl.hidden = true; overEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = false;
-    if (!shop.buying) $('shopMsg').textContent = '';
+    if (!shop.buying) { $('shopMsg').textContent = ''; shopView('pick'); }
     renderShop(); loadShop();
+  }
+  function closeShop() { stopConfetti(); shopEl.hidden = true; shopView('pick'); homeEl.hidden = false; $('homeMsg').textContent = ''; renderWallet(); loadWallet(); }
+  function step(i, state) {
+    for (var k = 1; k <= 3; k++) {
+      var li = $('st' + k);
+      li.className = k < i ? 'done' : k === i ? state : '';
+    }
   }
   /* After the purchase: wait until the tickets show up in the wallet. */
   function waitTickets(before, n, tries) {
+    var again = function () { return new Promise(function (ok) { setTimeout(ok, 3000); }).then(function () { return waitTickets(before, n, tries - 1); }); };
     return CW.info().then(function (info) {
       paid.info = info; renderWallet();
       if (info.tickets >= before + n || tries <= 0) return info;
-      return new Promise(function (ok) { setTimeout(ok, 3000); }).then(function () { return waitTickets(before, n, tries - 1); });
-    }, function () {
-      if (tries <= 0) return null;
-      return new Promise(function (ok) { setTimeout(ok, 3000); }).then(function () { return waitTickets(before, n, tries - 1); });
-    });
+      return again();
+    }, function () { return tries <= 0 ? null : again(); });
   }
+
+  /* Confetti over the card when the tickets arrive. */
+  var confettiOn = 0;
+  function confetti() {
+    if (reduced) return;
+    var cvc = $('confetti'), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cvc.width = Math.round(shopEl.offsetWidth * dpr); cvc.height = Math.round(shopEl.offsetHeight * dpr);
+    var g = cvc.getContext('2d'), W2 = cvc.width, H2 = cvc.height, cols = ['#EE3D77', '#3BC7F5', '#FFC93C', '#3FAE5A', '#FFD9E5'];
+    var bits = [];
+    for (var i = 0; i < 110; i++) {
+      var a = -Math.PI / 2 + (Math.random() - 0.5) * 1.9, sp = (6 + Math.random() * 9) * dpr;
+      bits.push({ x: W2 / 2 + (Math.random() - 0.5) * 40 * dpr, y: H2 * 0.3, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, w: (5 + Math.random() * 5) * dpr, h: (3 + Math.random() * 4) * dpr,
+        r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: cols[i % cols.length], round: Math.random() < 0.3 });
+    }
+    var id = ++confettiOn, t0 = performance.now();
+    (function f(now) {
+      if (id !== confettiOn) return;
+      var t = now - t0;
+      g.clearRect(0, 0, W2, H2);
+      bits.forEach(function (b) {
+        b.vy += 0.32 * dpr; b.vx *= 0.985; b.vy *= 0.985; b.x += b.vx; b.y += b.vy; b.r += b.vr;
+        g.save(); g.globalAlpha = Math.max(0, Math.min(1, (3200 - t) / 700)); g.translate(b.x, b.y); g.rotate(b.r); g.fillStyle = b.c;
+        if (b.round) { g.beginPath(); g.arc(0, 0, b.h * 0.7, 0, TAU); g.fill(); } else g.fillRect(-b.w / 2, -b.h / 2, b.w, b.h * Math.abs(Math.cos(b.r * 2)) + 1);
+        g.restore();
+      });
+      if (t < 3200) requestAnimationFrame(f); else g.clearRect(0, 0, W2, H2);
+    })(t0);
+  }
+  function stopConfetti() { confettiOn++; var c = $('confetti'); c.getContext('2d').clearRect(0, 0, c.width, c.height); }
+
+  function bought(n, info) {
+    shopView('done');
+    $('donePlus').textContent = '+' + n;
+    $('doneLine').textContent = n + ' ticket' + (n > 1 ? 's' : '') + ' added to your wallet.';
+    $('doneTotal').textContent = info ? 'You have ' + info.tickets + ' ticket' + (info.tickets > 1 ? 's' : '') : 'They can take a minute to show up';
+    // the pictures replay their entrance
+    var w = shopEl.querySelector('.won-ticket'), p = $('donePlus');
+    [w, p].forEach(function (el) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+    wakeSound(); play(sfx.gold, 1, 0.9);
+    confetti();
+  }
+
   $('openShop').addEventListener('click', openShop);
-  $('closeShop').addEventListener('click', function () { shopEl.hidden = true; homeEl.hidden = false; renderWallet(); });
-  $('sMinus').addEventListener('click', function () { shop.n--; renderShop(); });
-  $('sPlus').addEventListener('click', function () { shop.n++; renderShop(); });
+  $('closeShop').addEventListener('click', closeShop);
+  $('stepsBack').addEventListener('click', function () { shopView('pick'); renderShop(); });
+  $('doneHome').addEventListener('click', closeShop);
+  $('donePlay').addEventListener('click', function () { var n = shop.lastN || 1; closeShop(); paid.tickets = n; renderWallet(); startRun('paid'); });
+  $('sMinus').addEventListener('click', function () { setShopN(shop.n - 1); });
+  $('sPlus').addEventListener('click', function () { setShopN(shop.n + 1); });
   $('shopBuy').addEventListener('click', function () {
-    var n = shop.n, before = paid.info ? paid.info.tickets : 0;
-    shop.buying = true; renderShop(); $('shopMsg').textContent = 'Preparing your purchase…';
+    var n = shop.n, before = paid.info ? paid.info.tickets : 0, total = shopTotal(n);
+    shop.buying = true; $('shopMsg').textContent = '';
+    shopView('steps'); $('stepsBack').hidden = true;
+    $('stepsN').textContent = n; $('stepsS').textContent = n > 1 ? 's' : '';
+    $('stepsTotal').textContent = total !== null ? CW.ron(total.toString()) + ' RON' : '';
+    $('stepsNote').textContent = 'Preparing your purchase…';
+    step(1, 'now');
     CW.api('POST', '/api/tx/buy', { n: n }, 30000).then(function (tx) {
-      $('shopMsg').textContent = 'Confirm in your wallet: ' + CW.ron(tx.total) + ' RON for ' + n + ' ticket' + (n > 1 ? 's' : '') + '.';
+      $('stepsTotal').textContent = CW.ron(tx.total) + ' RON';
+      $('stepsNote').textContent = 'Check the Ronin Wallet window.';
       return CW.send(tx);
     }).then(function () {
-      $('shopMsg').textContent = 'Bought! Your tickets are on the way…';
-      return waitTickets(before, n, 20);
+      step(2, 'now'); $('stepsNote').textContent = 'Almost there…';
+      return new Promise(function (ok) { setTimeout(ok, 1200); }).then(function () {
+        step(3, 'now'); $('stepsNote').textContent = 'Your tickets are on the way.';
+        return waitTickets(before, n, 20);
+      });
     }).then(function (info) {
-      $('shopMsg').textContent = info && info.tickets >= before + n ? 'Done! You have ' + info.tickets + ' ticket' + (info.tickets > 1 ? 's' : '') + '. Good luck!'
-        : 'Bought! The tickets can take a minute to show up.';
+      step(4); shop.lastN = n;
+      setTimeout(function () { bought(n, info && info.tickets >= before + n ? info : null); }, 450);
     }).catch(function (e) {
-      var c = e && e.code;
-      $('shopMsg').textContent = c === 'not-enough-ron' ? 'Not enough RON in your wallet for that.'
+      var c = e && e.code, at = $('st2').className === 'now' || $('st3').className === 'now' ? ($('st3').className === 'now' ? 3 : 2) : 1;
+      step(at, 'fail');
+      $('stepsNote').textContent = c === 'not-enough-ron' ? 'Not enough RON in your wallet for that.'
         : c === 'not-enough-listed' ? 'Only ' + ((e.data && e.data.available) || 0) + ' on sale right now. Pick fewer.'
         : c === 'shop-busy' ? 'Could not reach Ronin Market. Try again in a moment.'
         : errText(e);
-    }).then(function () { shop.buying = false; loadShop(); renderShop(); });
+      $('stepsBack').hidden = false;
+    }).then(function () { shop.buying = false; loadShop(); });
   });
 
   /* Messages of a run go out one at a time, in order. */
@@ -1253,7 +1347,7 @@
   function paintPuppet(face) { paintCag(puppet, pctx, face); PUP.shown = face; }
   /* CAG over the cards: made at the exact number of screen pixels she covers, so she looks sharp.
      A card that is hidden forgets she was up, so she comes up again the next time it shows. */
-  var cards = [homeEl, overEl, boardEl, prizesEl];
+  var cards = [homeEl, overEl, boardEl, prizesEl, shopEl];
   function drawPeek() {
     if (!ART_P || !PUP.ok) return;
     for (var i = 0; i < cards.length; i++) {

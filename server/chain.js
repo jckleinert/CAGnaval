@@ -205,8 +205,9 @@ class Chain {
     const lastPrize = await rd(() => g.prize(w - 1, addr));
     const lastClaimable = lastPrize > 0n ? await rd(() => g.claimable(addr, w - 1)) : 0n;
     const lastClaimed = lastPrize > 0n ? await rd(() => g.claimed(w - 1, addr)) : false;
+    const ron = await rd(() => this.provider.getBalance(addr)).catch(() => null);
     const v = {
-      tickets: Number(tickets),
+      tickets: Number(tickets), ron: ron === null ? null : ron.toString(),
       gold: { won: gold.won.toString(), payableNow: gold.payableNow },
       weekly: { week: w - 1, weekId: weekIdOf(w - 1), prize: lastPrize.toString(), claimable: lastClaimable.toString(), claimed: lastClaimed },
       maxTicketsNow: info.cap === '0' ? 0 : Math.min(info.maxTickets, Number(BigInt(free.toString()) / BigInt(info.cap))),

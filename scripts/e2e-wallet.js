@@ -22,7 +22,7 @@ const { createApp } = require('../server/index.js');
     enabled: true, jobs: [], referee: '0x' + '2'.repeat(40),
     async info() { return { contract: '0x' + '4'.repeat(40), chainId: 2020, ticket: '0x' + '6'.repeat(40), ticketId: '1', cap: RON(1), maxTickets: 5, week: 2908, paused: false }; },
     async wallet_() {
-      return { tickets: 7 - sent.filter((t) => t.kind === 'play').length + sent.filter((t) => t.kind === 'buy').reduce((a, t) => a + t.n, 0), gold: { won: RON(2.5), payableNow: true },
+      return { tickets: 7 - sent.filter((t) => t.kind === 'play').length + sent.filter((t) => t.kind === 'buy').reduce((a, t) => a + t.n, 0), ron: RON(100), gold: { won: RON(2.5), payableNow: true },
         weekly: { week: 2907, weekId: '2026-10-05', prize: RON(12.34), claimable: RON(12.34), claimed: false }, maxTicketsNow: 3, cap: RON(1), maxTickets: 5, paused: false };
     },
     async txPlay(from, n) { return { to: '0x' + '6'.repeat(40), data: '0xplay' + n }; },
@@ -34,6 +34,8 @@ const { createApp } = require('../server/index.js');
   };
   const market = {
     enabled: true,
+    async meta() { return { name: 'CAG Energy Drink', image: 'https://cdn.example/drink.png' }; },
+    async image() { return { type: 'image/png', body: fs.readFileSync(path.join(__dirname, '..', 'web', 'img', 'logo.png')) }; },
     async summary() { return { available: 5, offers: [{ price: RON(5), qty: 2 }, { price: RON(6), qty: 3 }] }; },
     async txBuy(from, n) { return { to: '0x' + '7'.repeat(40), data: '0xbuy' + n, value: '0x1', gas: '0x30d40', total: n === 3 ? RON(16) : RON(5 * n), tickets: n }; }
   };
@@ -106,22 +108,25 @@ const { createApp } = require('../server/index.js');
   await page.click('#openShop');
   await page.waitForFunction(() => document.getElementById('shopTotal').textContent === '5 RON', null, { timeout: 5000 });
   await page.click('#sPlus'); await page.click('#sPlus');
-  const shopTotal = await text('shopTotal'), shopNote = await text('shopNote');
+  const shopTotal = await text('shopTotal'), shopNote = await text('shopStock');
   if (shot) await page.screenshot({ path: path.join(shot, 'w5-shop.png') });
   const tixBefore = Number(await text('walletTix'));
   await page.click('#shopBuy');
-  await page.waitForFunction(() => document.getElementById('shopMsg').textContent.startsWith('Done!'), null, { timeout: 15000 });
-  const shopDone = await text('shopMsg'), tixAfter = Number(await text('walletTix'));
+  if (shot) { await page.waitForTimeout(250); await page.screenshot({ path: path.join(shot, 'w5b-steps.png') }); }
+  await page.waitForFunction(() => !document.getElementById('shopDone').hidden, null, { timeout: 15000 });
+  await page.waitForTimeout(900);
+  const shopDone = await text('doneTotal'), tixAfter = Number(await text('walletTix'));
   if (shot) await page.screenshot({ path: path.join(shot, 'w6-bought.png') });
-  await page.click('#closeShop');
+  await page.click('#doneHome');
+  const homeBack = await page.evaluate(() => !document.getElementById('home').hidden && document.getElementById('shop').hidden);
   await page.click('#openBoard');
   await page.waitForTimeout(800);
   if (shot) await page.screenshot({ path: path.join(shot, 'w4-rank.png') });
-  const out = { welcome, label, capped, note, gold, week, shopTotal, shopNote, shopDone, tixBefore, tixAfter, sent, settled, problems };
+  const out = { welcome, label, capped, note, gold, week, shopTotal, shopNote, shopDone, homeBack, tixBefore, tixAfter, sent, settled, problems };
   console.log(JSON.stringify(out, null, 1));
   await browser.close(); app.server.close();
   const ok = welcome === 'Welcome, Wallet bot!' && label === 'Play with 3 tickets' && capped && /3 tickets/.test(note) && sent.map((s) => s.kind).join() === 'play,claimGold,claim,buy' && sent[0].n === 3 && sent[3].n === 3 && sent[3].gas === '0x30d40'
-    && shopTotal === '16 RON' && /5 on sale/.test(shopNote) && tixAfter === tixBefore + 3 && /^Done! You have/.test(shopDone)
+    && shopTotal === '16 RON' && /5 on sale/.test(shopNote) && tixAfter === tixBefore + 3 && shopDone === 'You have ' + tixAfter + ' tickets' && homeBack
     && settled.length === 1 && gold === '2.5 RON' && week === '12.34 RON' && !problems.length;
   console.log(ok ? 'E2E WALLET OK' : 'E2E WALLET FAILED');
   process.exit(ok ? 0 : 1);

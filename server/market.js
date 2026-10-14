@@ -58,6 +58,32 @@ class Market {
     return v;
   }
 
+  /* The ticket's name and picture, as Ronin Market shows them. Read again every 10 minutes at most. */
+  async meta(token, id) {
+    const k = 'meta:' + String(token).toLowerCase() + ':' + id;
+    const hit = this.cache.get(k);
+    if (hit && Date.now() - hit.at < 600000) return hit.v;
+    const { sdk } = this._load();
+    const t = await sdk.getErc1155Token({ chainId: this.cfg.CHAIN_ID, tokenAddress: String(token).toLowerCase(), tokenId: String(id), showMinPrice: false }).catch(() => null);
+    const v = { name: (t && t.name) || '', image: (t && (t.cdnImage || t.image)) || '' };
+    this.cache.set(k, { at: Date.now(), v });
+    return v;
+  }
+
+  /* The ticket's picture, fetched by the server so the page only loads pictures from its own site. */
+  async image(token, id) {
+    if (this._img && this._img.key === token + ':' + id && Date.now() - this._img.at < 3600000) return this._img;
+    const m = await this.meta(token, id);
+    if (!/^https:\/\//.test(m.image)) return null;
+    const res = await fetch(m.image, { signal: AbortSignal.timeout(10000) });
+    const type = String(res.headers.get('content-type') || '').split(';')[0];
+    if (!res.ok || !/^image\/(png|jpeg|webp|gif)$/.test(type)) return null;
+    const body = Buffer.from(await res.arrayBuffer());
+    if (body.length > 3 * 1024 * 1024) return null;
+    this._img = { key: token + ':' + id, at: Date.now(), type, body };
+    return this._img;
+  }
+
   /* What the page shows: how many are on sale and at what price, grouped by price. */
   async summary(token, id) {
     const list = await this.orders(token, id);
@@ -89,7 +115,7 @@ class Market {
   /* The purchase transaction for the buyer's wallet, paid in RON. */
   async txBuy(from, n, token, id) {
     const { sdk, e5 } = this._load();
-    this.cache.clear();                                      // fresh listings for a purchase
+    for (const k of [...this.cache.keys()]) if (!k.startsWith('meta:')) this.cache.delete(k);   // fresh listings for a purchase
     const list = await this.orders(token, id);
     const chosen = this.pick(list, n, from);
     if (!chosen) {

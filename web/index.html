@@ -144,23 +144,59 @@
     <button class="ghost" id="closePrizes" type="button">Back</button>
   </div>
 
-  <div class="over" id="shop" hidden>
+  <div class="over shop" id="shop" hidden>
     <span class="peekbox" aria-hidden="true"><canvas class="peek"></canvas></span>
-    <p class="over-title">Get tickets</p>
-    <div class="prize shopbox">
-      <span class="prize-k">How many</span>
-      <div class="pick shop-pick">
-        <button class="step" id="sMinus" type="button" aria-label="One ticket less">−</button>
-        <b class="pick-n" id="sCount">1</b>
-        <button class="step" id="sPlus" type="button" aria-label="One ticket more">+</button>
+    <canvas class="confetti" id="confetti" aria-hidden="true"></canvas>
+
+    <div class="shop-view" id="shopPick">
+      <p class="over-title">Get tickets</p>
+      <div class="ticket" id="shopTicket">
+        <span class="ticket-pic"><img id="shopImg" alt="" hidden><span class="ticket-fallback" id="shopFallback" aria-hidden="true">🎟️</span></span>
+        <span class="ticket-info">
+          <b class="ticket-name" id="shopName">Ticket</b>
+          <span class="ticket-price" id="shopFrom">Loading…</span>
+          <span class="ticket-stock" id="shopStock"></span>
+        </span>
       </div>
-      <span class="prize-k">Total</span>
-      <span class="prize-v" id="shopTotal">…</span>
-      <span class="prize-note" id="shopNote"></span>
+      <div class="qty">
+        <button class="step big" id="sMinus" type="button" aria-label="One ticket less">−</button>
+        <span class="qty-n"><b id="sCount">1</b><small id="sWord">ticket</small></span>
+        <button class="step big" id="sPlus" type="button" aria-label="One ticket more">+</button>
+      </div>
+      <div class="chips" id="shopChips"></div>
+      <div class="bill">
+        <div class="bill-row"><span>Total</span><b id="shopTotal">…</b></div>
+        <div class="bill-row small" id="shopRonRow" hidden><span>In your wallet</span><span id="shopRon"></span></div>
+      </div>
+      <button class="primary wide" id="shopBuy" type="button" disabled>Buy</button>
+      <p class="over-line small bad" id="shopMsg"></p>
+      <p class="shop-foot">Bought on Ronin Market · paid in RON</p>
+      <button class="ghost" id="closeShop" type="button">Back</button>
     </div>
-    <button class="primary wide" id="shopBuy" type="button" disabled>Buy</button>
-    <p class="over-line small" id="shopMsg"></p>
-    <button class="ghost" id="closeShop" type="button">Back</button>
+
+    <div class="shop-view" id="shopSteps" hidden>
+      <p class="over-title">Buying <span id="stepsN">1</span> ticket<span id="stepsS"></span></p>
+      <p class="over-line" id="stepsTotal"></p>
+      <ol class="steps">
+        <li id="st1"><i></i><span>Confirm in your wallet</span></li>
+        <li id="st2"><i></i><span>Buying on Ronin Market</span></li>
+        <li id="st3"><i></i><span>Tickets arriving</span></li>
+      </ol>
+      <p class="over-line small" id="stepsNote"></p>
+      <button class="ghost" id="stepsBack" type="button" hidden>Back</button>
+    </div>
+
+    <div class="shop-view" id="shopDone" hidden>
+      <div class="won">
+        <span class="won-ticket"><img id="doneImg" alt="" hidden><span class="ticket-fallback" id="doneFallback" aria-hidden="true">🎟️</span></span>
+        <span class="won-plus" id="donePlus">+1</span>
+      </div>
+      <p class="over-title">Congrats!</p>
+      <p class="over-line" id="doneLine"></p>
+      <p class="over-line hot" id="doneTotal"></p>
+      <button class="primary wide" id="donePlay" type="button">Play now</button>
+      <button class="ghost" id="doneHome" type="button">Home</button>
+    </div>
   </div>
 
   <div class="over" id="board" hidden>

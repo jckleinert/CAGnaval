@@ -265,8 +265,14 @@ function createApp(options) {
       if (req.method === 'GET' && parts[1] === 'market') {
         if (!chain.enabled || !market.enabled) return send(res, 200, { enabled: false }, cors);
         const info = await chain.info();
+        if (parts[2] === 'image') {
+          const img = await market.image(info.ticket, info.ticketId).catch(() => null);
+          if (!img) throw new RunError(404, 'no-image');
+          res.writeHead(200, { 'Content-Type': img.type, 'Cache-Control': 'public, max-age=3600', 'X-Content-Type-Options': 'nosniff' });
+          return res.end(img.body);
+        }
         let s;
-        try { s = await market.summary(info.ticket, info.ticketId); } catch (e) { console.error('shop list:', String(e.message).slice(0, 200)); throw new RunError(503, 'shop-busy'); }
+        try { s = await market.summary(info.ticket, info.ticketId); s.meta = market.meta ? await market.meta(info.ticket, info.ticketId).catch(() => null) : null; } catch (e) { console.error('shop list:', String(e.message).slice(0, 200)); throw new RunError(503, 'shop-busy'); }
         return send(res, 200, Object.assign({ enabled: true, ticket: info.ticket, ticketId: info.ticketId }, s), cors);
       }
       if (req.method === 'GET' && parts[1] === 'leaderboard') {
