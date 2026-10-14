@@ -307,7 +307,14 @@
   }
   function loadPool() {
     if (!CW.enabled) return;
-    call('GET', '/api/leaderboard?by=total', null, 1).then(function (b) { showPool(b.pool); }).catch(function () { /* next time */ });
+    call('GET', '/api/leaderboard?by=total', null, 1).then(function (b) {
+      showPool(b.pool);
+      if (b.endsAt) {
+        var left = Math.max(0, b.endsAt - Date.now()), WEEK = 7 * 864e5;
+        $('tPoolBar').style.width = Math.round(100 * clamp(1 - left / WEEK, 0.03, 1)) + '%';
+        $('tPoolEnds').textContent = 'Prizes in ' + timeLeft(left) + ' · shared by calories';
+      }
+    }).catch(function () { /* next time */ });
   }
 
   function maxTickets() {
@@ -323,6 +330,7 @@
     $('walletWho').hidden = !signed;
     var tiles = signed && !!paid.name;
     $('tiles').hidden = !tiles;
+    homeEl.classList.toggle('dashed', tiles);
     $('bestPill').hidden = tiles;
     $('homePair').classList.toggle('two', tiles);
     if (CW.enabled) $('poolSign').hidden = tiles || $('poolAmt').dataset.has !== '1';
@@ -343,12 +351,22 @@
       var max = maxTickets();
       paid.tickets = clamp(paid.tickets, 1, Math.max(1, max));
       $('tCount').textContent = paid.tickets;
+      $('tOf').textContent = max && max < Math.min(info.tickets, info.maxTickets) ? 'max ' + max + ' per run now' : 'of ' + max + ' available';
+      var tc = $('tChips'), want = [1, 3, 5].filter(function (q) { return q < max; }).concat(max > 1 ? ['max'] : []);
+      if (tc.dataset.k !== want.join()) {
+        tc.dataset.k = want.join(); tc.textContent = '';
+        want.forEach(function (q) {
+          var c = document.createElement('button'); c.type = 'button'; c.className = 'chip'; c.textContent = q === 'max' ? 'MAX' : q; c.dataset.q = q;
+          c.addEventListener('click', function () { var m = maxTickets(); paid.tickets = q === 'max' ? m : Math.min(q, m); renderWallet(); bump($('tCount')); });
+          tc.appendChild(c);
+        });
+      }
+      Array.prototype.forEach.call(tc.children, function (c) { c.classList.toggle('on', (c.dataset.q === 'max' ? max : Number(c.dataset.q)) === paid.tickets); });
       $('tMinus').disabled = paid.tickets <= 1;
       $('tPlus').disabled = paid.tickets >= max;
       play.textContent = max ? 'Play with ' + paid.tickets + ' ticket' + (paid.tickets > 1 ? 's' : '') : info.tickets ? 'Prize box refilling' : shop.on ? 'Get tickets' : 'No tickets';
       note = !info.tickets ? 'You need tickets to play for prizes.'
         : !info.maxTicketsNow ? 'The golden prize box is being refilled. Try again soon.'
-        : info.maxTicketsNow < Math.min(info.tickets, info.maxTickets) ? 'Up to ' + info.maxTicketsNow + ' tickets per run right now.'
         : '';
       if (!max && !(shop.on && !info.tickets)) play.disabled = true;
       else if (!busy) play.disabled = false;
@@ -363,8 +381,9 @@
     $('pickNote').textContent = note;
     if (on && !run) $('counterNote').textContent = 'Paid runs: tickets multiply calories and the golden prize.';
   }
-  $('tMinus').addEventListener('click', function () { paid.tickets = Math.max(1, paid.tickets - 1); renderWallet(); });
-  $('tPlus').addEventListener('click', function () { paid.tickets = Math.min(maxTickets(), paid.tickets + 1); renderWallet(); });
+  function bump(el) { if (reduced) return; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  $('tMinus').addEventListener('click', function () { paid.tickets = Math.max(1, paid.tickets - 1); renderWallet(); bump($('tCount')); });
+  $('tPlus').addEventListener('click', function () { paid.tickets = Math.min(maxTickets(), paid.tickets + 1); renderWallet(); bump($('tCount')); });
   $('signOut').addEventListener('click', function () { CW.signOut(); paid.info = null; paid.name = undefined; renderWallet(); });
 
   /* ---------- prizes ---------- */
