@@ -226,13 +226,13 @@ class RunManager {
       const ranked = run.chain || !this.cfg.PAID_ONLY;
       if (ranked && counted && sim.kcal > 0) {
         // Total: calories x tickets. Best run: the calories of the run itself, as with one ticket.
-        this.store.addScore(result.week, playerKey(run.player.id), run.player.name, result.score, t, run.chain ? run.player.id : null, sim.kcal);
+        this.store.addScore(result.week, playerKey(run.player.id), run.player.name, result.score, t, run.chain ? run.player.id : null, sim.kcal, run.chain ? run.chain.tickets : 0);
       }
     } catch (e) { console.error('could not save run', run.id, e.message); }
     if (run.chain) {
       try { this.store.setChainRun(run.chain.runId, { status: 'done', run: run.id, at: t, gold: result.goldWei }); } catch (e) { console.error(e.message); }
       if (result.goldWei !== '0') {
-        try { this.store.addGold({ id: String(run.chain.runId), name: run.player.name, mult: result.gold.mult, wei: result.goldWei, tickets: run.chain.tickets, at: t + 8000, week: result.week }); } catch (e) { console.error('could not note golden prize', e.message); }
+        try { this.store.addGold({ id: String(run.chain.runId), name: run.player.name, addr: run.player.id, mult: result.gold.mult, wei: result.goldWei, tickets: run.chain.tickets, at: t + 8000, week: result.week }); } catch (e) { console.error('could not note golden prize', e.message); }
       }
       try { if (this.onPaid) this.onPaid(run, result); } catch (e) { console.error('could not settle', run.chain.runId, e.message); }
     }

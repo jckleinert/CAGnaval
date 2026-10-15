@@ -108,6 +108,7 @@ function createApp(options) {
   async function paidRun(req, body, ip) {
     if (!chain.enabled) throw new RunError(400, 'practice-only');
     const addr = who(req);
+    if (store.isBanned(addr)) throw new RunError(403, 'banned');
     if (typeof body.txHash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(body.txHash)) throw new RunError(400, 'bad-tx');
     const found = await chain.runFromTx(body.txHash, 60000);
     if (found.error) throw new RunError(found.error === 'tx-not-found' ? 404 : 422, found.error);
@@ -226,6 +227,19 @@ function createApp(options) {
           try { tx = chain.txAdmin(String(body.fn || ''), Array.isArray(body.args) ? body.args : [], body.value); } catch (e) { throw new RunError(400, 'bad-admin-tx'); }
           return send(res, 200, Object.assign({ from: addr }, tx), cors);
         }
+        if (req.method === 'GET' && parts[2] === 'players') {
+          const list = store.players(playerKey, store.weekId(Date.now())).sort((a, b) => b.last - a.last || b.joined - a.joined);
+          return send(res, 200, { players: list }, cors);
+        }
+        if (req.method === 'POST' && parts[2] === 'ban') {
+          const body = await readJson(req);
+          const target = String(body.addr || '').toLowerCase();
+          if (!/^0x[0-9a-f]{40}$/.test(target)) throw new RunError(400, 'bad-address');
+          if (target === addr) throw new RunError(400, 'not-yourself');
+          store.setBan(target, !!body.ban, Date.now());
+          console.log((body.ban ? 'banned ' : 'unbanned ') + target);
+          return send(res, 200, { addr: target, banned: store.isBanned(target) }, cors);
+        }
         if (req.method === 'POST' && parts[2] === 'close') {
           const body = await readJson(req);
           const out = await chain.closeWeeks(store, Number(body.week));
@@ -253,6 +267,7 @@ function createApp(options) {
         const addr = who(req);
         const body = await readJson(req);
         if (parts[2] === 'play') {
+          if (store.isBanned(addr)) throw new RunError(403, 'banned');
           const n = Number(body.n);
           if (!Number.isInteger(n) || n < 1 || n > 1000) throw new RunError(400, 'bad-tickets');
           return send(res, 200, Object.assign({ from: addr }, await chain.txPlay(addr, n)), cors);

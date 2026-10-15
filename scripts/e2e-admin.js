@@ -42,6 +42,12 @@ const { Chain } = require('../server/chain.js');
   app.store.addScore(lastId, 'k1', 'Ana', 9000, 1, '0x' + 'a'.repeat(40)); app.store.addScore(lastId, 'k2', 'Beto', 3000, 2, '0x' + 'b'.repeat(40));
   app.store.addTickets(lastId, 8); app.store.addTickets(nowId, 3);
   app.store.addScore(nowId, 'k1', 'Ana', 4000, 3, '0x' + 'a'.repeat(40));
+  const { playerKey } = require('../server/runs.js');
+  const CARO = '0x' + 'c'.repeat(40), DANI = '0x' + 'd'.repeat(40);
+  app.store.setProfile(CARO, 'Caro', Date.now() - 86400000); app.store.setProfile(DANI, 'Dani', Date.now());
+  app.store.addScore(nowId, playerKey(CARO), 'Caro', 7000, Date.now(), CARO, 0, 4);
+  app.store.addScore(nowId, playerKey(CARO), 'Caro', 1000, Date.now(), CARO, 0, 2);
+  app.store.addGold({ id: '77', name: 'Caro', addr: CARO, mult: 3, wei: RON(3), tickets: 5, at: Date.now(), week: nowId });
   await new Promise((r) => app.server.listen(0, r));
   const base = 'http://127.0.0.1:' + app.server.address().port;
   const browser = await chromium.launch();
@@ -83,15 +89,25 @@ const { Chain } = require('../server/chain.js');
   await page.fill('#boxAmt', '2'); await page.click('#boxFund'); await page.waitForTimeout(300);
   await page.click('#lastClose'); await page.waitForTimeout(300);
   await page.click('#oldRows button.pink'); await page.waitForTimeout(300);
+  await page.waitForFunction(() => document.querySelectorAll('#pRows tr').length === 2, null, { timeout: 8000 });
+  const playerRows = await page.$$eval('#pRows tr', (r) => r.map((x) => [...x.children].map((c) => c.textContent).join('|')));
+  await page.fill('#pFind', 'car'); await page.waitForTimeout(100);
+  const found = await page.$$eval('#pRows tr', (r) => r.length);
+  await page.click('#pRows button.danger');
+  await page.waitForFunction(() => document.querySelector('#pRows tr.banned'), null, { timeout: 8000 });
+  await page.fill('#pFind', '');
+  if (shot) await page.locator('#playersCard').screenshot({ path: path.join(shot, 'admin-players.png') });
+  const banned = app.store.isBanned(CARO), inBoard = app.store.leaderboard(nowId, 'total').some((r) => r.addr === CARO);
   await browser.close(); app.server.close();
 
   const iface = new ethers.Interface(require('../server/chain.js').GAME_ABI);
   const decoded = sent.map((t) => { const d = iface.parseTransaction({ data: t.data, value: t.value || 0 }); return d.name + '(' + d.args.map(String).join(',') + ')' + (t.value ? ' value ' + ethers.formatEther(BigInt(t.value)) : ''); });
-  const out = { lastStatus, suggest, lastRows, decoded, closes, problems };
+  const out = { lastStatus, suggest, lastRows, decoded, closes, problems, playerRows, found, banned, inBoard };
   console.log(JSON.stringify(out, null, 1));
   const ok = /Esperando que cargues el pozo/.test(lastStatus) && suggest === '39 RON' && lastRows.length === 2
     && decoded[0] === 'deposit(' + (W - 1) + ') value 39.0' && decoded[1] === 'withdrawTickets(9,' + owner.address + ')' && decoded[2] === 'fundBonus() value 2.0'
-    && decoded[3] === 'recoverPool(' + (W - 2) + ',' + owner.address + ')' && closes[0] === W - 1 && !problems.length;
+    && decoded[3] === 'recoverPool(' + (W - 2) + ',' + owner.address + ')' && closes[0] === W - 1 && !problems.length
+    && /^Caro\|0xcccc…cccc\|.+\|2\|6\|8\.000\|8\.000\|1 · 3(\.0)? RON\|OK\|Banear$/.test(playerRows[0]) && found === 1 && banned && !inBoard;
   console.log(ok ? 'E2E ADMIN OK' : 'E2E ADMIN FAILED');
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

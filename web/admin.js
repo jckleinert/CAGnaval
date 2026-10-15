@@ -61,6 +61,7 @@
 
   function render() {
     var s = S, now = s.weeks[0], last = s.weeks[1];
+    if ($('panel').hidden) loadPlayers();
     $('gate').hidden = true; $('panel').hidden = false;
     $('who').textContent = 'Dueño ' + short(CW.address);
     $('sContract').textContent = short(s.contract);
@@ -146,6 +147,41 @@
   }
 
   /* ---------- actions ---------- */
+  /* Players: stats and ban. */
+  var P = [];
+  function loadPlayers() {
+    return CW.api('GET', '/api/admin/players', null, 60000).then(function (r) { P = r.players || []; renderPlayers(); })
+      .catch(function (e) { say('No se pudo leer la lista de jugadores (' + e.code + ').'); });
+  }
+  function renderPlayers() {
+    var q = $('pFind').value.trim().toLowerCase(), tb = $('pRows');
+    var list = P.filter(function (p) { return !q || p.name.toLowerCase().indexOf(q) >= 0 || p.addr.indexOf(q) >= 0; });
+    $('pCount').textContent = '· ' + P.length + (P.filter(function (p) { return p.banned; }).length ? ' · ' + P.filter(function (p) { return p.banned; }).length + ' baneados' : '');
+    tb.textContent = '';
+    list.forEach(function (p) {
+      var tr = document.createElement('tr'); if (p.banned) tr.className = 'banned';
+      cell(tr, p.name);
+      var a = cell(tr, short(p.addr), 'addr'); a.title = p.addr;
+      cell(tr, p.joined ? new Date(p.joined).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : '–');
+      cell(tr, fmt(p.runs), 'num'); cell(tr, fmt(p.tickets), 'num'); cell(tr, fmt(p.week), 'num'); cell(tr, fmt(p.total), 'num');
+      cell(tr, p.golds ? p.golds + ' · ' + ron(p.goldWei) + ' RON' : '–', 'num');
+      var st = cell(tr, ''), tag = document.createElement('span'); tag.className = p.banned ? 'tag ban' : 'tag'; tag.textContent = p.banned ? 'Baneado' : 'OK'; st.appendChild(tag);
+      var td = cell(tr, ''), b = document.createElement('button');
+      b.className = p.banned ? 'btn small' : 'btn small danger'; b.textContent = p.banned ? 'Desbanear' : 'Banear';
+      b.addEventListener('click', function () {
+        var on = !p.banned;
+        if (!confirm(on ? '¿Banear a ' + p.name + '? No va a poder jugar partidas pagas y sale del ranking y del reparto.' : '¿Desbanear a ' + p.name + '?')) return;
+        b.disabled = true;
+        CW.api('POST', '/api/admin/ban', { addr: p.addr, ban: on }).then(function (r) { p.banned = r.banned; renderPlayers(); say((r.banned ? 'Baneado: ' : 'Desbaneado: ') + p.name); })
+          .catch(function (e) { b.disabled = false; say('No se pudo: ' + e.code); });
+      });
+      td.appendChild(b);
+      tb.appendChild(tr);
+    });
+  }
+  $('pFind').addEventListener('input', renderPlayers);
+  $('pReload').addEventListener('click', loadPlayers);
+
   function amount(id) { var w = toWei($(id).value); if (!w || w === '0') { say('Escribí un monto en RON.'); return null; } return w; }
   $('connect').addEventListener('click', function () {
     $('gateMsg').textContent = 'Revisá tu billetera…';

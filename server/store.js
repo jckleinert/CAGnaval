@@ -88,10 +88,11 @@ class Store {
    * kcal: what the run adds to the Total (calories x tickets for a paid run).
    * single: the run's calories as if played with one ticket, for the Best run ranking (defaults to kcal).
    */
-  addScore(week, key, name, kcal, at, addr, single) {
+  addScore(week, key, name, kcal, at, addr, single, tickets) {
     const w = this._week(week, true);
     const p = w.players[key] || (w.players[key] = { name: name, total: 0, best: 0, bestAt: 0, runs: 0, last: 0 });
     p.name = name; p.total += kcal; p.runs += 1; p.last = at;
+    if (tickets) p.tickets = (p.tickets || 0) + tickets;
     if (addr) p.addr = addr;                                   // wallet that gets this row's share of the pool
     const one = single === undefined ? kcal : single;
     if (one > p.best) { p.best = one; p.bestAt = at; }         // who got there first wins a tie
@@ -161,6 +162,46 @@ class Store {
     this._write(path.join(this.dir, 'profiles.json'), this.profiles);
   }
 
+  /* Banned wallets: no paid runs, out of the ranking and the weekly prizes. */
+  _bans() {
+    if (!this.bans) {
+      try { this.bans = JSON.parse(fs.readFileSync(path.join(this.dir, 'bans.json'), 'utf8')); } catch (e) { this.bans = {}; }
+    }
+    return this.bans;
+  }
+  isBanned(addr) { return !!addr && Object.prototype.hasOwnProperty.call(this._bans(), String(addr).toLowerCase()); }
+  setBan(addr, on, at) {
+    const b = this._bans(), a = String(addr).toLowerCase();
+    if (on) b[a] = { at }; else delete b[a];
+    this._write(path.join(this.dir, 'bans.json'), b);
+  }
+
+  /* Every player with a name, with their numbers: all weeks, this week, golden prizes. keyOf turns a wallet into its ranking key. */
+  players(keyOf, thisWeek) {
+    const prof = this._profiles(), all = Object.create(null);
+    let files = [];
+    try { files = fs.readdirSync(path.join(this.dir, 'weeks')).filter((f) => WEEK_RE.test(f.slice(0, 10)) && f.endsWith('.json')); } catch (e) { files = []; }
+    const weeks = new Set(files.map((f) => f.slice(0, 10)));
+    for (const w of this.weeks.keys()) weeks.add(w);
+    for (const w of weeks) {
+      let players;
+      if (this.weeks.has(w)) players = this.weeks.get(w).players;
+      else { try { players = JSON.parse(fs.readFileSync(path.join(this.dir, 'weeks', w + '.json'), 'utf8')).players || {}; } catch (e) { players = {}; } }
+      for (const k of Object.keys(players)) {
+        const p = players[k], a = all[k] || (all[k] = { runs: 0, total: 0, tickets: 0, best: 0, last: 0, week: 0, weekRuns: 0 });
+        a.runs += p.runs || 0; a.total += p.total || 0; a.tickets += p.tickets || 0; a.best = Math.max(a.best, p.best || 0); a.last = Math.max(a.last, p.last || 0);
+        if (w === thisWeek) { a.week = p.total || 0; a.weekRuns = p.runs || 0; }
+      }
+    }
+    const golds = this.golds();
+    return Object.keys(prof).map((addr) => {
+      const s = all[keyOf(addr)] || { runs: 0, total: 0, tickets: 0, best: 0, last: 0, week: 0, weekRuns: 0 };
+      const mine = golds.filter((g) => (g.addr ? g.addr === addr : g.name === prof[addr].name));
+      const goldWei = mine.reduce((t, g) => t + BigInt(g.wei), 0n);
+      return Object.assign({ addr, name: prof[addr].name, joined: prof[addr].at || 0, banned: this.isBanned(addr), golds: mine.length, goldWei: goldWei.toString() }, s);
+    });
+  }
+
   /* Paid runs already used for a game session, so a run is never played twice. */
   _runKey(id) { return (this.cfg.GAME_CONTRACT || '').toLowerCase() + ':' + id; }
   chainRun(id) {
@@ -181,7 +222,8 @@ class Store {
   leaderboard(week, by) {
     const players = this._week(week, false).players;
     const rows = Object.keys(players)
-      .map((key) => ({ key, name: players[key].name, total: players[key].total, best: players[key].best, bestAt: players[key].bestAt || 0, runs: players[key].runs, addr: players[key].addr || null }));
+      .map((key) => ({ key, name: players[key].name, total: players[key].total, best: players[key].best, bestAt: players[key].bestAt || 0, runs: players[key].runs, addr: players[key].addr || null }))
+      .filter((r) => !r.addr || !this.isBanned(r.addr));          // banned wallets are out of the ranking and the prizes
     const tie = (a, b) => (a.key < b.key ? -1 : 1);
     if (by === 'best') return rows.sort((a, b) => b.best - a.best || a.bestAt - b.bestAt || b.total - a.total || tie(a, b));
     return rows.sort((a, b) => b.total - a.total || b.best - a.best || tie(a, b));

@@ -48,3 +48,14 @@ h3 { margin: 16px 0 8px; font-size: 15px; color: var(--dim); }
 .list { margin: 0; padding-left: 18px; color: var(--dim); }
 @media (max-width: 560px) { .tbl .addr { display: none; } .field input { width: 120px; } }
 [hidden] { display: none !important; }
+
+/* Players */
+.tblwrap { overflow-x: auto; }
+#pRows tr.banned td { color: var(--dim); }
+#pRows tr.banned td:first-child { text-decoration: line-through; }
+.tag { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #EAF7EE; color: var(--green); }
+.tag.ban { background: #FFEFF4; color: var(--pink-d); }
+.btn.small.danger { color: var(--pink-d); border-color: #FFD3E0; }
+.pbar { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.pbar input { flex: 0 1 280px; min-width: 0; padding: 8px 12px; font: 500 15px var(--font); color: var(--ink); border: 2px solid var(--blue-l); border-radius: 12px; background: #F6FBFE; }
+.pbar input:focus { outline: none; border-color: var(--blue); }

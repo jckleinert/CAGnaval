@@ -181,6 +181,7 @@
     if (c === 'sign-in') return 'Sign in again with your wallet.';
     if (c === 'wallet') return 'The wallet said: ' + String(e.message).slice(0, 90);
     if (c === 'chain-busy') return 'The Ronin network is busy. Tap the button again in a few seconds.';
+    if (c === 'banned') return 'This wallet can\'t play for prizes.';
     if (c === 'not-your-run') return 'That transaction belongs to another wallet.';
     if (c === 'no-run-in-tx') return 'That transaction did not start a run.';
     if (c === 'network') return 'Could not reach the server. Check your connection and try again.';
