@@ -34,6 +34,7 @@ module.exports = {
   CHAIN_RPC: process.env.CHAIN_RPC || 'https://api.roninchain.com/rpc',
   CHAIN_ID: num(process.env.CHAIN_ID, 2020),
   // Price of one ticket in RON: the base of the weekly prize estimate shown to players.
+  HOLDER_NFT: process.env.HOLDER_NFT !== undefined ? process.env.HOLDER_NFT : '0xf072ceee77ebf455c72d9aecf91fb23f3fb6cc52',   // Shake, Swap and Sweep only for its holders ('' = for everyone)
   MARKET: process.env.MARKET || 'on',           // 'off' hides the ticket shop
   MARKET_API_KEY: process.env.MARKET_API_KEY || '',
   MARKET_GRAPHQL: process.env.MARKET_GRAPHQL || '',

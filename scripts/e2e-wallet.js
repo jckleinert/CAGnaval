@@ -99,6 +99,11 @@ const { createApp } = require('../server/index.js');
   const note = await text('counterNote');
   const box = await page.locator('#game').boundingBox();
   for (let i = 0; i < 6; i++) { await page.mouse.click(box.x + 40 + i * 30, box.y + 30); await page.waitForTimeout(700); }
+  // not a CAG NFT holder: Shake, Swap and Sweep are locked
+  const lockedPowers = await page.evaluate(() => document.querySelector('.powers').classList.contains('locked'));
+  await page.click('#pwShake');
+  const lockToast = await page.textContent('#toast');
+  if (shot) await page.screenshot({ path: path.join(shot, 'w2c-locked.png') });
   // leave the run: the referee closes it and settles it on the chain
   const live = Array.from(app.runs.active.values())[0];
   app.runs._expire(live, 'test');
@@ -144,10 +149,10 @@ const { createApp } = require('../server/index.js');
   await page.click('#openBoard');
   await page.waitForTimeout(800);
   if (shot) await page.screenshot({ path: path.join(shot, 'w4-rank.png') });
-  const out = { howShown, notice, goldRows, bigFirst, welcome, label, capped, note, gold, week, shopTotal, shopNote, shopDone, homeBack, tixBefore, tixAfter, sent, settled, problems };
+  const out = { lockedPowers, lockToast, howShown, notice, goldRows, bigFirst, welcome, label, capped, note, gold, week, shopTotal, shopNote, shopDone, homeBack, tixBefore, tixAfter, sent, settled, problems };
   console.log(JSON.stringify(out, null, 1));
   await browser.close(); app.server.close();
-  const ok = howShown && /Vale\.eth/.test(notice) && /\+0\.9 RON/.test(notice) && goldRows[0] === 'Vale.eth' && bigFirst === 'Lunaa' && welcome === 'Welcome, Wallet bot!' && label === 'Play with 3 tickets' && capped && /3 tickets/.test(note) && sent.map((s) => s.kind).join() === 'play,claimGold,claim,buy' && sent[0].n === 3 && sent[3].n === 3 && sent[3].gas === '0x30d40'
+  const ok = lockedPowers && /CAG NFT holders/.test(lockToast) && howShown && /Vale\.eth/.test(notice) && /\+0\.9 RON/.test(notice) && goldRows[0] === 'Vale.eth' && bigFirst === 'Lunaa' && welcome === 'Welcome, Wallet bot!' && label === 'Play with 3 tickets' && capped && /3 tickets/.test(note) && sent.map((s) => s.kind).join() === 'play,claimGold,claim,buy' && sent[0].n === 3 && sent[3].n === 3 && sent[3].gas === '0x30d40'
     && shopTotal === '16 RON' && /5 on sale/.test(shopNote) && tixAfter === tixBefore + 3 && shopDone === 'You have ' + tixAfter + ' tickets' && homeBack
     && settled.length === 1 && gold === '2.5 RON' && week === '12.34 RON' && !problems.length;
   console.log(ok ? 'E2E WALLET OK' : 'E2E WALLET FAILED');

@@ -220,6 +220,20 @@ class Chain {
     if (this._walletCache.size > 2000) this._walletCache.clear();
     return v;
   }
+  /* Does this wallet hold an NFT of the holders' collection (Shake, Swap and Sweep)? Kept 5 minutes. */
+  async isHolder(addr) {
+    const nft = this.cfg.HOLDER_NFT;
+    if (!nft) return true;
+    this._holders = this._holders || new Map();
+    const hit = this._holders.get(addr);
+    if (hit && Date.now() - hit.at < 300000) return hit.v;
+    const c = new ethers.Contract(nft, ['function balanceOf(address) view returns (uint256)'], this.provider);
+    let v = false;
+    try { v = (await this._read(() => c.balanceOf(addr))) > 0n; } catch (e) { console.error('holder check failed:', e.shortMessage || e.message); if (hit) return hit.v; }
+    this._holders.set(addr, { at: Date.now(), v });
+    if (this._holders.size > 5000) this._holders.clear();
+    return v;
+  }
   forget(addr) { if (this._walletCache) this._walletCache.delete(addr); }
 
   /* Data of the player's own transactions. */

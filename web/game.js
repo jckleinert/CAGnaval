@@ -41,7 +41,7 @@
   var homeEl = $('home'), overEl = $('over'), boardEl = $('board'), nameEl = $('name'), prizesEl = $('prizes'), shopEl = $('shop'), chooseEl = $('choose'), howEl = $('howto');
   var CW = window.CAGW || { enabled: false };
   var paid = { tickets: 1, info: null, lastMode: 'practice', busy: false, name: undefined };   // name: undefined = not asked yet, null = none chosen
-  var btn = { shake: $('pwShake'), swap: $('pwSwap'), sweep: $('pwSweep') };
+  var btn = { shake: $('pwShake'), swap: $('pwSwap'), sweep: $('pwSweep') }, powersEl = document.querySelector('.powers');
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var css = getComputedStyle(document.documentElement);
   var INK = css.getPropertyValue('--ink').trim() || '#1B2233';
@@ -75,7 +75,7 @@
         var timer = setTimeout(function () { if (ctl) ctl.abort(); }, 8000);
         fetch(API + path, {
           method: method, cache: 'no-store', signal: ctl ? ctl.signal : undefined,
-          headers: body ? { 'Content-Type': 'application/json' } : undefined,
+          headers: (function () { var h = {}; if (body) h['Content-Type'] = 'application/json'; if (CW.token && path === '/api/runs') h.Authorization = 'Bearer ' + CW.token; return h; })(),
           body: body ? JSON.stringify(body) : undefined
         }).then(function (res) {
           clearTimeout(timer);
@@ -209,7 +209,7 @@
     }).then(function (start) {
       var sim = new Sim({ pub: start.pub, events: true });
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
-      run = { id: start.runId, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0, tickets: start.tickets || 0 };
+      run = { id: start.runId, powers: start.powers !== false, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0, tickets: start.tickets || 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
       homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; chooseEl.hidden = true; howEl.hidden = true; toastEl.hidden = true; boardBack = null;
       if (!goldsEl.hidden && !desktop()) { goldsEl.hidden = true; gfeed.back = null; document.body.classList.remove('golds-open'); }
@@ -737,7 +737,13 @@
     post('drop', msg, function (reply) { if (reply.piece) sim.setPiece(reply.k, reply.piece); });
   }
 
+  /* Shake, Swap and Sweep are for holders of a CAG NFT (when the game has the blockchain on). */
+  function powersLocked() {
+    if (run) return run.powers === false;
+    return !!(CW.enabled && !(paid.info && paid.info.holder));
+  }
   function usePower(type) {
+    if (powersLocked()) { toast('Exclusive for CAG NFT holders'); return; }
     if (!run || !run.live) return;
     var sim = run.sim, msg = { seq: run.seq + 1, step: sim.step, power: type, h: sim.hash() };
     if (!sim.power(type)) {
@@ -1075,12 +1081,14 @@
     var max = sim ? sim.maxLv : -1;
     if (max !== lastMax) { lastMax = max; for (i = 0; i < ladder.children.length; i++) ladder.children[i].classList.toggle('on', i <= max); }
 
-    var uses = sim && run.live ? '' + sim.uses.shake + sim.uses.swap + sim.uses.sweep : 'off';
+    var locked = powersLocked();
+    var uses = (locked ? 'L' : '') + (sim && run.live ? '' + sim.uses.shake + sim.uses.swap + sim.uses.sweep : 'off');
     if (uses !== lastUses) {
       lastUses = uses;
+      powersEl.classList.toggle('locked', locked);
       Object.keys(btn).forEach(function (k) {
         var left = sim ? sim.uses[k] : 1;
-        btn[k].disabled = !(sim && run.live && left);
+        btn[k].disabled = locked ? !(sim && run.live) : !(sim && run.live && left);
       });
     }
 

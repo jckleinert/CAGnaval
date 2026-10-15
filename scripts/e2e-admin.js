@@ -26,7 +26,7 @@ const { Chain } = require('../server/chain.js');
     async owner() { return owner.address.toLowerCase(); },
     async adminRead() {
       return { week: W, contract: '0x' + '4'.repeat(40), owner: owner.address, referee: '0x' + '2'.repeat(40), treasury: owner.address, ticket: '0x' + '6'.repeat(40), ticketId: '1',
-        paused: false, capPerTicket: RON(1), maxTickets: '5', poolBps: '7250', bonusBps: '2000', feeBps: '250', fundGrace: '259200', claimDelay: '3600', claimWeeks: '1',
+        paused: false, capPerTicket: RON(1), maxTickets: '5', poolBps: '7250', bonusBps: '2000', feeBps: '250', fundGrace: '600000', claimDelay: '3600', claimWeeks: '1',
         bonusBox: RON(10), bonusFree: RON(9), goldPending: RON(1), openRuns: '0', runCount: '12', ticketsHeld: '9', refereeBalance: RON('4.98'),
         weeks: [week(W, { weekPool: RON(3) }), week(W - 1), week(W - 2, { postedAt: '1', weekPool: RON(5), weekAssigned: RON(5), weekClaimed: RON(3), leftover: RON(2) })], pendingTx: [] };
     },

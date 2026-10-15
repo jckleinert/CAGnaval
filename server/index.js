@@ -54,6 +54,12 @@ function createApp(options) {
   const bootAt = Date.now();
   if (chain.enabled) runs.onPaid = (run, result) => chain.settle(run.chain.runId, result.goldWei || '0');
 
+  /* Shake, Swap and Sweep: for everyone without the blockchain; with it, for holders of the NFT. */
+  async function powersFor(addr) {
+    if (!chain.enabled || !config.HOLDER_NFT) return true;
+    if (!addr || !chain.isHolder) return false;
+    try { return await chain.isHolder(addr); } catch (e) { return false; }
+  }
   function who(req) {
     const h = String(req.headers.authorization || '');
     const a = auth.check(h.startsWith('Bearer ') ? h.slice(7) : '');
@@ -105,7 +111,7 @@ function createApp(options) {
     if (seen && !(seen.status === 'playing' && seen.at < bootAt && !runs.active.has(seen.run))) throw new RunError(409, 'run-finished');
     const prof = store.profile(addr);
     if (!prof) throw new RunError(409, 'need-name');
-    const out = runs.create({ id: addr, name: prof.name }, { ua: req.headers['user-agent'], ip, chain: { runId: found.runId, tickets: cr.tickets, cap: cr.cap } });
+    const out = runs.create({ id: addr, name: prof.name }, { ua: req.headers['user-agent'], ip, chain: { runId: found.runId, tickets: cr.tickets, cap: cr.cap }, powers: await powersFor(addr) });
     store.addTickets(store.weekId(Date.now()), cr.tickets);
     out.chainRun = found.runId;
     if (chain.forget) chain.forget(addr);
@@ -199,7 +205,7 @@ function createApp(options) {
           last = { kcal: lmine, mine: shareOf(estimatePool(lb.tickets), lmine, lb.sum) };
         }
         return send(res, 200, Object.assign({ address: addr, name: prof ? prof.name : null,
-          estimate: { pool: pool.toString(), mine: shareOf(pool, mine, board.sum), kcal: mine, endsAt: board.endsAt }, lastEstimate: last }, info), cors);
+          estimate: { pool: pool.toString(), mine: shareOf(pool, mine, board.sum), kcal: mine, endsAt: board.endsAt }, lastEstimate: last, holder: await powersFor(addr) }, info), cors);
       }
       if (parts[1] === 'admin') {
         if (!chain.enabled) throw new RunError(400, 'practice-only');
@@ -265,7 +271,7 @@ function createApp(options) {
       }
       if (req.method === 'GET' && parts[1] === 'golds') {
         // Golden onigiri prizes of paid runs: the latest, and the biggest of this week.
-        const all = store.golds(), week = store.weekId(Date.now());
+        const now = Date.now(), all = store.golds().filter((g) => g.at <= now), week = store.weekId(now);
         const pub = (g) => ({ id: g.id, name: g.name, mult: g.mult, wei: g.wei, at: g.at });
         const latest = all.slice(-30).reverse().map(pub);
         const biggest = all.filter((g) => g.week === week).sort((a, b) => (BigInt(b.wei) > BigInt(a.wei) ? 1 : BigInt(b.wei) < BigInt(a.wei) ? -1 : b.at - a.at)).slice(0, 15).map(pub);
@@ -304,7 +310,11 @@ function createApp(options) {
           console.log('paid run', out.chainRun, 'started for', who(req), out.tickets, 'tickets');
           return send(res, 200, out, cors);
         }
-        if (parts.length === 2) return send(res, 200, runs.create(body.player, { ua: req.headers['user-agent'], ip }), cors);
+        if (parts.length === 2) {
+          let addr = null;
+          if (req.headers.authorization) { try { addr = who(req); } catch (e) { addr = null; } }
+          return send(res, 200, runs.create(body.player, { ua: req.headers['user-agent'], ip, powers: await powersFor(addr) }), cors);
+        }
         const id = parts[2], action = parts[3];
         if (!/^[a-f0-9]{24}$/.test(id)) throw new RunError(404, 'run-not-found');
         if (action === 'drop') return send(res, 200, runs.event(id, Object.assign({}, body, { type: 'drop' })), cors);

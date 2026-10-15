@@ -76,6 +76,7 @@ class RunManager {
       pub: crypto.randomBytes(4).readUInt32BE(0),
       gold: pieces.goldPlan(secret, this.cfg),
       events: [], lastReply: null, mismatchAt: 0, ip, chain,
+      powers: !(meta && meta.powers === false),     // Shake, Swap and Sweep (only for NFT holders when that is on)
       ua: String((meta && meta.ua) || '').slice(0, 200)
     };
     run.sim = new Sim({ pub: run.pub });
@@ -87,7 +88,8 @@ class RunManager {
       runId: run.id, pub: run.pub, commit: run.commit,
       pieces: [this._reveal(run, 1), this._reveal(run, 2)],
       rulesVersion: R.VERSION,
-      tickets: chain ? chain.tickets : 0
+      tickets: chain ? chain.tickets : 0,
+      powers: run.powers
     };
   }
 
@@ -143,6 +145,7 @@ class RunManager {
       run.events.push({ t: 'drop', x: body.x, step: body.step, at: t, h: isInt(body.h) ? body.h >>> 0 : null });
       reply = { ok: true, k: sim.dropped + 2, piece: this._reveal(run, sim.dropped + 2), sync: !run.mismatchAt };
     } else {
+      if (!run.powers) throw new RunError(403, 'powers-locked');
       if (['shake', 'swap', 'sweep'].indexOf(body.power) < 0 || !sim.power(body.power)) {
         this._finalize(run, 'invalid', 'illegal-power'); throw new RunError(422, 'illegal-move');
       }
@@ -229,7 +232,7 @@ class RunManager {
     if (run.chain) {
       try { this.store.setChainRun(run.chain.runId, { status: 'done', run: run.id, at: t, gold: result.goldWei }); } catch (e) { console.error(e.message); }
       if (result.goldWei !== '0') {
-        try { this.store.addGold({ id: String(run.chain.runId), name: run.player.name, mult: result.gold.mult, wei: result.goldWei, tickets: run.chain.tickets, at: t, week: result.week }); } catch (e) { console.error('could not note golden prize', e.message); }
+        try { this.store.addGold({ id: String(run.chain.runId), name: run.player.name, mult: result.gold.mult, wei: result.goldWei, tickets: run.chain.tickets, at: t + 8000, week: result.week }); } catch (e) { console.error('could not note golden prize', e.message); }
       }
       try { if (this.onPaid) this.onPaid(run, result); } catch (e) { console.error('could not settle', run.chain.runId, e.message); }
     }

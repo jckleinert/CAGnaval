@@ -635,3 +635,10 @@ body.golds-open .gstack { display: none; }
 .hrow .t { display: block; margin-top: 2px; font-size: 12.5px; font-weight: 500; line-height: 1.3; color: #5D6275; }
 .hrow.y .t { color: rgba(27, 34, 51, 0.75); }
 .hf.oni { background-image: url(/web/img/oni-gold.webp); }
+/* Shake, Swap and Sweep for CAG NFT holders only */
+.powers { position: relative; }
+.pw-lock { display: none; }
+.powers.locked .pw-lock { position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 5px; padding: 4px 11px 5px 8px; border-radius: 999px; background: var(--paper); box-shadow: 0 3px 0 var(--shade); font-size: calc(12px * var(--k)); font-weight: 700; color: var(--ink); white-space: nowrap; pointer-events: none; }
+.pw-lock svg { width: 14px; height: 14px; color: var(--pink); }
+.powers.locked .pw { opacity: 0.4; filter: grayscale(1); }
+.powers.locked .pw:not(:disabled) { cursor: pointer; }
