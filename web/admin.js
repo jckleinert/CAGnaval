@@ -64,6 +64,9 @@
     $('gate').hidden = true; $('panel').hidden = false;
     $('who').textContent = 'Dueño ' + short(CW.address);
     $('sContract').textContent = short(s.contract);
+    var st = s.storage || {};
+    $('sStore').textContent = st.safe ? 'En disco permanente ✓' : 'Se borran en cada deploy ✗';
+    $('sStore').className = st.safe ? 'ok' : 'warn';
     $('sState').textContent = s.paused ? 'Pausado' : 'Activo';
     $('sState').className = s.paused ? 'warn' : 'ok';
     $('pause').textContent = s.paused ? 'Reanudar el juego' : 'Pausar el juego';

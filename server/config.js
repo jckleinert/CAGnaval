@@ -4,7 +4,8 @@ const num = (v, d) => (v === undefined || v === '' || Number.isNaN(Number(v)) ? 
 
 module.exports = {
   PORT: num(process.env.PORT, 3000),
-  DATA_DIR: process.env.DATA_DIR || require('path').join(__dirname, '..', 'data'),
+  // where names, rankings and the golden history are kept: on Railway, the attached volume (a disk that survives deploys)
+  DATA_DIR: process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || require('path').join(__dirname, '..', 'data'),
   // Chance that a run contains a golden food (design: 1 in 10, so the golden box pays at most
   // 18% of the ticket price on average: 0.1 x average multiplier 1.8 x ticket).
   GOLD_ODDS: num(process.env.GOLD_ODDS, 0.1),

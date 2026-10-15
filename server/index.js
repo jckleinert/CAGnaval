@@ -75,6 +75,13 @@ function createApp(options) {
   function shareOf(pool, total, sum) { return sum > 0 && total > 0 ? (pool * BigInt(total) / BigInt(sum)).toString() : '0'; }
 
   /* The admin panel: the contract as it stands, plus the rankings with wallets and what each would get. */
+  /* Is the data folder on a disk that survives deploys? (Railway tells where its volume is.) */
+  function storage() {
+    const vol = process.env.RAILWAY_VOLUME_MOUNT_PATH || '';
+    const dir = path.resolve(config.DATA_DIR);
+    const onRailway = !!(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_SERVICE_ID);
+    return { dir, volume: vol || null, safe: vol ? (dir === path.resolve(vol) || dir.startsWith(path.resolve(vol) + path.sep)) : !onRailway };
+  }
   async function adminState() {
     const c = await chain.adminRead();
     const price = ethers.parseEther(String(config.TICKET_PRICE));
@@ -93,6 +100,7 @@ function createApp(options) {
         share: shareOf(pool > 0n ? pool : est, r.total, sum) }));
     }
     c.ticketPrice = String(config.TICKET_PRICE);
+    c.storage = storage();
     return c;
   }
 
@@ -171,7 +179,7 @@ function createApp(options) {
       if (limited(ip)) throw new RunError(429, 'slow-down');
       const parts = url.pathname.split('/').filter(Boolean); // ['api', ...]
       if (req.method === 'GET' && parts[1] === 'health') {
-        return send(res, 200, { ok: true, rulesVersion: Sim.RULES.VERSION, activeRuns: runs.active.size,
+        return send(res, 200, { ok: true, rulesVersion: Sim.RULES.VERSION, activeRuns: runs.active.size, dataSafe: storage().safe,
           chain: chain.enabled ? { contract: config.GAME_CONTRACT, referee: chain.referee, pendingTx: chain.jobs.length } : null }, cors);
       }
       if (req.method === 'GET' && parts[1] === 'chain') {
