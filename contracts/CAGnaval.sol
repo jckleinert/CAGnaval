@@ -45,6 +45,7 @@ interface IERC1155 {
 contract CAGnaval {
     // ---------------------------------------------------------------- setup
     address public owner;
+    address public operator;                // day-to-day wallet: pause, void a prize, move leftovers, free a stuck run
     address public referee;
     IERC1155 public ticket;
     uint256 public ticketId;
@@ -111,10 +112,13 @@ contract CAGnaval {
     event Config(uint256 maxTickets, uint256 capPerTicket, uint256 claimDelay, uint256 claimWeeks);
     event RefereeSet(address referee);
     event OwnerSet(address owner);
+    event OperatorSet(address operator);
     event Paused(bool paused);
     event FundGrace(uint256 fundGrace);
 
     modifier onlyOwner() { require(msg.sender == owner, "not owner"); _; }
+    /// Owner or operator. The operator can never take RON or tickets out, nor change settings.
+    modifier onlyStaff() { require(msg.sender == owner || (operator != address(0) && msg.sender == operator), "not staff"); _; }
     modifier onlyReferee() { require(msg.sender == referee, "not referee"); _; }
 
     uint256 private _lock = 1;
@@ -280,8 +284,8 @@ contract CAGnaval {
         emit ResultsPosted(week, players.length, sum);
     }
 
-    /// Owner removes a wrong prize before it is claimed.
-    function voidResult(uint256 week, address player) external onlyOwner {
+    /// Owner or operator removes a wrong prize before it is claimed (it stays in the week, it can roll over).
+    function voidResult(uint256 week, address player) external onlyStaff {
         require(!claimed[week][player], "already claimed");
         uint256 a = prize[week][player];
         prize[week][player] = 0;
@@ -313,9 +317,9 @@ contract CAGnaval {
         return 0;
     }
 
-    /// Owner or referee moves leftover RON of a week into an open week's pool.
+    /// Owner, operator or referee moves leftover RON of a week into an open week's pool.
     function rollover(uint256 fromWeek, uint256 toWeek) external {
-        require(msg.sender == owner || msg.sender == referee, "not allowed");
+        require(msg.sender == owner || msg.sender == referee || (operator != address(0) && msg.sender == operator), "not allowed");
         require(toWeek >= currentWeek(), "target week closed");
         // before the claim deadline only the part results did not hand out can move,
         // and only once results are posted (so a pool is never moved by mistake first)
@@ -403,7 +407,10 @@ contract CAGnaval {
         fundGrace = _fundGrace;
         emit FundGrace(_fundGrace);
     }
-    function setPaused(bool p) external onlyOwner { paused = p; emit Paused(p); }
+    function setPaused(bool p) external onlyStaff { paused = p; emit Paused(p); }
+
+    /// Owner names (or removes, with address 0) the day-to-day operator wallet.
+    function setOperator(address _operator) external onlyOwner { operator = _operator; emit OperatorSet(_operator); }
 
     function transferOwnership(address newOwner) external onlyOwner {
         require(newOwner != address(0), "zero address");
@@ -411,8 +418,8 @@ contract CAGnaval {
         emit OwnerSet(newOwner);
     }
 
-    /// Owner frees a run the referee never closed (server down, etc.). Pays nothing.
-    function cancelRun(uint256 runId) external onlyOwner {
+    /// Owner or operator frees a run the referee never closed (server down, etc.). Pays nothing.
+    function cancelRun(uint256 runId) external onlyStaff {
         Run storage r = _runs[runId];
         require(!r.settled, "already settled");
         require(block.timestamp >= r.startedAt + 1 days, "give the referee a day");

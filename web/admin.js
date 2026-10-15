@@ -34,7 +34,7 @@
   function load() {
     return CW.api('GET', '/api/admin/state', null, 120000).then(function (s) { S = s; render(); })
       .catch(function (e) {
-        if (e.code === 'not-owner') { $('panel').hidden = true; $('gate').hidden = false; $('gateMsg').textContent = 'Esta billetera no es la dueña del contrato.'; return; }
+        if (e.code === 'not-owner') { $('panel').hidden = true; $('gate').hidden = false; $('gateMsg').textContent = 'Esta billetera no es la dueña ni la operadora del contrato.'; return; }
         if (e.code === 'sign-in') { $('panel').hidden = true; $('gate').hidden = false; return; }
         var t = 'No se pudo leer el contrato' + (e.code === 'network' || e.code === 'chain-busy' ? ': la red de Ronin está lenta.' : ' (' + e.code + ').');
         if ($('panel').hidden) { $('gateMsg').textContent = t + ' Tocá "Conectar billetera" de nuevo en un momento.'; $('connect').disabled = false; }
@@ -65,7 +65,20 @@
     var s = S, now = s.weeks[0], last = s.weeks[1];
     if ($('panel').hidden) loadPlayers();
     $('gate').hidden = true; $('panel').hidden = false;
-    $('who').textContent = 'Dueño ' + short(CW.address);
+    var op = s.role === 'operator';
+    $('who').textContent = (op ? 'Operador ' : 'Dueño ') + short(CW.address);
+    // things only the owner (cold wallet) can do: take RON or tickets out, change settings, name the operator
+    ['boxTake', 'tixTake', 'spSave', 'cfSave', 'opSave', 'opDel'].forEach(function (id) {
+      $(id).disabled = op; $(id).title = op ? 'Solo la billetera dueña' : '';
+    });
+    var hasOp = s.operator !== null && s.operator !== undefined;
+    $('opNote').textContent = !hasOp ? 'Este contrato no tiene billetera operadora (es de una versión anterior).'
+      : (s.operator === '0x0000000000000000000000000000000000000000'
+        ? 'Sin operadora. Nombrá una billetera de uso diario para no usar la billetera dueña: podrá pausar, anular premios, mover lo no cobrado al pozo y entrar a este panel. Nunca puede sacar RON ni tickets, ni cambiar ajustes.'
+        : 'Operadora actual: ' + s.operator + '. Puede pausar, anular premios, mover lo no cobrado al pozo y entrar a este panel. Nunca puede sacar RON ni tickets, ni cambiar ajustes.')
+      + (op ? ' Esta parte la cambia solo la billetera dueña.' : '');
+    $('opRow').hidden = !hasOp;
+    $('opDel').hidden = s.operator === '0x0000000000000000000000000000000000000000';
     $('sContract').textContent = short(s.contract);
     var st = s.storage || {};
     $('sStore').textContent = st.safe ? 'En disco permanente ✓' : 'Se borran en cada deploy ✗';
@@ -113,6 +126,7 @@
       var td = cell(tr, '');
       if (ended && left > 0n) {
         var b1 = document.createElement('button'); b1.className = 'btn small pink'; b1.textContent = 'Retirar';
+        if (s.role === 'operator') { b1.disabled = true; b1.title = 'Solo la billetera dueña'; }
         b1.addEventListener('click', function () { send('recoverPool', [String(wk.week), CW.address], null, 'retirar ' + ron(wk.leftover) + ' RON sin cobrar de la semana del ' + wk.weekId); });
         var b2 = document.createElement('button'); b2.className = 'btn small'; b2.textContent = 'Al pozo actual';
         b2.addEventListener('click', function () { send('rollover', [String(wk.week), String(s.weeks[0].week)], null, 'pasar ' + ron(wk.leftover) + ' RON al pozo de esta semana'); });
@@ -208,6 +222,21 @@
       .catch(function (e) { $('gateMsg').textContent = e.code === 'rejected' ? 'Cancelado en la billetera.' : (e.message || 'No se pudo conectar.'); });
   });
   $('reload').addEventListener('click', function () { say('Actualizando…'); load().then(function () { say(''); }); });
+  function addrOf(v) {
+    var a = String(v || '').trim().replace(/^ronin:/i, '0x');
+    return /^0x[0-9a-fA-F]{40}$/.test(a) ? a : null;
+  }
+  $('opSave').addEventListener('click', function () {
+    var a = addrOf($('opAddr').value);
+    if (!a) { say('Escribí una dirección de billetera (0x… o ronin:…).'); return; }
+    if (a.toLowerCase() === String(S.owner).toLowerCase()) { say('Esa es la billetera dueña. La operadora tiene que ser otra.'); return; }
+    if (!confirm('¿Nombrar a ' + a + ' como billetera operadora?')) return;
+    send('setOperator', [a], null, 'nombrar la billetera operadora');
+  });
+  $('opDel').addEventListener('click', function () {
+    if (!confirm('¿Quitar la billetera operadora? Ya no va a poder entrar al panel ni pausar.')) return;
+    send('setOperator', ['0x0000000000000000000000000000000000000000'], null, 'quitar la billetera operadora');
+  });
   $('pause').addEventListener('click', function () {
     var p = !S.paused;
     if (p && !confirm('¿Pausar? Nadie va a poder empezar partidas con tickets ni cobrar premios hasta que lo reanudes.')) return;

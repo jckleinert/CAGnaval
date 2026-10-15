@@ -251,6 +251,19 @@
    {
     "indexed": false,
     "internalType": "address",
+    "name": "operator",
+    "type": "address"
+   }
+  ],
+  "name": "OperatorSet",
+  "type": "event"
+ },
+ {
+  "anonymous": false,
+  "inputs": [
+   {
+    "indexed": false,
+    "internalType": "address",
     "name": "owner",
     "type": "address"
    }
@@ -1047,6 +1060,19 @@
  },
  {
   "inputs": [],
+  "name": "operator",
+  "outputs": [
+   {
+    "internalType": "address",
+    "name": "",
+    "type": "address"
+   }
+  ],
+  "stateMutability": "view",
+  "type": "function"
+ },
+ {
+  "inputs": [],
   "name": "owner",
   "outputs": [
    {
@@ -1249,6 +1275,19 @@
    }
   ],
   "name": "setFundGrace",
+  "outputs": [],
+  "stateMutability": "nonpayable",
+  "type": "function"
+ },
+ {
+  "inputs": [
+   {
+    "internalType": "address",
+    "name": "_operator",
+    "type": "address"
+   }
+  ],
+  "name": "setOperator",
   "outputs": [],
   "stateMutability": "nonpayable",
   "type": "function"

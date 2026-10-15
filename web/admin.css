@@ -61,3 +61,8 @@ h3 { margin: 16px 0 8px; font-size: 15px; color: var(--dim); }
 .pbar input { flex: 0 1 280px; min-width: 0; padding: 8px 12px; font: 500 15px var(--font); color: var(--ink); border: 2px solid var(--blue-l); border-radius: 12px; background: #F6FBFE; }
 .pbar input:focus { outline: none; border-color: var(--blue); }
 @media (max-width: 560px) { .pbar { flex-wrap: wrap; } }
+
+/* The operator sees the owner-only controls greyed out */
+.locked { opacity: .45; pointer-events: none; }
+.roletag { margin-left: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #FFF6DB; color: #9A6B00; }
+.field input#opAddr { width: 360px; max-width: 70vw; }

@@ -39,6 +39,7 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 |---|---|---|
 | Cargar las ventas (reparte solo) | `deposit(week)` | `week` = `currentWeek()`, o la semana anterior durante las 24 h después del cierre. Mandar en Value lo que te llegó de las ventas. |
 | Cargar solo la caja del bonus | `fundBonus` | Mandar RON en Value. Habilita el cobro de premios pendientes. |
+| Billetera operadora | `setOperator(address)` | Solo la dueña. Billetera de uso diario: puede pausar/reanudar, anular premios (`voidResult`), mover lo no cobrado (`rollover`), liberar partidas trabadas (`cancelRun`) y entrar al panel. Nunca saca RON ni tickets ni cambia ajustes. Para quitarla: `setOperator(0x0000000000000000000000000000000000000000)`. |
 | Premio extra para una semana | `fundPool(week)` | `week` = `currentWeek()`. Mandar RON en Value. Va 100% al pozo (nada a la dorada) y queda anotado en `weekExtra(week)`, así los jugadores ven el pozo con el extra. Más fácil: botón "Sumar premio extra" del panel. |
 | Retirar tickets para volver a venderlos | `withdrawTickets(amount, to)` | Van a la billetera `to`. Ver cuántos hay con `ticketsHeld()`. |
 | Sacar RON de la caja | `withdrawBonus(amount, to)` | Solo la parte libre (`bonusFree()`); lo que se debe a jugadores no se puede tocar. |

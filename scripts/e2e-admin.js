@@ -12,7 +12,7 @@ const { createApp } = require('../server/index.js');
 const { Chain } = require('../server/chain.js');
 
 (async () => {
-  const owner = ethers.Wallet.createRandom(), stranger = ethers.Wallet.createRandom();
+  const owner = ethers.Wallet.createRandom(), stranger = ethers.Wallet.createRandom(), operatorW = ethers.Wallet.createRandom();
   const RON = (n) => ethers.parseEther(String(n)).toString();
   const W = Math.floor((Date.now() / 1000 - 4 * 86400) / (7 * 86400));
   const endOf = (n) => (4 * 86400 + (n + 1) * 7 * 86400) * 1000;
@@ -24,8 +24,9 @@ const { Chain } = require('../server/chain.js');
     enabled: true, jobs: [], referee: '0x' + '2'.repeat(40),
     async info() { return { contract: '0x' + '4'.repeat(40), chainId: 2020, ticket: '0x' + '6'.repeat(40), ticketId: '1', cap: RON(1), maxTickets: 5, week: W, paused: false, poolBps: 7250 }; },
     async owner() { return owner.address.toLowerCase(); },
+    async operator() { return operatorW.address.toLowerCase(); },
     async adminRead() {
-      return { week: W, contract: '0x' + '4'.repeat(40), owner: owner.address, referee: '0x' + '2'.repeat(40), treasury: owner.address, ticket: '0x' + '6'.repeat(40), ticketId: '1',
+      return { week: W, contract: '0x' + '4'.repeat(40), owner: owner.address, operator: operatorW.address, referee: '0x' + '2'.repeat(40), treasury: owner.address, ticket: '0x' + '6'.repeat(40), ticketId: '1',
         paused: false, capPerTicket: RON(1), maxTickets: '5', poolBps: '7250', bonusBps: '2000', feeBps: '250', fundGrace: '600000', claimDelay: '3600', claimWeeks: '1',
         bonusBox: RON(10), bonusFree: RON(9), goldPending: RON(1), openRuns: '0', runCount: '12', ticketsHeld: '9', refereeBalance: RON('4.98'),
         weeks: [week(W, { weekPool: RON(3) }), week(W - 1), week(W - 2, { postedAt: '1', weekPool: RON(5), weekAssigned: RON(5), weekClaimed: RON(3), leftover: RON(2) })], pendingTx: [] };
@@ -80,6 +81,16 @@ const { Chain } = require('../server/chain.js');
   const outsider = await open(stranger);
   await outsider.waitForFunction(() => document.getElementById('gateMsg').textContent.includes('no es la dueña'), null, { timeout: 8000 });
 
+  // the operator gets in, but the owner-only buttons are off
+  const opPage = await open(operatorW);
+  await opPage.waitForFunction(() => !document.getElementById('panel').hidden, null, { timeout: 8000 });
+  await opPage.waitForTimeout(300);
+  const opView = await opPage.evaluate(() => ({ who: document.getElementById('who').textContent,
+    off: ['boxTake', 'tixTake', 'spSave', 'cfSave', 'opSave'].every((id) => document.getElementById(id).disabled),
+    on: !document.getElementById('boxFund').disabled && !document.getElementById('pause').disabled && !document.getElementById('extraFund').disabled,
+    retire: document.querySelector('#oldRows button.pink').disabled }));
+  if (shot) await opPage.locator('section.card', { hasText: 'Billetera operadora' }).screenshot({ path: path.join(shot, 'admin-operator.png') });
+
   const page = await open(owner);
   await page.waitForFunction(() => !document.getElementById('panel').hidden, null, { timeout: 8000 });
   await page.waitForTimeout(300);
@@ -95,6 +106,8 @@ const { Chain } = require('../server/chain.js');
   if (shot) await page.locator('#weekNow').screenshot({ path: path.join(shot, 'admin-extra.png') });
   const nowEst = await page.textContent('#nowEst'), nowExtra = await page.textContent('#nowExtra');
   await page.fill('#extraAmt', '5'); await page.click('#extraFund'); await page.waitForTimeout(300);
+  const opNote = await page.textContent('#opNote');
+  await page.fill('#opAddr', 'ronin:' + '7'.repeat(40)); await page.click('#opSave'); await page.waitForTimeout(300);
   await page.waitForFunction(() => document.querySelectorAll('#pRows tr').length === 2, null, { timeout: 8000 });
   const playerRows = await page.$$eval('#pRows tr', (r) => r.map((x) => [...x.children].map((c) => c.textContent).join('|')));
   await page.fill('#pFind', 'car'); await page.waitForTimeout(100);
@@ -114,14 +127,15 @@ const { Chain } = require('../server/chain.js');
 
   const iface = new ethers.Interface(require('../server/chain.js').GAME_ABI);
   const decoded = sent.map((t) => { const d = iface.parseTransaction({ data: t.data, value: t.value || 0 }); return d.name + '(' + d.args.map(String).join(',') + ')' + (t.value ? ' value ' + ethers.formatEther(BigInt(t.value)) : ''); });
-  const out = { lastStatus, suggest, lastRows, decoded, closes, problems, playerRows, found, banned, inBoard, weekRows, weekHead, nowEst, nowExtra };
+  const out = { lastStatus, suggest, lastRows, decoded, closes, problems, playerRows, found, banned, inBoard, weekRows, weekHead, nowEst, nowExtra, opView, opNote };
   console.log(JSON.stringify(out, null, 1));
   const ok = /Esperando que cargues el pozo/.test(lastStatus) && suggest === '39 RON' && lastRows.length === 2
     && decoded[0] === 'deposit(' + (W - 1) + ') value 39.0' && decoded[1] === 'withdrawTickets(9,' + owner.address + ')' && decoded[2] === 'fundBonus() value 2.0'
     && decoded[3] === 'recoverPool(' + (W - 2) + ',' + owner.address + ')' && closes[0] === W - 1 && !problems.length
     && /^Caro\|0xcccc…cccc\|.+\|2\|6\|8\.000\|8\.000\|1 · 3(\.0)? RON\|OK\|Banear$/.test(playerRows[0]) && found === 1 && banned && !inBoard
     && /^Dani\|.+\|1\|3\|2\.500\|2\.500\|–\|OK\|Banear$/.test(weekRows[0]) && weekHead === 'Mejor partida'
-    && decoded[4] === 'fundPool(' + W + ') value 5.0' && /^50 RON$/.test(nowExtra) && /^60[.,]8/.test(nowEst);
+    && decoded[4] === 'fundPool(' + W + ') value 5.0' && /^50 RON$/.test(nowExtra) && /^60[.,]8/.test(nowEst)
+    && decoded[5] === 'setOperator(0x' + '7'.repeat(40) + ')' && /^Operador /.test(opView.who) && opView.off && opView.on && opView.retire && /Operadora actual/.test(opNote);
   console.log(ok ? 'E2E ADMIN OK' : 'E2E ADMIN FAILED');
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

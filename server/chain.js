@@ -70,11 +70,13 @@ const GAME_ABI = [
   'function setFundGrace(uint256 fundGrace)',
   'function voidResult(uint256 week, address player)',
   'function cancelRun(uint256 runId)',
-  'function recoverPool(uint256 week, address to)'
+  'function recoverPool(uint256 week, address to)',
+  'function operator() view returns (address)',
+  'function setOperator(address operator)'
 ];
 /* Owner actions the admin panel may prepare, and whether they carry RON. */
 const ADMIN_TX = { deposit: true, fundBonus: true, fundPool: true, withdrawTickets: false, withdrawBonus: false, setSplit: false,
-  setConfig: false, setPaused: false, setFundGrace: false, voidResult: false, cancelRun: false, recoverPool: false, rollover: false };
+  setConfig: false, setPaused: false, setOperator: false, setFundGrace: false, voidResult: false, cancelRun: false, recoverPool: false, rollover: false };
 const TICKET_ABI = [
   'function balanceOf(address, uint256) view returns (uint256)',
   'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)'
@@ -337,6 +339,15 @@ class Chain {
   }
 
   /* ------------------------------------------------------------ admin panel */
+  /* The day-to-day wallet the owner named (null if none, or if the contract has no operator yet). */
+  async operator() {
+    if (this._opAt && Date.now() - this._opAt < 60000) return this._op;
+    const v = await this._read(() => this.game.operator()).catch(() => null);
+    this._op = v && v !== ethers.ZeroAddress ? String(v).toLowerCase() : null;
+    this._opAt = Date.now();
+    return this._op;
+  }
+
   async owner() {
     if (this._owner && Date.now() - this._ownerAt < 60000) return this._owner;
     this._owner = String(await this._read(() => this.game.owner())).toLowerCase();
@@ -360,7 +371,7 @@ class Chain {
     const out = { week: w, contract: this.cfg.GAME_CONTRACT };
     const slow = this._adminSlow && Date.now() > (this._adminFreshUntil || 0) && this._adminSlow.week === w && Date.now() - this._adminSlow.at < 300000 ? this._adminSlow : null;
     const LIVE = ['paused', 'bonusBox', 'bonusFree', 'goldPending', 'openRuns', 'runCount', 'ticketsHeld'];
-    const SET = ['owner', 'referee', 'treasury', 'ticket', 'ticketId', 'capPerTicket', 'maxTickets', 'poolBps', 'bonusBps', 'feeBps', 'fundGrace', 'claimDelay', 'claimWeeks'];
+    const SET = ['owner', 'operator', 'referee', 'treasury', 'ticket', 'ticketId', 'capPerTicket', 'maxTickets', 'poolBps', 'bonusBps', 'feeBps', 'fundGrace', 'claimDelay', 'claimWeeks'];
     for (const k of slow ? LIVE : LIVE.concat(SET)) {
       const v = await rd(() => g[k]());
       out[k] = typeof v === 'boolean' || typeof v === 'string' ? v : s(v);
@@ -410,7 +421,8 @@ class Chain {
   /* Data of an owner transaction. value: RON as text ("12.5"), only for the ones that carry RON. */
   txAdmin(fn, args, value) {
     if (!Object.prototype.hasOwnProperty.call(ADMIN_TX, fn)) throw new Error('not allowed');
-    this._adminFreshUntil = Date.now() + 120000;            // the owner is changing something: read it all again for the next 2 minutes
+    this._adminFreshUntil = Date.now() + 120000;
+    if (fn === 'setOperator') this._opAt = 0;            // the owner is changing something: read it all again for the next 2 minutes
     const data = this.iface.encodeFunctionData(fn, args || []);
     const tx = { to: this.cfg.GAME_CONTRACT, data };
     if (ADMIN_TX[fn]) tx.value = '0x' + ethers.parseEther(String(value || '0')).toString(16);

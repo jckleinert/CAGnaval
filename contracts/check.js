@@ -333,10 +333,46 @@ async function fails(p, msg) {
     assert.equal(await bal(G), box + RON('51.5') + await game.weekPool(far)); // box + pools still held
   });
 
+  console.log('Operator');
+  await ok('only the owner names the operator', async () => {
+    assert.equal(await game.operator(), ethers.ZeroAddress);
+    await fails(game.connect(stranger).setOperator(A(stranger)), 'not owner');
+    await fails(game.connect(stranger).setPaused(true), 'not staff');
+    await (await game.setOperator(A(p1))).wait();
+    assert.equal(await game.operator(), A(p1));
+  });
+  await ok('the operator pauses and resumes, voids prizes and frees runs', async () => {
+    await (await game.connect(p1).setPaused(true)).wait();
+    assert.equal(await game.paused(), true);
+    await (await game.connect(p1).setPaused(false)).wait();
+    assert.equal(await game.paused(), false);
+    await fails(game.connect(stranger).voidResult(1, A(p2)), 'not staff');
+    await (await game.connect(p1).voidResult(1, A(p2))).wait();     // nothing there: allowed, changes nothing
+    await fails(game.connect(stranger).cancelRun(1), 'not staff');
+  });
+  await ok('the operator cannot take RON or tickets out, nor change settings', async () => {
+    const op = game.connect(p1);
+    await fails(op.withdrawBonus(1, A(p1)), 'not owner');
+    await fails(op.withdrawTickets(1, A(p1)), 'not owner');
+    await fails(op.withdrawItems(ethers.ZeroAddress, 1, 1, A(p1)), 'not owner');
+    await fails(op.recoverPool(1, A(p1)), 'not owner');
+    await fails(op.setSplit(5000, 4000, 750, A(p1)), 'not owner');
+    await fails(op.setConfig(25, RON(21), 3600, 1), 'not owner');
+    await fails(op.setTicket(ethers.ZeroAddress, 1), 'not owner');
+    await fails(op.setReferee(A(p1)), 'not owner');
+    await fails(op.setFundGrace(60), 'not owner');
+    await fails(op.setOperator(A(p2)), 'not owner');
+    await fails(op.transferOwnership(A(p1)), 'not owner');
+  });
+  await ok('the owner removes the operator', async () => {
+    await (await game.setOperator(ethers.ZeroAddress)).wait();
+    await fails(game.connect(p1).setPaused(true), 'not staff');
+  });
+
   console.log('Owner');
   await ok('ownership moves and the old owner loses control', async () => {
     await (await game.transferOwnership(A(p3))).wait();
-    await fails(game.setPaused(true), 'not owner');
+    await fails(game.setPaused(true), 'not staff');
     await (await game.connect(p3).setReferee(A(p2))).wait();
     assert.equal(await game.referee(), A(p2));
   });

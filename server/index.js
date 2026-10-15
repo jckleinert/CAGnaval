@@ -228,8 +228,10 @@ function createApp(options) {
       if (parts[1] === 'admin') {
         if (!chain.enabled) throw new RunError(400, 'practice-only');
         const addr = who(req);
-        if (addr !== await chain.owner()) throw new RunError(403, 'not-owner');
-        if (req.method === 'GET' && parts[2] === 'state') return send(res, 200, await adminState(), cors);
+        // the owner (cold wallet) or the operator it named (day-to-day wallet)
+        const role = addr === await chain.owner() ? 'owner' : (chain.operator && addr === await chain.operator() ? 'operator' : null);
+        if (!role) throw new RunError(403, 'not-owner');
+        if (req.method === 'GET' && parts[2] === 'state') return send(res, 200, Object.assign(await adminState(), { role }), cors);
         if (req.method === 'POST' && parts[2] === 'tx') {
           const body = await readJson(req);
           let tx;
