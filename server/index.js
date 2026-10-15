@@ -176,7 +176,7 @@ function createApp(options) {
       }
       if (req.method === 'GET' && parts[1] === 'chain') {
         if (!chain.enabled) return send(res, 200, { enabled: false }, cors);
-        return send(res, 200, Object.assign({ enabled: true }, await chain.info()), cors);
+        return send(res, 200, Object.assign({ enabled: true, goldOdds: config.GOLD_ODDS, goldFrom: config.GOLD_FROM }, await chain.info()), cors);
       }
       if (req.method === 'POST' && parts[1] === 'auth') {
         if (!chain.enabled) throw new RunError(400, 'practice-only');

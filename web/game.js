@@ -217,7 +217,7 @@
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
       run = { id: start.runId, powers: start.powers !== false, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0, tickets: start.tickets || 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
-      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; chooseEl.hidden = true; howEl.hidden = true; toastEl.hidden = true; boardBack = null;
+      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; chooseEl.hidden = true; howEl.hidden = true; $('goldinfo').hidden = true; toastEl.hidden = true; boardBack = null;
       if (!goldsEl.hidden && !desktop()) { goldsEl.hidden = true; gfeed.back = null; document.body.classList.remove('golds-open'); }
       if (card) card.classList.remove('leaving');
       PUP.riseAt = nowMs || 1; PUP.sinkAt = 0;                                        // and comes up behind the jar
@@ -316,7 +316,7 @@
   }
   function loadPool() {
     if (!CW.enabled) return;
-    call('GET', '/api/chain', null, 1).then(function (c) { if (c && c.goldMax) $('tGoldMax').textContent = wholeOrDec(c.goldMax); }).catch(function () { /* next time */ });
+    call('GET', '/api/chain', null, 1).then(function (c) { if (c && c.goldMax) $('tGoldMax').textContent = wholeOrDec(c.goldMax); if (c && c.goldOdds) paid.goldOdds = { odds: c.goldOdds, from: c.goldFrom }; }).catch(function () { /* next time */ });
     call('GET', '/api/leaderboard?by=total', null, 1).then(function (b) {
       showPool(b.pool);
       if (b.endsAt) {
@@ -352,11 +352,12 @@
     $('welcomeName').textContent = named ? paid.name : '';
     $('nameField').hidden = named || (on && !asking);   // with the wallet, the name is asked once after connecting
     nameEl.placeholder = asking ? 'Pick your name' : 'Your name';
+    play.disabled = !!busy;
     if (!on) { play.textContent = 'Play'; }
     else if (!signed) { play.textContent = 'Connect Ronin Wallet'; note = 'Connect your wallet to play for prizes.'; }
     else if (asking) { play.textContent = 'Save my name'; note = 'This is how you will appear in the ranking. It stays with your wallet.'; }
     else if (pendingTx()) { play.textContent = 'Resume your paid run'; note = 'Your tickets were sent. Tap to play that run.'; }
-    else if (!info) { play.textContent = 'Play'; note = 'Loading your wallet…'; }
+    else if (!info) { play.textContent = 'Loading your wallet…'; play.disabled = true; note = ''; }
     else {
       var max = maxTickets();
       paid.tickets = clamp(paid.tickets, 1, Math.max(1, max));
@@ -1497,7 +1498,7 @@
   function paintPuppet(face) { paintCag(puppet, pctx, face); PUP.shown = face; }
   /* CAG over the cards: made at the exact number of screen pixels she covers, so she looks sharp.
      A card that is hidden forgets she was up, so she comes up again the next time it shows. */
-  var cards = [homeEl, overEl, boardEl, prizesEl, shopEl, chooseEl, howEl];
+  var cards = [homeEl, overEl, boardEl, prizesEl, shopEl, chooseEl, howEl, $('goldinfo')];
   function drawPeek() {
     if (!ART_P || !PUP.ok) return;
     for (var i = 0; i < cards.length; i++) {
@@ -1669,6 +1670,16 @@
   $('play').addEventListener('click', function () { if (wantsChoice()) openChoose(); else startRun(); });
   $('goPlay').addEventListener('click', function () { closeChoose(); startRun('paid'); });
   $('closeChoose').addEventListener('click', closeChoose);
+  /* The "Max golden" box opens how the golden onigiri pays. */
+  function openGoldInfo() {
+    homeEl.hidden = true; $('goldinfo').hidden = false;
+    $('giMax').textContent = $('tGoldMax').textContent;
+    var o = paid.goldOdds;
+    $('giOdds').textContent = o && o.odds ? 'It shows up in about 1 of every ' + Math.round(1 / o.odds) + ' runs, after your ' + o.from + 'th food.' : 'It shows up in some runs, late in the game.';
+  }
+  $('maxGold').addEventListener('click', openGoldInfo);
+  $('closeGold').addEventListener('click', function () { $('goldinfo').hidden = true; homeEl.hidden = false; renderWallet(); });
+  $('giPlay').addEventListener('click', function () { $('goldinfo').hidden = true; homeEl.hidden = false; renderWallet(); $('play').click(); });
   $('openHow').addEventListener('click', function () { homeEl.hidden = true; howEl.hidden = false; });
   $('closeHow').addEventListener('click', function () { howEl.hidden = true; homeEl.hidden = false; renderWallet(); });
   $('practice').addEventListener('click', function () { startRun('practice'); });
