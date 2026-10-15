@@ -32,11 +32,13 @@
   }
 
   function load() {
-    return CW.api('GET', '/api/admin/state', null, 60000).then(function (s) { S = s; render(); })
+    return CW.api('GET', '/api/admin/state', null, 120000).then(function (s) { S = s; render(); })
       .catch(function (e) {
         if (e.code === 'not-owner') { $('panel').hidden = true; $('gate').hidden = false; $('gateMsg').textContent = 'Esta billetera no es la dueña del contrato.'; return; }
         if (e.code === 'sign-in') { $('panel').hidden = true; $('gate').hidden = false; return; }
-        say('No se pudo leer el contrato (' + e.code + '). Probá "Actualizar" en un momento.');
+        var t = 'No se pudo leer el contrato' + (e.code === 'network' || e.code === 'chain-busy' ? ': la red de Ronin está lenta.' : ' (' + e.code + ').');
+        if ($('panel').hidden) { $('gateMsg').textContent = t + ' Tocá "Conectar billetera" de nuevo en un momento.'; $('connect').disabled = false; }
+        else say(t + ' Probá "Actualizar" en un momento.');
       });
   }
 
@@ -201,7 +203,7 @@
   function amount(id) { var w = toWei($(id).value); if (!w || w === '0') { say('Escribí un monto en RON.'); return null; } return w; }
   $('connect').addEventListener('click', function () {
     $('gateMsg').textContent = 'Revisá tu billetera…';
-    CW.connect().then(function () { $('gateMsg').textContent = 'Leyendo el contrato…'; return load(); })
+    CW.connect().then(function () { $('gateMsg').textContent = 'Leyendo el contrato… La primera vez puede tardar hasta un minuto.'; return load(); })
       .catch(function (e) { $('gateMsg').textContent = e.code === 'rejected' ? 'Cancelado en la billetera.' : (e.message || 'No se pudo conectar.'); });
   });
   $('reload').addEventListener('click', function () { say('Actualizando…'); load().then(function () { say(''); }); });
@@ -255,7 +257,7 @@
 
   CW.init().then(function () {
     if (!CW.enabled) { $('gateMsg').textContent = 'El juego no está conectado a un contrato.'; $('connect').disabled = true; return; }
-    if (CW.address) load();
+    if (CW.address) { $('gateMsg').textContent = 'Leyendo el contrato… La primera vez puede tardar hasta un minuto.'; load(); }
   });
   timer = setInterval(function () { if (!$('panel').hidden && !document.hidden) load(); }, 60000);
 })();

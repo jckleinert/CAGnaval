@@ -344,25 +344,43 @@ class Chain {
   }
 
   /* Everything the owner needs to see, read one value at a time. */
+  /* Everything the admin panel shows. The public Ronin node takes one request at a time, so the
+     settings and the older weeks (which rarely change) are kept for 5 minutes, or until the owner
+     sends a transaction from the panel; only the live numbers are read every time. */
   async adminRead() {
+    if (this._adminBusy) return this._adminBusy;          // two tabs asking at once share one reading
+    this._adminBusy = this._adminRead().finally(() => { this._adminBusy = null; });
+    return this._adminBusy;
+  }
+  async _adminRead() {
     const g = this.game, rd = (f) => this._read(f).catch(() => null);
     const s = (v) => (v === null || v === undefined ? null : v.toString());
     const w = Math.floor((Date.now() / 1000 - MONDAY0_S) / WEEK_S);
     const out = { week: w, contract: this.cfg.GAME_CONTRACT };
-    for (const k of ['owner', 'referee', 'treasury', 'ticket', 'ticketId', 'paused', 'capPerTicket', 'maxTickets', 'poolBps', 'bonusBps', 'feeBps',
-      'fundGrace', 'claimDelay', 'claimWeeks', 'bonusBox', 'bonusFree', 'goldPending', 'openRuns', 'runCount', 'ticketsHeld']) {
+    const slow = this._adminSlow && Date.now() > (this._adminFreshUntil || 0) && this._adminSlow.week === w && Date.now() - this._adminSlow.at < 300000 ? this._adminSlow : null;
+    const LIVE = ['paused', 'bonusBox', 'bonusFree', 'goldPending', 'openRuns', 'runCount', 'ticketsHeld'];
+    const SET = ['owner', 'referee', 'treasury', 'ticket', 'ticketId', 'capPerTicket', 'maxTickets', 'poolBps', 'bonusBps', 'feeBps', 'fundGrace', 'claimDelay', 'claimWeeks'];
+    for (const k of slow ? LIVE : LIVE.concat(SET)) {
       const v = await rd(() => g[k]());
       out[k] = typeof v === 'boolean' || typeof v === 'string' ? v : s(v);
     }
+    if (slow) Object.assign(out, slow.set);
     out.refereeBalance = s(await rd(() => this.provider.getBalance(this.wallet.address)));
     out.weeks = [];
     const claimWeeks = Number(out.claimWeeks || 1);
+    const keep = { week: w, at: slow ? slow.at : Date.now(), set: {}, weeks: {} };
+    for (const k of SET) keep.set[k] = out[k];
     for (const n of [w, w - 1, w - 2, w - 3, w - 4, w - 5]) {
       const row = { week: n, weekId: weekIdOf(n), endsAt: (MONDAY0_S + (n + 1) * WEEK_S) * 1000,
         claimEndsAt: (MONDAY0_S + (n + 1 + claimWeeks) * WEEK_S) * 1000 };
-      for (const k of ['weekPool', 'weekAssigned', 'weekClaimed', 'weekRolled', 'postedAt', 'leftover']) row[k] = s(await rd(() => g[k](n)));
+      const old = n <= w - 2 && slow && slow.weeks[n];
+      if (old) Object.assign(row, old);
+      else for (const k of ['weekPool', 'weekAssigned', 'weekClaimed', 'weekRolled', 'postedAt', 'leftover']) row[k] = s(await rd(() => g[k](n)));
+      keep.weeks[n] = {};
+      for (const k of ['weekPool', 'weekAssigned', 'weekClaimed', 'weekRolled', 'postedAt', 'leftover']) keep.weeks[n][k] = row[k];
       out.weeks.push(row);
     }
+    this._adminSlow = keep;
     out.pendingTx = this.jobs.map((j) => ({ kind: j.kind, runId: j.runId, week: j.week, tries: j.tries }));
     return out;
   }
@@ -370,6 +388,7 @@ class Chain {
   /* Data of an owner transaction. value: RON as text ("12.5"), only for the ones that carry RON. */
   txAdmin(fn, args, value) {
     if (!Object.prototype.hasOwnProperty.call(ADMIN_TX, fn)) throw new Error('not allowed');
+    this._adminFreshUntil = Date.now() + 120000;            // the owner is changing something: read it all again for the next 2 minutes
     const data = this.iface.encodeFunctionData(fn, args || []);
     const tx = { to: this.cfg.GAME_CONTRACT, data };
     if (ADMIN_TX[fn]) tx.value = '0x' + ethers.parseEther(String(value || '0')).toString(16);
