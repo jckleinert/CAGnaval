@@ -92,6 +92,7 @@ const { Chain } = require('../server/chain.js');
   await page.fill('#boxAmt', '2'); await page.click('#boxFund'); await page.waitForTimeout(300);
   await page.click('#lastClose'); await page.waitForTimeout(300);
   await page.click('#oldRows button.pink'); await page.waitForTimeout(300);
+  if (shot) await page.locator('#weekNow').screenshot({ path: path.join(shot, 'admin-extra.png') });
   const nowEst = await page.textContent('#nowEst'), nowExtra = await page.textContent('#nowExtra');
   await page.fill('#extraAmt', '5'); await page.click('#extraFund'); await page.waitForTimeout(300);
   await page.waitForFunction(() => document.querySelectorAll('#pRows tr').length === 2, null, { timeout: 8000 });
