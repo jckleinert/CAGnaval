@@ -1081,7 +1081,7 @@
       nextDisc.classList.toggle('gold', !!(p && p.gold));
       if (p) { nextDisc.appendChild(icon(FOODS[p.lv], nextDisc.getBoundingClientRect().width || 36, p.gold)); nextDisc.setAttribute('aria-label', 'Next: ' + (p.gold ? 'golden ' : '') + FOODS[p.lv].n); }
       else nextDisc.setAttribute('aria-label', 'No next food');
-      if (p && p.gold && run && !run.goldSeen) { run.goldSeen = true; toast('Golden ' + FOODS[p.lv].n.toLowerCase(), 'gold', 'Up next'); }
+      if (p && p.gold && run && !run.goldSeen) run.goldSeen = true;     // the status line beside the jar says it
     }
 
     var max = sim ? sim.maxLv : -1;
@@ -1100,9 +1100,9 @@
 
     var text = '', cls = '';
     if (sim && run.desync) { text = 'Out of sync with the referee'; cls = 'bad'; }
-    else if (sim && sim.gold === 'merged') { text = 'Golden bonus won! See it at the end'; cls = 'hot'; }
-    else if (sim && sim.gold === 'jar') { text = 'Merge the golden one with its twin!'; cls = 'hot'; }
-    else if (sim && run.live && ((p && p.gold) || (sim.current() && sim.current().gold))) { text = 'A golden food is coming!'; cls = 'hot'; }
+    else if (sim && sim.gold === 'merged') { text = 'Golden merged! Multiplier at the end'; cls = 'hot'; }
+    else if (sim && sim.gold === 'jar') { text = 'Merge the golden onigiri with its twin!'; cls = 'hot'; }
+    else if (sim && run.live && ((p && p.gold) || (sim.current() && sim.current().gold))) { text = 'Golden onigiri up next!'; cls = 'hot'; }
     if (sim && !run.live && !run.desync) { text = ''; cls = ''; }   // the result card says the rest
     if (text + cls !== lastStatus) { lastStatus = text + cls; statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); }
 
@@ -1612,7 +1612,7 @@
           if (combo > 1) { comboFx.n = combo; comboFx.t = sim.step; }
           joltJar(ev.lv);
           soundMerge(ev.lv, ev.gold);
-          if (ev.gold) toast('See your multiplier at the end', 'gold', 'Golden merged!');
+          if (ev.gold) { /* the status line beside the jar says it */ }
           else if (!ev.made) toast('Double Pizza Box! +' + fmt(ev.gain) + ' kcal');
           else if (ev.lv === TOP) toast('Pizza Box! +' + fmt(ev.gain) + ' kcal');
         } else if (ev.type === 'sweep') fx.push({ x: ev.x, y: ev.y, r: FOODS[ev.lv].r, t: sim.step, txt: '', gold: false });
