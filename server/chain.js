@@ -31,6 +31,7 @@ const GAME_ABI = [
   'function goldClaimable(address) view returns (uint256 won, bool payableNow)',
   'function weekPool(uint256) view returns (uint256)',
   'function weekRolled(uint256) view returns (uint256)',
+  'function weekExtra(uint256) view returns (uint256)',
   'function weekAssigned(uint256) view returns (uint256)',
   'function postedAt(uint256) view returns (uint256)',
   'function prize(uint256, address) view returns (uint256)',
@@ -383,6 +384,27 @@ class Chain {
     this._adminSlow = keep;
     out.pendingTx = this.jobs.map((j) => ({ kind: j.kind, runId: j.runId, week: j.week, tries: j.tries }));
     return out;
+  }
+
+  /* RON in the contract for a week: from ticket sales (deposit) and extra (added by the owner or
+     rolled over from earlier weeks). Read again every minute at most. Contracts older than the
+     extra counter answer extra = 0, so everything loaded counts as sales. */
+  async weekFunds(n) {
+    this._funds = this._funds || new Map();
+    const hit = this._funds.get(n);
+    if (hit && Date.now() - hit.at < 60000 && Date.now() > (this._adminFreshUntil || 0)) return hit.v;
+    const rd = (f) => this._read(f).catch(() => null);
+    const pool = await rd(() => this.game.weekPool(n)), rolled = await rd(() => this.game.weekRolled(n));
+    if (pool === null) return hit ? hit.v : { sales: 0n, extra: 0n };
+    let extra = this.noExtra ? null : await this._read(() => this.game.weekExtra(n)).catch((e) => {
+      if (/revert|CALL_EXCEPTION|could not decode/i.test(String(e && (e.code || '') + ' ' + e.message))) this.noExtra = true;
+      return null;
+    });
+    extra = extra === null ? 0n : BigInt(extra);
+    const total = BigInt(pool) - BigInt(rolled || 0n);
+    const v = { sales: total > extra ? total - extra : 0n, extra: total > extra ? extra : (total > 0n ? total : 0n) };
+    this._funds.set(n, { at: Date.now(), v });
+    return v;
   }
 
   /* Data of an owner transaction. value: RON as text ("12.5"), only for the ones that carry RON. */

@@ -236,7 +236,7 @@ async function fails(p, msg) {
     assert.equal(new Date(start * 1000).getUTCHours(), 0);
     assert.ok(start <= now && now < start + 7 * 86400);
   });
-  await ok('pool funded for this week', async () => { await (await game.fundPool(w, { value: RON(100) })).wait(); assert.equal(await game.weekPool(w), RON(100)); });
+  await ok('pool funded for this week', async () => { await (await game.fundPool(w, { value: RON(100) })).wait(); assert.equal(await game.weekPool(w), RON(100)); assert.equal(await game.weekExtra(w), RON(100)); });
   await ok('results refused before the week ends', () => fails(game.connect(referee).postResults(w, [A(p1)], [RON(1)]), 'week not over'));
   await ok('a closed week can still be funded for 24 h while its results are not posted', async () => {
     await travel(Number(await game.weekEndsAt(w)) - now + 5);
@@ -244,6 +244,7 @@ async function fails(p, msg) {
     await (await game.fundPool(w, { value: RON(1) })).wait();
     await (await game.deposit(w, { value: RON('0.975') })).wait();   // pool part: 0.5 (split is 50% here)
     assert.equal(await game.weekPool(w), RON('101.5'));
+    assert.equal(await game.weekExtra(w), RON(101));                  // the sales deposit is not extra
     // take the extra back out of the way: it rolls over with the rest at the end
   });
   await ok('only the owner changes the grace; at most 3 days', async () => {
@@ -282,6 +283,7 @@ async function fails(p, msg) {
     await fails(game.rollover(w, w), 'target week closed');
     await (await game.connect(referee).rollover(w, w + 1n)).wait();
     assert.equal(await game.weekPool(w + 1n), RON('41.5'));
+    assert.equal(await game.weekExtra(w + 1n), RON('41.5'));          // a rollover counts as extra for the new week
     await fails(game.rollover(w, w + 1n), 'nothing to move');
     await fails(game.connect(referee).postResults(w, [A(p3)], [RON(1)]), 'more than the pool');
   });

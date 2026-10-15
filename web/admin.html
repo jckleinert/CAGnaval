@@ -51,12 +51,18 @@
         <div class="kv"><span>Pozo estimado (lo que ven los jugadores)</span><b id="nowEst"></b></div>
         <div class="kv"><span>Pozo cargado en el contrato</span><b id="nowPool"></b></div>
         <div class="kv"><span>Para depositar (ventas de esos tickets)</span><b id="nowSuggest"></b></div>
+        <div class="kv"><span>Premio extra agregado</span><b id="nowExtra"></b></div>
       </div>
       <div class="row">
         <label class="field">RON a depositar <input id="nowAmt" inputmode="decimal" placeholder="0"></label>
         <button class="btn pink" id="nowDeposit" type="button">Depositar ventas</button>
       </div>
       <p class="hint">Todo lo que te llegó de las ventas en Ronin Market. El contrato lo reparte solo entre el pozo y la caja de la dorada.</p>
+      <div class="row">
+        <label class="field">RON extra <input id="extraAmt" inputmode="decimal" placeholder="0"></label>
+        <button class="btn" id="extraFund" type="button">Sumar premio extra</button>
+      </div>
+      <p class="hint">Plata tuya para que los jugadores ganen más esta semana: va 100% al pozo de premios (nada a la dorada) y los jugadores ven enseguida el pozo más grande.</p>
       <table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Billetera</th><th class="num">Partidas</th><th class="num">kcal</th><th class="num">≈ RON</th></tr></thead><tbody id="nowRows" data-empty="Nadie jugó con tickets todavía."></tbody></table>
     </section>
 

@@ -86,6 +86,7 @@ contract CAGnaval {
     mapping(uint256 => uint256) public weekAssigned; // RON handed out by results
     mapping(uint256 => uint256) public weekClaimed;  // RON already claimed
     mapping(uint256 => uint256) public weekRolled;   // RON moved to later weeks
+    mapping(uint256 => uint256) public weekExtra;    // part of weekPool added on top of ticket sales (fundPool, rollovers)
     mapping(uint256 => uint256) public postedAt;     // last results posting
     mapping(uint256 => mapping(address => uint256)) public prize;
     mapping(uint256 => mapping(address => bool)) public claimed;
@@ -255,6 +256,7 @@ contract CAGnaval {
         require(msg.value > 0, "no RON");
         require(fundable(week), "week already closed");
         weekPool[week] += msg.value;
+        weekExtra[week] += msg.value;
         emit PoolFunded(week, msg.sender, msg.value);
     }
 
@@ -322,6 +324,7 @@ contract CAGnaval {
         require(a > 0, "nothing to move");
         weekRolled[fromWeek] += a;
         weekPool[toWeek] += a;
+        weekExtra[toWeek] += a;
         emit Rolled(fromWeek, toWeek, a);
     }
 

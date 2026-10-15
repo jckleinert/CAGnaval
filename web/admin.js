@@ -85,6 +85,7 @@
     $('nowEst').textContent = ron(now.estimate) + ' RON';
     $('nowPool').textContent = ron(BigInt(now.weekPool || '0') - BigInt(now.weekRolled || '0')) + ' RON';
     $('nowSuggest').textContent = ron(now.suggestDeposit) + ' RON';
+    $('nowExtra').textContent = ron(now.extra || '0') + ' RON';
     rows($('nowRows'), now.players);
 
     var grace = Number(s.fundGrace || 0) * 1000, posted = last.postedAt && last.postedAt !== '0';
@@ -215,6 +216,11 @@
   $('nowDeposit').addEventListener('click', function () {
     var w = amount('nowAmt'); if (!w) return;
     send('deposit', [String(S.weeks[0].week)], $('nowAmt').value.replace(',', '.'), 'depositar ' + $('nowAmt').value + ' RON en la semana actual');
+  });
+  $('extraFund').addEventListener('click', function () {
+    var w = amount('extraAmt'); if (!w) return;
+    if (!confirm('¿Sumar ' + $('extraAmt').value + ' RON de premio extra al pozo de esta semana? Va todo a los jugadores.')) return;
+    send('fundPool', [String(S.weeks[0].week)], $('extraAmt').value.replace(',', '.'), 'sumar ' + $('extraAmt').value + ' RON extra al pozo de esta semana');
   });
   $('lastDeposit').addEventListener('click', function () {
     var w = amount('lastAmt'); if (!w) return;

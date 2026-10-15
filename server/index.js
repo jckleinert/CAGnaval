@@ -29,7 +29,7 @@ const cfg = require('./config.js');
 const Store = require('./store.js');
 const { RunManager, RunError, cleanName, playerKey } = require('./runs.js');
 const { ethers } = require('ethers');
-const { Chain } = require('./chain.js');
+const { Chain, weekNumberOf } = require('./chain.js');
 const { Auth } = require('./auth.js');
 const { Market } = require('./market.js');
 const crypto = require('crypto');
@@ -72,6 +72,14 @@ function createApp(options) {
     const bps = chain.cache && chain.cache.v && chain.cache.v.poolBps ? chain.cache.v.poolBps : 7250;
     return BigInt(tickets) * ethers.parseEther(String(config.TICKET_PRICE)) * BigInt(bps) / 10000n;
   }
+  /* The pool players see: what the tickets sold so far should bring (or the sales already loaded,
+     if more), plus any extra the owner added or rolled over into that week. */
+  async function poolShown(weekId, tickets) {
+    const est = estimatePool(tickets);
+    if (!chain.enabled || !chain.weekFunds) return { pool: est, extra: 0n };
+    const f = await chain.weekFunds(weekNumberOf(weekId)).catch(() => ({ sales: 0n, extra: 0n }));
+    return { pool: (f.sales > est ? f.sales : est) + f.extra, extra: f.extra };
+  }
   function shareOf(pool, total, sum) { return sum > 0 && total > 0 ? (pool * BigInt(total) / BigInt(sum)).toString() : '0'; }
 
   /* The admin panel: the contract as it stands, plus the rankings with wallets and what each would get. */
@@ -91,9 +99,10 @@ function createApp(options) {
       const tickets = store.weekTickets(wk.weekId);
       const sum = rows.reduce((a, r) => a + (r.addr ? r.total : 0), 0);
       const pool = BigInt(wk.weekPool || '0') - BigInt(wk.weekRolled || '0');
-      const est = estimatePool(tickets);
+      const shown = await poolShown(wk.weekId, tickets), est = shown.pool;
       wk.tickets = tickets;
       wk.estimate = est.toString();
+      wk.extra = shown.extra.toString();
       // what the owner receives for those tickets on the market (price minus the fee), the amount to deposit
       wk.suggestDeposit = (BigInt(tickets) * price * (10000n - fee) / 10000n).toString();
       wk.players = rows.filter((r) => r.addr).slice(0, 100).map((r) => ({ name: r.name, addr: r.addr, total: r.total, runs: r.runs,
@@ -204,17 +213,17 @@ function createApp(options) {
         const addr = who(req);
         const info = await chain.wallet_(addr);
         const w = store.weekId(Date.now()), board = runs.leaderboard(w, 1, '', 'total');
-        const pool = estimatePool(board.tickets), mine = store.weekTotal(w, playerKey(addr));
+        const shownNow = await poolShown(w, board.tickets), pool = shownNow.pool, mine = store.weekTotal(w, playerKey(addr));
         const prof = store.profile(addr);
         // last week, while its results are not out yet: what this wallet should get
         const lw = info.weekly ? info.weekly.weekId : null;
         let last = null;
         if (lw) {
           const lb = runs.leaderboard(lw, 1, '', 'total'), lmine = store.weekTotal(lw, playerKey(addr));
-          last = { kcal: lmine, mine: shareOf(estimatePool(lb.tickets), lmine, lb.sum) };
+          last = { kcal: lmine, mine: shareOf((await poolShown(lw, lb.tickets)).pool, lmine, lb.sum) };
         }
         return send(res, 200, Object.assign({ address: addr, name: prof ? prof.name : null,
-          estimate: { pool: pool.toString(), mine: shareOf(pool, mine, board.sum), kcal: mine, endsAt: board.endsAt }, lastEstimate: last, holder: await powersFor(addr) }, info), cors);
+          estimate: { pool: pool.toString(), extra: shownNow.extra.toString(), mine: shareOf(pool, mine, board.sum), kcal: mine, endsAt: board.endsAt }, lastEstimate: last, holder: await powersFor(addr) }, info), cors);
       }
       if (parts[1] === 'admin') {
         if (!chain.enabled) throw new RunError(400, 'practice-only');
@@ -319,8 +328,8 @@ function createApp(options) {
       if (req.method === 'GET' && parts[1] === 'leaderboard') {
         const b = runs.leaderboard(url.searchParams.get('week') || '', 50, url.searchParams.get('player') || '', url.searchParams.get('by') || '');
         if (chain.enabled) {
-          const pool = estimatePool(b.tickets);
-          b.pool = pool.toString();
+          const shown = await poolShown(b.week, b.tickets), pool = shown.pool;
+          b.pool = pool.toString(); b.extra = shown.extra.toString();
           for (const row of b.top.concat(b.you ? [b.you] : [])) row.prize = row.paid ? shareOf(pool, row.total, b.sum) : '0';
         }
         return send(res, 200, b, cors);

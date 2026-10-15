@@ -32,7 +32,8 @@ const { Chain } = require('../server/chain.js');
     },
     txAdmin: real.txAdmin.bind(real),
     async closeWeeks(store, w) { closes.push(w); return { posted: true, week: w }; },
-    async wallet_() { return {}; }
+    async wallet_() { return {}; },
+    async weekFunds(n) { return n === W ? { sales: 0n, extra: 50n * 10n ** 18n } : { sales: 0n, extra: 0n }; }
   };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cagnaval-e2ea-'));
   const app = createApp({ DATA_DIR: dir, chain: fake, REFEREE_KEY: '0x' + '5'.repeat(64), NO_CLOSER: true, TICKET_PRICE: '5' });
@@ -91,6 +92,8 @@ const { Chain } = require('../server/chain.js');
   await page.fill('#boxAmt', '2'); await page.click('#boxFund'); await page.waitForTimeout(300);
   await page.click('#lastClose'); await page.waitForTimeout(300);
   await page.click('#oldRows button.pink'); await page.waitForTimeout(300);
+  const nowEst = await page.textContent('#nowEst'), nowExtra = await page.textContent('#nowExtra');
+  await page.fill('#extraAmt', '5'); await page.click('#extraFund'); await page.waitForTimeout(300);
   await page.waitForFunction(() => document.querySelectorAll('#pRows tr').length === 2, null, { timeout: 8000 });
   const playerRows = await page.$$eval('#pRows tr', (r) => r.map((x) => [...x.children].map((c) => c.textContent).join('|')));
   await page.fill('#pFind', 'car'); await page.waitForTimeout(100);
@@ -110,13 +113,14 @@ const { Chain } = require('../server/chain.js');
 
   const iface = new ethers.Interface(require('../server/chain.js').GAME_ABI);
   const decoded = sent.map((t) => { const d = iface.parseTransaction({ data: t.data, value: t.value || 0 }); return d.name + '(' + d.args.map(String).join(',') + ')' + (t.value ? ' value ' + ethers.formatEther(BigInt(t.value)) : ''); });
-  const out = { lastStatus, suggest, lastRows, decoded, closes, problems, playerRows, found, banned, inBoard, weekRows, weekHead };
+  const out = { lastStatus, suggest, lastRows, decoded, closes, problems, playerRows, found, banned, inBoard, weekRows, weekHead, nowEst, nowExtra };
   console.log(JSON.stringify(out, null, 1));
   const ok = /Esperando que cargues el pozo/.test(lastStatus) && suggest === '39 RON' && lastRows.length === 2
     && decoded[0] === 'deposit(' + (W - 1) + ') value 39.0' && decoded[1] === 'withdrawTickets(9,' + owner.address + ')' && decoded[2] === 'fundBonus() value 2.0'
     && decoded[3] === 'recoverPool(' + (W - 2) + ',' + owner.address + ')' && closes[0] === W - 1 && !problems.length
     && /^Caro\|0xcccc…cccc\|.+\|2\|6\|8\.000\|8\.000\|1 · 3(\.0)? RON\|OK\|Banear$/.test(playerRows[0]) && found === 1 && banned && !inBoard
-    && /^Dani\|.+\|1\|3\|2\.500\|2\.500\|–\|OK\|Banear$/.test(weekRows[0]) && weekHead === 'Mejor partida';
+    && /^Dani\|.+\|1\|3\|2\.500\|2\.500\|–\|OK\|Banear$/.test(weekRows[0]) && weekHead === 'Mejor partida'
+    && decoded[4] === 'fundPool(' + W + ') value 5.0' && /^50 RON$/.test(nowExtra) && /^60[.,]8/.test(nowEst);
   console.log(ok ? 'E2E ADMIN OK' : 'E2E ADMIN FAILED');
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });
