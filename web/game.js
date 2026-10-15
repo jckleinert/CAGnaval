@@ -95,8 +95,14 @@
   var run = null;      // { id, sim, seq, chain, live, desync, goldSeen, ending }
   var aim = W / 2, down = false, fx = [], toastTimer = 0, scale = 1, lastStatus = '', lastNext = '', lastMax = -2, lastUses = '', lastLeft = -2, boardBack = null, nowMs = 0, vis = {};
 
-  function toast(msg) {
-    toastEl.textContent = msg; toastEl.hidden = false;
+  /* A short notice over the jar. kind 'gold': the golden style, with an optional small line on top. */
+  function toast(msg, kind, top) {
+    toastEl.textContent = '';
+    toastEl.className = 'toast' + (kind ? ' ' + kind : '');
+    if (top) { var sm = document.createElement('small'); sm.textContent = top; toastEl.appendChild(sm); }
+    var b = document.createElement('span'); b.textContent = msg; toastEl.appendChild(b);
+    toastEl.hidden = false;
+    if (!reduced) { toastEl.style.animation = 'none'; void toastEl.offsetWidth; toastEl.style.animation = ''; }
     clearTimeout(toastTimer); toastTimer = setTimeout(function () { toastEl.hidden = true; }, 2200);
   }
 
@@ -1075,7 +1081,7 @@
       nextDisc.classList.toggle('gold', !!(p && p.gold));
       if (p) { nextDisc.appendChild(icon(FOODS[p.lv], nextDisc.getBoundingClientRect().width || 36, p.gold)); nextDisc.setAttribute('aria-label', 'Next: ' + (p.gold ? 'golden ' : '') + FOODS[p.lv].n); }
       else nextDisc.setAttribute('aria-label', 'No next food');
-      if (p && p.gold && run && !run.goldSeen) { run.goldSeen = true; toast('Golden ' + FOODS[p.lv].n.toLowerCase() + ' is next!'); }
+      if (p && p.gold && run && !run.goldSeen) { run.goldSeen = true; toast('Golden ' + FOODS[p.lv].n.toLowerCase(), 'gold', 'Up next'); }
     }
 
     var max = sim ? sim.maxLv : -1;
@@ -1606,7 +1612,7 @@
           if (combo > 1) { comboFx.n = combo; comboFx.t = sim.step; }
           joltJar(ev.lv);
           soundMerge(ev.lv, ev.gold);
-          if (ev.gold) toast('Golden food merged!');
+          if (ev.gold) toast('See your multiplier at the end', 'gold', 'Golden merged!');
           else if (!ev.made) toast('Double Pizza Box! +' + fmt(ev.gain) + ' kcal');
           else if (ev.lv === TOP) toast('Pizza Box! +' + fmt(ev.gain) + ' kcal');
         } else if (ev.type === 'sweep') fx.push({ x: ev.x, y: ev.y, r: FOODS[ev.lv].r, t: sim.step, txt: '', gold: false });
