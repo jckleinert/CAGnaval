@@ -217,7 +217,7 @@
       sim.setPiece(1, start.pieces[0]); sim.setPiece(2, start.pieces[1]);
       run = { id: start.runId, powers: start.powers !== false, sim: sim, seq: 0, chain: Promise.resolve(), live: true, desync: false, goldSeen: false, ending: false, barFrom: 1, barAt: 0, tickets: start.tickets || 0 };
       fx.length = 0; vis = {}; aim = W / 2; acc = 0; last = 0; combo = 0; lastMerge = -999; comboFx.n = 0;
-      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; chooseEl.hidden = true; howEl.hidden = true; $('goldinfo').hidden = true; toastEl.hidden = true; boardBack = null;
+      homeEl.hidden = true; overEl.hidden = true; boardEl.hidden = true; prizesEl.hidden = true; shopEl.hidden = true; chooseEl.hidden = true; howEl.hidden = true; $('goldinfo').hidden = true; $('terms').hidden = true; toastEl.hidden = true; boardBack = null;
       if (!goldsEl.hidden && !desktop()) { goldsEl.hidden = true; gfeed.back = null; document.body.classList.remove('golds-open'); }
       if (card) card.classList.remove('leaving');
       PUP.riseAt = nowMs || 1; PUP.sinkAt = 0;                                        // and comes up behind the jar
@@ -1679,7 +1679,8 @@
   }
   $('maxGold').addEventListener('click', openGoldInfo);
   $('closeGold').addEventListener('click', function () { $('goldinfo').hidden = true; homeEl.hidden = false; renderWallet(); });
-  $('giPlay').addEventListener('click', function () { $('goldinfo').hidden = true; homeEl.hidden = false; renderWallet(); $('play').click(); });
+  $('openTerms').addEventListener('click', function () { $('goldinfo').hidden = true; $('terms').hidden = false; $('terms').scrollTop = 0; });
+  $('closeTerms').addEventListener('click', function () { $('terms').hidden = true; $('goldinfo').hidden = false; });
   $('openHow').addEventListener('click', function () { homeEl.hidden = true; howEl.hidden = false; });
   $('closeHow').addEventListener('click', function () { howEl.hidden = true; homeEl.hidden = false; renderWallet(); });
   $('practice').addEventListener('click', function () { startRun('practice'); });
