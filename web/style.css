@@ -638,7 +638,19 @@ body.golds-open .gstack { display: none; }
 /* Shake, Swap and Sweep for CAG NFT holders only */
 .powers { position: relative; }
 .pw-lock { display: none; }
-.powers.locked .pw-lock { position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 5px; padding: 4px 11px 5px 8px; border-radius: 999px; background: var(--paper); box-shadow: 0 3px 0 var(--shade); font-size: calc(12px * var(--k)); font-weight: 700; color: var(--ink); white-space: nowrap; pointer-events: none; }
-.pw-lock svg { width: 14px; height: 14px; color: var(--pink); }
-.powers.locked .pw { opacity: 0.4; filter: grayscale(1); }
+.powers.locked .pw-lock { position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-3deg); display: flex; align-items: center; gap: 7px; padding: 5px 13px 6px 6px; border-radius: 999px; background: linear-gradient(135deg, #FFE69A, var(--yellow)); box-shadow: 0 3px 0 var(--yellow-d), 0 6px 14px rgba(27, 34, 51, 0.12); color: var(--ink); white-space: nowrap; pointer-events: none; line-height: 1.05; }
+.pw-lock .lk { display: grid; place-items: center; width: calc(24px * var(--k)); height: calc(24px * var(--k)); border-radius: 50%; background: var(--paper); box-shadow: 0 2px 0 var(--yellow-d); }
+.pw-lock svg { width: 58%; height: 58%; color: var(--pink); }
+.pw-lock .lt { display: flex; flex-direction: column; text-align: left; }
+.pw-lock small { font-size: calc(9.5px * var(--k)); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(27, 34, 51, 0.6); }
+.pw-lock b { font-size: calc(13px * var(--k)); font-weight: 700; }
+.powers.locked .pw { opacity: 0.5; filter: grayscale(0.85); }
 .powers.locked .pw:not(:disabled) { cursor: pointer; }
+@media (min-width: 720px) and (min-aspect-ratio: 11/10) {
+  /* on a computer the badge sits right over the three buttons */
+  .powers { align-self: start; }
+  .powers.locked .pw-lock { padding: 7px 16px 8px 8px; gap: 9px; }
+  .pw-lock .lk { width: calc(30px * var(--k)); height: calc(30px * var(--k)); }
+  .pw-lock small { font-size: calc(10.5px * var(--k)); }
+  .pw-lock b { font-size: calc(15px * var(--k)); }
+}
