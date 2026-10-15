@@ -49,15 +49,15 @@ contract CAGnaval {
     IERC1155 public ticket;
     uint256 public ticketId;
 
-    uint256 public maxTickets = 5;          // tickets per run
-    uint256 public capPerTicket = 105 ether; // max golden prize per ticket (21 x 5 RON)
+    uint256 public maxTickets = 25;         // tickets per run
+    uint256 public capPerTicket = 21 ether;  // max golden prize per ticket (21 x 1 RON)
     uint256 public claimDelay = 1 hours;    // posting -> claims open
     uint256 public claimWeeks = 1;          // weeks to claim after the close
     uint256 public fundGrace = 1 days;      // after the close, time to load that week's pool before results
     // shares of the full ticket price, in hundredths of a percent
     uint256 public poolBps = 7250;          // weekly pool 72.5%
     uint256 public bonusBps = 2000;         // golden box 20%
-    uint256 public feeBps = 250;            // Ronin Market fee 2.5%, already taken from what is deposited
+    uint256 public feeBps = 750;            // fees already taken from what is deposited: Ronin Market 2.5% + creator 5%
                                             // team gets the rest: 7.5% - 2.5% fee = 5% of the price
     address public treasury;                // receives the rest of each deposit
     bool public paused;
@@ -382,7 +382,7 @@ contract CAGnaval {
     function setConfig(uint256 _maxTickets, uint256 _capPerTicket, uint256 _claimDelay, uint256 _claimWeeks)
         external onlyOwner
     {
-        require(_maxTickets >= 1 && _maxTickets <= 20, "maxTickets 1-20");
+        require(_maxTickets >= 1 && _maxTickets <= 50, "maxTickets 1-50");
         require(_capPerTicket > 0, "cap 0");
         require(_claimDelay <= 3 days, "claimDelay too long");
         require(_claimWeeks >= 1 && _claimWeeks <= 8, "claimWeeks 1-8");

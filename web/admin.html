@@ -55,7 +55,7 @@
         <label class="field">RON a depositar <input id="nowAmt" inputmode="decimal" placeholder="0"></label>
         <button class="btn pink" id="nowDeposit" type="button">Depositar ventas</button>
       </div>
-      <p class="hint">Lo que te llegó de Ronin Market. El contrato lo reparte solo: pozo, caja de la dorada y tu parte.</p>
+      <p class="hint">Todo lo que te llegó de las ventas en Ronin Market. El contrato lo reparte solo entre el pozo y la caja de la dorada.</p>
       <table class="tbl"><thead><tr><th>#</th><th>Jugador</th><th>Billetera</th><th class="num">Partidas</th><th class="num">kcal</th><th class="num">≈ RON</th></tr></thead><tbody id="nowRows" data-empty="Nadie jugó con tickets todavía."></tbody></table>
     </section>
 
@@ -117,7 +117,7 @@
       <div class="row">
         <label class="field">Pozo % <input id="spPool" inputmode="decimal"></label>
         <label class="field">Caja % <input id="spBox" inputmode="decimal"></label>
-        <label class="field">Comisión Ronin % <input id="spFee" inputmode="decimal"></label>
+        <label class="field">Comisiones ya descontadas % <input id="spFee" inputmode="decimal"></label>
         <button class="btn" id="spSave" type="button">Guardar</button>
       </div>
       <p class="hint" id="spNote"></p>
@@ -128,7 +128,7 @@
         <label class="field">Horas para cargar el pozo después del cierre <input id="cfGrace" inputmode="decimal"></label>
         <button class="btn" id="cfSave" type="button">Guardar</button>
       </div>
-      <p class="hint">El premio máximo de la dorada es 21 × el precio del ticket (105 RON con tickets de 5). Para probar con poca plata se puede bajar.</p>
+      <p class="hint">El premio máximo de la dorada es 21 × el precio del ticket (21 RON con tickets de 1 RON). Para probar con poca plata se puede bajar.</p>
     </section>
 
     <section class="card">

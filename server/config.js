@@ -38,7 +38,7 @@ module.exports = {
   MARKET: process.env.MARKET || 'on',           // 'off' hides the ticket shop
   MARKET_API_KEY: process.env.MARKET_API_KEY || '',
   MARKET_GRAPHQL: process.env.MARKET_GRAPHQL || '',
-  TICKET_PRICE: process.env.TICKET_PRICE || '5',
+  TICKET_PRICE: process.env.TICKET_PRICE || '1',
   // 1 = the referee moves unclaimed prizes to the open week by itself. Off: the owner decides in the admin panel.
   AUTO_ROLLOVER: process.env.AUTO_ROLLOVER === '1',
   // How often the weekly close is checked (ms).

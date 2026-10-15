@@ -5,17 +5,17 @@ Descripción de funciones: `build/CAGnaval.abi.json`.
 
 ## Qué hace
 
-- **Partidas.** El jugador manda de 1 a 5 tickets (ERC-1155) al contrato y empieza una partida. Una sola transacción, sin aprobar nada antes, como las bebidas de CAGlorie. Los tickets quedan guardados en el contrato.
-- **Ventas.** Lo que te llega de Ronin Market (ya sin su 2,5%) lo mandás con `deposit`. El contrato reconstruye la venta original y reparte sobre el precio completo del ticket: 72,5% al pozo de la semana, 20% a la caja del bonus y 7,5% para vos, del que ya se descuenta el 2,5% que cobró el mercado (te llega el 5%). Ejemplo: un ticket de 5 RON → te llegan 4,875 → 3,625 al pozo, 1 a la caja y 0,25 a tu billetera. Los porcentajes se cambian con `setSplit`.
+- **Partidas.** El jugador manda de 1 a 25 tickets (ERC-1155) al contrato y empieza una partida. Una sola transacción, sin aprobar nada antes, como las bebidas de CAGlorie. Los tickets quedan guardados en el contrato.
+- **Ventas.** Tu 5% te llega directo de Ronin Market como comisión de creador (creator fee) de la colección. Lo que te llega como vendedor (el 92,5%, ya sin el 2,5% del mercado ni tu 5%) lo mandás entero con `deposit`. El contrato reconstruye la venta original y reparte sobre el precio completo del ticket: 72,5% al pozo de la semana y 20% a la caja del bonus. Ejemplo: un ticket de 1 RON → te llegan 0,925 → 0,725 al pozo y 0,2 a la caja. Los porcentajes se cambian con `setSplit` (pozo 7250, caja 2000, comisiones ya descontadas 750).
 - **Onigiri dorado.** Cuando termina la partida, el árbitro (el servidor del juego) la cierra y, si hubo dorada, el premio queda anotado a nombre del jugador. El jugador lo cobra desde el juego con `claimGold`. Siempre lo cobra completo: si la caja no tiene el total, le aparece pendiente hasta que la cargues.
-- **Partidas a la vez.** Pueden jugar todos los que quieran al mismo tiempo. Una partida solo arranca si la caja, después de descontar los premios pendientes, tiene 105 RON por ticket (un premio de ×21).
+- **Partidas a la vez.** Pueden jugar todos los que quieran al mismo tiempo. Una partida solo arranca si la caja, después de descontar los premios pendientes, tiene 21 RON por ticket (un premio de ×21 con tickets de 1 RON).
 - **Pozo semanal.** El lunes 00:00 UTC cierra la semana. Tenés 24 horas más (`fundGrace`) para cargar el pozo de esa semana con `deposit(semana)`. Después el árbitro publica cuánto le toca a cada billetera (o antes, si se lo pedís desde el panel); una hora después cada jugador cobra desde el juego, hasta el final de la semana siguiente.
 - **Panel de admin.** Todo lo de este manual se puede hacer desde `https://<tu-sitio>/admin`, conectando la billetera dueña, sin entrar a Remix.
 
 ## Por qué es seguro aunque roben la clave del árbitro
 
-- Una partida paga como máximo 105 RON por ticket (21 × 5 RON), y una sola vez.
-- Si la caja no tiene 105 RON libres por ticket, la partida no arranca.
+- Una partida paga como máximo 21 RON por ticket (21 × 1 RON), y una sola vez.
+- Si la caja no tiene 21 RON libres por ticket, la partida no arranca.
 - Lo que se debe a jugadores no lo podés retirar por error: `withdrawBonus` solo saca la parte libre.
 - Una semana solo reparte lo que vos cargaste para esa semana, y recién cuando terminó.
 - Hay una hora entre que el árbitro publica el reparto y que se puede cobrar: si algo está mal, lo anulás con `voidResult`.
@@ -42,7 +42,7 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 | Cargar el pozo de una semana | `fundPool(week)` | `week` = `currentWeek()`. Mandar RON en Value. Se puede cargar en varias veces. |
 | Retirar tickets para volver a venderlos | `withdrawTickets(amount, to)` | Van a la billetera `to`. Ver cuántos hay con `ticketsHeld()`. |
 | Sacar RON de la caja | `withdrawBonus(amount, to)` | Solo la parte libre (`bonusFree()`); lo que se debe a jugadores no se puede tocar. |
-| Cambiar porcentajes | `setSplit(poolBps, bonusBps, feeBps, treasury)` | En centésimos de por ciento, sobre el precio completo: 7250 = 72,5%, 2000 = 20%, 250 = 2,5% del mercado. Lo que sobra va a `treasury`. |
+| Cambiar porcentajes | `setSplit(poolBps, bonusBps, feeBps, treasury)` | En centésimos de por ciento, sobre el precio completo: 7250 = 72,5%, 2000 = 20%, 750 = comisiones ya descontadas (2,5% del mercado + 5% tuyo). Lo que sobra va a `treasury`. |
 | Cambiar de colección de tickets | `setTicket(ticket, ticketId)` | Por ejemplo, de las bebidas de prueba a los tickets de CAGnaval. Sin partidas abiertas. Pozos y caja se mantienen. |
 | Retirar tickets de una colección anterior | `withdrawItems(token, id, amount, to)` | |
 | Pasar lo no cobrado a otra semana | `rollover(fromWeek, toWeek)` | Cuando terminó el plazo de cobro. |
@@ -56,8 +56,8 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 
 | Campo | Valor inicial | Qué es |
 |---|---|---|
-| `maxTickets` | 5 | Tickets máximos por partida |
-| `capPerTicket` | 105 RON | Premio máximo de la dorada por ticket, y lo mínimo que tiene que tener la caja por ticket para arrancar. Para probar con poca plata se puede bajar (por ejemplo a 1 RON). |
+| `maxTickets` | 25 | Tickets máximos por partida (hasta 50) |
+| `capPerTicket` | 21 RON | Premio máximo de la dorada por ticket, y lo mínimo que tiene que tener la caja por ticket para arrancar. Para probar con poca plata se puede bajar (por ejemplo a 1 RON). |
 | `claimDelay` | 3600 (1 hora) | Espera entre publicar el reparto y poder cobrar |
 | `claimWeeks` | 1 | Semanas para cobrar después del cierre |
 

@@ -358,7 +358,7 @@
       $('tWord').textContent = paid.tickets > 1 ? 'tickets' : 'ticket';
       $('bKcal').textContent = $('bGold').textContent = '×' + paid.tickets;
       $('tOf').textContent = max && max < Math.min(info.tickets, info.maxTickets) ? 'max ' + max + ' per run now' : 'of ' + max + ' available';
-      var tc = $('tChips'), want = [1, 3, 5].filter(function (q) { return q < max; }).concat(max > 1 ? ['max'] : []);
+      var tc = $('tChips'), want = [1, 5, 10].filter(function (q) { return q < max; }).concat(max > 1 ? ['max'] : []);
       if (tc.dataset.k !== want.join()) {
         tc.dataset.k = want.join(); tc.textContent = '';
         want.forEach(function (q) {
@@ -461,7 +461,7 @@
   /* ---------- ticket shop: the tickets on sale in Ronin Market, bought from here ---------- */
   var busy = false;
   var shop = { on: false, list: null, n: 1, buying: false, imgOk: false };
-  function shopCount() { return shop.list ? Math.min(20, shop.list.available) : 0; }
+  function shopCount() { return shop.list ? Math.min(50, shop.list.available) : 0; }
   /* What n tickets cost, taking the cheapest first. */
   function shopTotal(n) {
     var left = n, sum = 0n;
@@ -486,7 +486,7 @@
     $('sMinus').disabled = shop.n <= 1;
     $('sPlus').disabled = shop.n >= max;
     // quick picks
-    var chips = $('shopChips'), want = [1, 3, 5, 10].filter(function (q) { return q <= max; });
+    var chips = $('shopChips'), want = [1, 5, 10, 25].filter(function (q) { return q <= max; });
     if (chips.dataset.k !== want.join() ) {
       chips.dataset.k = want.join(); chips.textContent = '';
       want.forEach(function (q) {

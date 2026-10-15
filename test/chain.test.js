@@ -135,7 +135,7 @@ test('paid run over HTTP: sign in, start from the tickets transaction, never twi
     async info() { return { contract: '0x' + '4'.repeat(40), cap: RON(1).toString(), maxTickets: 5 }; }
   };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cagnaval-'));
-  const app = createApp({ DATA_DIR: dir, chain: fake, REFEREE_KEY: '0x' + '5'.repeat(64), NO_CLOSER: true });
+  const app = createApp({ DATA_DIR: dir, chain: fake, REFEREE_KEY: '0x' + '5'.repeat(64), NO_CLOSER: true, TICKET_PRICE: '5' });
   await new Promise((r) => app.server.listen(0, r));
   const port = app.server.address().port;
   try {

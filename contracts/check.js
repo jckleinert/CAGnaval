@@ -62,6 +62,11 @@ async function fails(p, msg) {
   for (const p of [p1, p2, p3]) await (await mock.mint(A(p), ID, 20)).wait();
   await (await mock.mint(A(p1), 99, 5)).wait();
   const play = (p, n, id = ID) => mock.connect(p).safeTransferFrom(A(p), G, id, n, '0x');
+  // the launch defaults: 1 RON tickets (21 RON max per ticket), up to 25 tickets, 7.5% of fees taken before deposit
+  assert.equal(await game.maxTickets(), 25n); assert.equal(await game.capPerTicket(), RON(21)); assert.equal(await game.feeBps(), 750n);
+  // the checks below were written for 5 RON tickets: set those numbers
+  await (await game.setConfig(5, RON(105), 3600, 1)).wait();
+  await (await game.setSplit(7250, 2000, 250, A(owner))).wait();
 
   console.log('Runs and golden onigiri');
   const runIdOf = rc => rc.logs.map(l => { try { return game.interface.parseLog(l); } catch { return null; } }).find(e => e && e.name === 'RunStarted').args.runId;

@@ -35,7 +35,7 @@ const { Chain } = require('../server/chain.js');
     async wallet_() { return {}; }
   };
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cagnaval-e2ea-'));
-  const app = createApp({ DATA_DIR: dir, chain: fake, REFEREE_KEY: '0x' + '5'.repeat(64), NO_CLOSER: true });
+  const app = createApp({ DATA_DIR: dir, chain: fake, REFEREE_KEY: '0x' + '5'.repeat(64), NO_CLOSER: true, TICKET_PRICE: '5' });
   // some paid play last week and this week
   const lastId = new Date((4 * 86400 + (W - 1) * 7 * 86400) * 1000).toISOString().slice(0, 10);
   const nowId = app.store.weekId(Date.now());

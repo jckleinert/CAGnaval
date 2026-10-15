@@ -129,7 +129,9 @@
       $('cfMax').value = s.maxTickets; $('cfCap').value = ron(s.capPerTicket); $('cfGrace').value = Number(s.fundGrace || 0) / 3600;
     }
     var you = 100 - Number(s.poolBps) / 100 - Number(s.bonusBps) / 100;
-    $('spNote').textContent = 'Tu parte: ' + you.toFixed(1) + '% del precio, de la que ya sale la comisión de Ronin (' + (Number(s.feeBps) / 100) + '%). Te llega el ' + (you - Number(s.feeBps) / 100).toFixed(1) + '%.';
+    var feeP = Number(s.feeBps) / 100, left = you - feeP;
+    $('spNote').textContent = 'Comisiones ya descontadas antes de depositar (Ronin Market 2,5% + tu comisión de creador): ' + feeP + '%. '
+      + (left > 0.05 ? 'Además el contrato te manda el ' + left.toFixed(1) + '% restante.' : 'Todo lo que depositás va al pozo y a la caja.');
 
     var jobs = $('jobs'); jobs.textContent = '';
     if (!s.pendingTx.length) { var li = document.createElement('li'); li.textContent = 'Ninguna.'; jobs.appendChild(li); }
