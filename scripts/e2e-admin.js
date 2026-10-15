@@ -47,6 +47,8 @@ const { Chain } = require('../server/chain.js');
   app.store.setProfile(CARO, 'Caro', Date.now() - 86400000); app.store.setProfile(DANI, 'Dani', Date.now());
   app.store.addScore(nowId, playerKey(CARO), 'Caro', 7000, Date.now(), CARO, 0, 4);
   app.store.addScore(nowId, playerKey(CARO), 'Caro', 1000, Date.now(), CARO, 0, 2);
+  const oldId = new Date((4 * 86400 + (W - 2) * 7 * 86400) * 1000).toISOString().slice(0, 10);
+  app.store.addScore(oldId, playerKey(DANI), 'Dani', 2500, Date.now() - 6 * 86400000, DANI, 2500, 3);
   app.store.addGold({ id: '77', name: 'Caro', addr: CARO, mult: 3, wei: RON(3), tickets: 5, at: Date.now(), week: nowId });
   await new Promise((r) => app.server.listen(0, r));
   const base = 'http://127.0.0.1:' + app.server.address().port;
@@ -96,18 +98,25 @@ const { Chain } = require('../server/chain.js');
   await page.click('#pRows button.danger');
   await page.waitForFunction(() => document.querySelector('#pRows tr.banned'), null, { timeout: 8000 });
   await page.fill('#pFind', '');
+  await page.selectOption('#pWeek', oldId);
+  await page.waitForFunction(() => document.querySelectorAll('#pRows tr').length === 1, null, { timeout: 8000 });
+  const weekRows = await page.$$eval('#pRows tr', (r) => r.map((x) => [...x.children].map((c) => c.textContent).join('|')));
+  const weekHead = await page.textContent('#pH7');
+  if (shot) await page.locator('#playersCard').screenshot({ path: path.join(shot, 'admin-players-week.png') });
+  await page.selectOption('#pWeek', '');
   if (shot) await page.locator('#playersCard').screenshot({ path: path.join(shot, 'admin-players.png') });
   const banned = app.store.isBanned(CARO), inBoard = app.store.leaderboard(nowId, 'total').some((r) => r.addr === CARO);
   await browser.close(); app.server.close();
 
   const iface = new ethers.Interface(require('../server/chain.js').GAME_ABI);
   const decoded = sent.map((t) => { const d = iface.parseTransaction({ data: t.data, value: t.value || 0 }); return d.name + '(' + d.args.map(String).join(',') + ')' + (t.value ? ' value ' + ethers.formatEther(BigInt(t.value)) : ''); });
-  const out = { lastStatus, suggest, lastRows, decoded, closes, problems, playerRows, found, banned, inBoard };
+  const out = { lastStatus, suggest, lastRows, decoded, closes, problems, playerRows, found, banned, inBoard, weekRows, weekHead };
   console.log(JSON.stringify(out, null, 1));
   const ok = /Esperando que cargues el pozo/.test(lastStatus) && suggest === '39 RON' && lastRows.length === 2
     && decoded[0] === 'deposit(' + (W - 1) + ') value 39.0' && decoded[1] === 'withdrawTickets(9,' + owner.address + ')' && decoded[2] === 'fundBonus() value 2.0'
     && decoded[3] === 'recoverPool(' + (W - 2) + ',' + owner.address + ')' && closes[0] === W - 1 && !problems.length
-    && /^Caro\|0xcccc…cccc\|.+\|2\|6\|8\.000\|8\.000\|1 · 3(\.0)? RON\|OK\|Banear$/.test(playerRows[0]) && found === 1 && banned && !inBoard;
+    && /^Caro\|0xcccc…cccc\|.+\|2\|6\|8\.000\|8\.000\|1 · 3(\.0)? RON\|OK\|Banear$/.test(playerRows[0]) && found === 1 && banned && !inBoard
+    && /^Dani\|.+\|1\|3\|2\.500\|2\.500\|–\|OK\|Banear$/.test(weekRows[0]) && weekHead === 'Mejor partida';
   console.log(ok ? 'E2E ADMIN OK' : 'E2E ADMIN FAILED');
   process.exit(ok ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });

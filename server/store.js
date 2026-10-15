@@ -176,30 +176,37 @@ class Store {
     this._write(path.join(this.dir, 'bans.json'), b);
   }
 
-  /* Every player with a name, with their numbers: all weeks, this week, golden prizes. keyOf turns a wallet into its ranking key. */
-  players(keyOf, thisWeek) {
-    const prof = this._profiles(), all = Object.create(null);
+  /* The weeks that have any play, newest first. */
+  weekIds() {
     let files = [];
     try { files = fs.readdirSync(path.join(this.dir, 'weeks')).filter((f) => WEEK_RE.test(f.slice(0, 10)) && f.endsWith('.json')); } catch (e) { files = []; }
     const weeks = new Set(files.map((f) => f.slice(0, 10)));
     for (const w of this.weeks.keys()) weeks.add(w);
-    for (const w of weeks) {
+    return [...weeks].sort().reverse();
+  }
+
+  /* Every player with a name, with their numbers: all weeks, or only the week `only`
+     (then just the ones who played it). keyOf turns a wallet into its ranking key. */
+  players(keyOf, thisWeek, only) {
+    const prof = this._profiles(), all = Object.create(null);
+    const blank = () => ({ runs: 0, total: 0, tickets: 0, best: 0, last: 0, week: 0, weekRuns: 0 });
+    for (const w of (only ? [only] : this.weekIds())) {
       let players;
       if (this.weeks.has(w)) players = this.weeks.get(w).players;
       else { try { players = JSON.parse(fs.readFileSync(path.join(this.dir, 'weeks', w + '.json'), 'utf8')).players || {}; } catch (e) { players = {}; } }
       for (const k of Object.keys(players)) {
-        const p = players[k], a = all[k] || (all[k] = { runs: 0, total: 0, tickets: 0, best: 0, last: 0, week: 0, weekRuns: 0 });
+        const p = players[k], a = all[k] || (all[k] = blank());
         a.runs += p.runs || 0; a.total += p.total || 0; a.tickets += p.tickets || 0; a.best = Math.max(a.best, p.best || 0); a.last = Math.max(a.last, p.last || 0);
         if (w === thisWeek) { a.week = p.total || 0; a.weekRuns = p.runs || 0; }
       }
     }
-    const golds = this.golds();
+    const golds = this.golds().filter((g) => !only || g.week === only);
     return Object.keys(prof).map((addr) => {
-      const s = all[keyOf(addr)] || { runs: 0, total: 0, tickets: 0, best: 0, last: 0, week: 0, weekRuns: 0 };
+      const s = all[keyOf(addr)] || blank();
       const mine = golds.filter((g) => (g.addr ? g.addr === addr : g.name === prof[addr].name));
       const goldWei = mine.reduce((t, g) => t + BigInt(g.wei), 0n);
       return Object.assign({ addr, name: prof[addr].name, joined: prof[addr].at || 0, banned: this.isBanned(addr), golds: mine.length, goldWei: goldWei.toString() }, s);
-    });
+    }).filter((p) => !only || p.runs > 0);
   }
 
   /* Paid runs already used for a game session, so a run is never played twice. */

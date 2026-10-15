@@ -80,8 +80,8 @@
     <section class="card" id="playersCard">
       <h2>Jugadores <small id="pCount"></small></h2>
       <p class="hint">Todos los que eligieron nombre con su billetera. Si alguien hace cosas raras, banealo: no puede jugar partidas pagas, desaparece del ranking y no entra en el reparto semanal. Lo que ya está anotado en el contrato no se puede quitar, pero podés anular su premio arriba antes de que lo cobre.</p>
-      <div class="pbar"><input id="pFind" type="search" placeholder="Buscar nombre o billetera" autocomplete="off"><button class="btn small" id="pReload">Actualizar</button></div>
-      <div class="tblwrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Billetera</th><th>Se unió</th><th class="num">Partidas</th><th class="num">Tickets</th><th class="num">kcal semana</th><th class="num">kcal total</th><th class="num">Doradas</th><th>Estado</th><th></th></tr></thead><tbody id="pRows" data-empty="Todavía no hay jugadores."></tbody></table></div>
+      <div class="pbar"><select id="pWeek" aria-label="Semana"><option value="">Todas las semanas</option></select><input id="pFind" type="search" placeholder="Buscar nombre o billetera" autocomplete="off"><button class="btn small" id="pReload">Actualizar</button></div>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Billetera</th><th>Se unió</th><th class="num">Partidas</th><th class="num">Tickets</th><th class="num" id="pH6">kcal semana</th><th class="num" id="pH7">kcal total</th><th class="num">Doradas</th><th>Estado</th><th></th></tr></thead><tbody id="pRows" data-empty="Todavía no hay jugadores."></tbody></table></div>
     </section>
 
     <section class="card">

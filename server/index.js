@@ -228,8 +228,11 @@ function createApp(options) {
           return send(res, 200, Object.assign({ from: addr }, tx), cors);
         }
         if (req.method === 'GET' && parts[2] === 'players') {
-          const list = store.players(playerKey, store.weekId(Date.now())).sort((a, b) => b.last - a.last || b.joined - a.joined);
-          return send(res, 200, { players: list }, cors);
+          const now = store.weekId(Date.now()), only = url.searchParams.get('week') || '';
+          if (only && !/^\d{4}-\d{2}-\d{2}$/.test(only)) throw new RunError(400, 'bad-week');
+          const list = store.players(playerKey, now, only).sort(only ? (a, b) => b.total - a.total || a.name.localeCompare(b.name) : (a, b) => b.last - a.last || b.joined - a.joined);
+          const weeks = store.weekIds(); if (weeks.indexOf(now) < 0) weeks.unshift(now);
+          return send(res, 200, { players: list, weeks, thisWeek: now, week: only || null }, cors);
         }
         if (req.method === 'POST' && parts[2] === 'ban') {
           const body = await readJson(req);

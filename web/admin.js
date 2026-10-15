@@ -148,14 +148,29 @@
 
   /* ---------- actions ---------- */
   /* Players: stats and ban. */
-  var P = [];
+  var P = [], PW = '';
+  function weekName(id, now) {
+    var d = new Date(id + 'T12:00:00Z');
+    return 'Semana del ' + d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', timeZone: 'UTC' }) + (id === now ? ' (actual)' : '');
+  }
   function loadPlayers() {
-    return CW.api('GET', '/api/admin/players', null, 60000).then(function (r) { P = r.players || []; renderPlayers(); })
+    var sel = $('pWeek'), want = sel.value;
+    return CW.api('GET', '/api/admin/players' + (want ? '?week=' + want : ''), null, 60000).then(function (r) {
+      P = r.players || []; PW = r.week || '';
+      var keep = sel.value;
+      sel.textContent = '';
+      [''].concat(r.weeks || []).forEach(function (w) {
+        var o = document.createElement('option'); o.value = w; o.textContent = w ? weekName(w, r.thisWeek) : 'Todas las semanas'; sel.appendChild(o);
+      });
+      sel.value = keep;
+      renderPlayers();
+    })
       .catch(function (e) { say('No se pudo leer la lista de jugadores (' + e.code + ').'); });
   }
   function renderPlayers() {
     var q = $('pFind').value.trim().toLowerCase(), tb = $('pRows');
     var list = P.filter(function (p) { return !q || p.name.toLowerCase().indexOf(q) >= 0 || p.addr.indexOf(q) >= 0; });
+    $('pH6').textContent = PW ? 'kcal' : 'kcal semana'; $('pH7').textContent = PW ? 'Mejor partida' : 'kcal total';
     $('pCount').textContent = '· ' + P.length + (P.filter(function (p) { return p.banned; }).length ? ' · ' + P.filter(function (p) { return p.banned; }).length + ' baneados' : '');
     tb.textContent = '';
     list.forEach(function (p) {
@@ -163,7 +178,7 @@
       cell(tr, p.name);
       var a = cell(tr, short(p.addr), 'addr'); a.title = p.addr;
       cell(tr, p.joined ? new Date(p.joined).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) : '–');
-      cell(tr, fmt(p.runs), 'num'); cell(tr, fmt(p.tickets), 'num'); cell(tr, fmt(p.week), 'num'); cell(tr, fmt(p.total), 'num');
+      cell(tr, fmt(p.runs), 'num'); cell(tr, fmt(p.tickets), 'num'); if (PW) { cell(tr, fmt(p.total), 'num'); cell(tr, fmt(p.best), 'num'); } else { cell(tr, fmt(p.week), 'num'); cell(tr, fmt(p.total), 'num'); }
       cell(tr, p.golds ? p.golds + ' · ' + ron(p.goldWei) + ' RON' : '–', 'num');
       var st = cell(tr, ''), tag = document.createElement('span'); tag.className = p.banned ? 'tag ban' : 'tag'; tag.textContent = p.banned ? 'Baneado' : 'OK'; st.appendChild(tag);
       var td = cell(tr, ''), b = document.createElement('button');
@@ -180,6 +195,7 @@
     });
   }
   $('pFind').addEventListener('input', renderPlayers);
+  $('pWeek').addEventListener('change', function () { say('Leyendo…'); loadPlayers().then(function () { say(''); }); });
   $('pReload').addEventListener('click', loadPlayers);
 
   function amount(id) { var w = toWei($(id).value); if (!w || w === '0') { say('Escribí un monto en RON.'); return null; } return w; }
