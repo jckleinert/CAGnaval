@@ -246,13 +246,13 @@ function createApp(options) {
         const body = await readJson(req);
         if (parts[2] === 'play') {
           const n = Number(body.n);
-          if (!Number.isInteger(n) || n < 1 || n > 50) throw new RunError(400, 'bad-tickets');
+          if (!Number.isInteger(n) || n < 1 || n > 1000) throw new RunError(400, 'bad-tickets');
           return send(res, 200, Object.assign({ from: addr }, await chain.txPlay(addr, n)), cors);
         }
         if (parts[2] === 'buy') {
           const n = Number(body.n);
           if (!market.enabled) throw new RunError(400, 'no-shop');
-          if (!Number.isInteger(n) || n < 1 || n > 50) throw new RunError(400, 'bad-tickets');
+          if (!Number.isInteger(n) || n < 1 || n > 1000) throw new RunError(400, 'bad-tickets');
           const info = await chain.info();
           let tx;
           try { tx = await market.txBuy(addr, n, info.ticket, info.ticketId); } catch (e) {

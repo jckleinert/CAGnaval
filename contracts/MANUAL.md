@@ -56,7 +56,7 @@ Montos en RON se escriben con 18 ceros (1 RON = `1000000000000000000`). En Remix
 
 | Campo | Valor inicial | Qué es |
 |---|---|---|
-| `maxTickets` | 25 | Tickets máximos por partida (hasta 50) |
+| `maxTickets` | 25 | Tickets máximos por partida. Se puede subir hasta 1000; la caja igual limita sola cuántos se pueden usar (21 RON libres por ticket). |
 | `capPerTicket` | 21 RON | Premio máximo de la dorada por ticket, y lo mínimo que tiene que tener la caja por ticket para arrancar. Para probar con poca plata se puede bajar (por ejemplo a 1 RON). |
 | `claimDelay` | 3600 (1 hora) | Espera entre publicar el reparto y poder cobrar |
 | `claimWeeks` | 1 | Semanas para cobrar después del cierre |

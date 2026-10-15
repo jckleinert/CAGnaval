@@ -382,7 +382,7 @@ contract CAGnaval {
     function setConfig(uint256 _maxTickets, uint256 _capPerTicket, uint256 _claimDelay, uint256 _claimWeeks)
         external onlyOwner
     {
-        require(_maxTickets >= 1 && _maxTickets <= 50, "maxTickets 1-50");
+        require(_maxTickets >= 1 && _maxTickets <= 1000, "maxTickets 1-1000");
         require(_capPerTicket > 0, "cap 0");
         require(_claimDelay <= 3 days, "claimDelay too long");
         require(_claimWeeks >= 1 && _claimWeeks <= 8, "claimWeeks 1-8");
