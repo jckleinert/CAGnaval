@@ -168,6 +168,20 @@ function createApp(options) {
       res.end(data);
     });
   }
+  /* Texts and picture of the CAGnaval Ticket collection, as wallets and Ronin Market read them.
+     The address is this site's (or PUBLIC_URL), so it follows the site if it moves. */
+  function nftMeta(req, res, pathname) {
+    const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+    const site = (config.PUBLIC_URL || (/^[a-z0-9.-]+(:\d+)?$/i.test(host) ? 'https://' + host : '')).replace(/\/+$/, '');
+    const desc = 'Your entry to the CAGnaval games on Ronin. Each ticket is one entry.';
+    const body = pathname.endsWith('collection.json')
+      ? { name: 'CAGnaval Ticket', description: desc, image: site + '/nft/ticket.png', external_link: site + '/' }
+      : { name: 'CAGnaval Ticket', description: desc, image: site + '/nft/ticket.png', external_url: site + '/',
+          attributes: [{ trait_type: 'Type', value: '1 Entry' }, { trait_type: 'Series', value: '01' }] };
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' });
+    res.end(req.method === 'HEAD' ? undefined : JSON.stringify(body, null, 1));
+  }
+
   function serveStatic(req, res, pathname) {
     let rel = pathname === '/' ? '/web/index.html' : pathname === '/admin' ? '/web/admin.html' : pathname;
     if (!rel.startsWith('/web/') && !rel.startsWith('/shared/')) rel = '/web' + rel;
@@ -376,6 +390,7 @@ function createApp(options) {
       try { url = new URL(req.url, 'http://localhost'); } catch (e) { res.writeHead(400, { 'Content-Type': 'text/plain' }); res.end('Bad request'); return; }
       if (url.pathname.startsWith('/api/')) { api(req, res, url); return; }
       if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
+      if (/^\/nft\/(1|collection)\.json$/.test(url.pathname)) { nftMeta(req, res, url.pathname); return; }
       serveStatic(req, res, url.pathname);
     } catch (e) {
       console.error(e);

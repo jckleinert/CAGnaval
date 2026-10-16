@@ -32,6 +32,7 @@ module.exports = {
   // Blockchain (Ronin). Without GAME_CONTRACT and REFEREE_KEY the game runs in practice mode only.
   GAME_CONTRACT: process.env.GAME_CONTRACT || '',
   REFEREE_KEY: process.env.REFEREE_KEY || '',   // private key of the referee wallet: only as a Railway variable, never in the code
+  PUBLIC_URL: process.env.PUBLIC_URL || '',   // the site's address for the NFT texts (default: the address it is opened with)
   CHAIN_RPC: process.env.CHAIN_RPC || 'https://api.roninchain.com/rpc',
   CHAIN_ID: num(process.env.CHAIN_ID, 2020),
   // Price of one ticket in RON: the base of the weekly prize estimate shown to players.

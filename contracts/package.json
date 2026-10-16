@@ -3,9 +3,12 @@
   "private": true,
   "description": "CAGnaval on-chain contract and its local checks (not used by the game server)",
   "scripts": {
-    "check": "node check.js"
+    "check": "node check.js",
+    "check-ticket": "node check-ticket.js",
+    "flatten": "node flatten.js"
   },
   "devDependencies": {
+    "@openzeppelin/contracts": "^5.0.2",
     "ethers": "^6.13.4",
     "ganache": "^7.9.2",
     "solc": "^0.8.24"

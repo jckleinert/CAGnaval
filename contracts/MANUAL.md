@@ -81,3 +81,19 @@ Los jugadores compran tickets desde el juego. La compra se hace en Ronin Market 
 Variables de Railway (opcionales):
 - `MARKET=off` oculta la tienda.
 - `MARKET_API_KEY`: clave de la Developer Console de Sky Mavis, solo si Ronin Market la pide.
+
+## Colección oficial: CAGnaval Ticket
+
+Archivo para Remix: `contracts/build/CAGnavalTicket.flat.sol` (todo en un solo archivo, también sirve para verificar el contrato en el explorador de Ronin).
+Es una colección ERC-1155 normal: el ítem `1` es el ticket "1 ENTRY". Solo la dueña puede crear tickets nuevos; nadie puede quitarle ni borrarle tickets a nadie.
+Los textos y la imagen los sirve la página del juego en `https://<tu-sitio>/nft/1.json`, `https://<tu-sitio>/nft/collection.json` y `https://<tu-sitio>/nft/ticket.png`.
+
+1. Compilar `CAGnavalTicket.flat.sol` (Compiler **0.8.24** · EVM version: **paris** · Optimization: tildada). Contrato a desplegar: **CAGnavalTicket**.
+2. Constructor: `_baseURI` = `https://<tu-sitio>/nft/` (con la barra final). Deploy con la billetera caliente.
+3. Crear los tickets: `mint(tu billetera, 1, cantidad)`. Se pueden crear más cuando quieras.
+4. Pasar la colección a la billetera fría: `transferOwnership(billetera fría)`.
+5. Si el sitio cambia de dirección (por ejemplo, al pasar a un dominio propio): `setBaseURI("https://<nuevo-sitio>/nft/")` desde la billetera fría, y pedir en Ronin Market que actualicen los datos de la colección.
+6. Ronin Market: pedir que aprueben la colección, poner la comisión de creador en **5%** y publicar los tickets a **1 RON**.
+7. Contrato del juego oficial: en el constructor, `_ticket` = la dirección de la colección y `_ticketId` = `1`. Después `setSplit(7250, 2000, 750, tu billetera)`, `setOperator(billetera de uso diario)` y cargar la caja de la dorada.
+
+Para revisar la colección en local: `npm run check-ticket` (crea el archivo de un solo archivo y lo prueba junto con el contrato del juego).
